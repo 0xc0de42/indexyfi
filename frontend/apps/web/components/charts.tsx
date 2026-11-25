@@ -1,56 +1,120 @@
 'use client';
+import {useState, type PointerEvent} from 'react';
 import type {Portfolio} from '@/domain/model';
 import {formatPrice} from '@/domain/model';
+import {formatClock, formatTick, nearestIndex, priceScale, timeScale} from '@/lib/chart-scale';
 import {splitAtGaps, type SeriesPoint} from '@/lib/history';
 import {useAssetPrice} from '@/lib/prices';
+import Link from 'next/link';
+import {assetHref} from '@/lib/routes';
 import {AssetIcon} from './asset-icon';
 
-const W = 600;
-const H = 200;
-const time = (ms: number) => new Date(ms).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+const clamp = (v: number) => Math.min(100, Math.max(0, v));
 
 /**
- * One asset's reference price over [now - window, now]. Minute closes and 1 s live
- * samples are drawn as received; gaps longer than 90 s break the line.
+ * One asset's reference price over [now - window, now], with a USD price axis, a
+ * local-time axis and a hover readout of the exact observation. Minute closes and
+ * 1 s live samples are drawn as received; gaps longer than 90 s break the line.
+ * The plot is a 0–100 viewBox stretched to the container; labels are HTML so text
+ * is never distorted.
  */
-export function PriceLineChart({points, now, windowMs, label}: {points: readonly SeriesPoint[]; now: number; windowMs: number; label: string}) {
-  const values = points.map(p => Number(p.price)).filter(Number.isFinite);
-  if (!values.length) return <div className="empty chart-empty">No stored or live observations in this window yet.</div>;
-  const low = Math.min(...values);
-  const high = Math.max(...values);
-  const pad = Math.max((high - low) * 0.12, high * 0.0005);
-  const min = low - pad;
-  const max = high + pad;
+export function PriceLineChart({
+  points,
+  now,
+  windowMs,
+  label,
+  windowLabel,
+}: {
+  points: readonly SeriesPoint[];
+  now: number;
+  windowMs: number;
+  label: string;
+  windowLabel: string;
+}) {
+  const [hoverX, setHoverX] = useState<number | null>(null);
+  const series = points.filter(p => Number.isFinite(Number(p.price)));
+  if (!series.length) return <div className="empty chart-empty">No stored or live observations in this window yet.</div>;
+
+  const values = series.map(p => Number(p.price));
+  const y = priceScale(Math.min(...values), Math.max(...values));
   const from = now - windowMs;
-  const x = (t: number) => Math.min(W, Math.max(0, ((t - from) / windowMs) * W));
-  const y = (v: number) => H - ((v - min) / (max - min)) * H;
-  const segments = splitAtGaps(points);
-  const last = points[points.length - 1];
-  const first = points[0];
-  const change = values.length > 1 ? (Number(last.price) / Number(first.price) - 1) * 100 : null;
+  const x = timeScale(from, now);
+  const px = (t: number) => clamp(((t - from) / windowMs) * 100);
+  const py = (v: number) => clamp(((y.max - v) / (y.max - y.min)) * 100);
+
+  const first = series[0];
+  const last = series[series.length - 1];
+  const change = series.length > 1 ? (Number(last.price) / Number(first.price) - 1) * 100 : null;
+  const segments = splitAtGaps(series);
+  const line = (segment: readonly SeriesPoint[]) => segment.map((p, j) => `${j ? 'L' : 'M'}${px(p.t).toFixed(3)},${py(Number(p.price)).toFixed(3)}`).join(' ');
+  const area = (segment: readonly SeriesPoint[]) => `${line(segment)} L${px(segment[segment.length - 1].t).toFixed(3)},100 L${px(segment[0].t).toFixed(3)},100 Z`;
+
+  const hovered = hoverX === null ? null : series[nearestIndex(series.map(p => p.t), from + (hoverX / 100) * windowMs)];
+  const focus = hovered ?? last;
+  const onMove = (event: PointerEvent<HTMLDivElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    setHoverX(clamp(((event.clientX - box.left) / box.width) * 100));
+  };
+  const history = series.filter(p => p.origin === 'history').length;
+
   return (
     <div className="price-chart">
-      <div className="chart-legend">
-        <span><i className="legend-market" /> {label} reference price (USD)</span>
-        <span>
-          {formatPrice(first.price)} → {formatPrice(last.price)}
-          {change !== null && <strong className={change < 0 ? 'negative' : 'positive'}> {change > 0 ? '+' : ''}{change.toFixed(3)}%</strong>}
-        </span>
-      </div>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={`${label} reference price history`}>
-        {[0, 50, 100, 150, 200].map(v => <line key={v} x1="0" x2={W} y1={v} y2={v} className="chart-grid" />)}
-        {segments.map((segment, i) =>
-          segment.length > 1 ? (
-            <path key={i} d={segment.map((p, j) => `${j ? 'L' : 'M'}${x(p.t).toFixed(2)},${y(Number(p.price)).toFixed(2)}`).join(' ')} className="chart-market" />
+      <div className="price-chart__head">
+        <div>
+          <span className="price-chart__price" title={`${focus.price} USD (exact)`}>{formatPrice(focus.price)}</span>
+          {hovered ? (
+            <span className="price-chart__when">{formatClock(hovered.t, true)} · {hovered.origin === 'history' ? 'minute close' : 'live sample'}</span>
           ) : (
-            <circle key={i} cx={x(segment[0].t)} cy={y(Number(segment[0].price))} r="2.5" fill="var(--chart-market)" />
-          ),
-        )}
-      </svg>
+            change !== null && (
+              <span className={`price-chart__change ${change < 0 ? 'negative' : 'positive'}`}>
+                {change > 0 ? '+' : ''}{change.toFixed(3)}% <small>{windowLabel}</small>
+              </span>
+            )
+          )}
+        </div>
+        <span className="price-chart__unit">{label} / USD · reference</span>
+      </div>
+
+      <div className="price-chart__body">
+        <div className="price-chart__plot" onPointerMove={onMove} onPointerLeave={() => setHoverX(null)}>
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={`${label} reference price, last ${windowLabel}`}>
+            <defs>
+              <linearGradient id="chart-fill" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" className="chart-fill-top" />
+                <stop offset="100%" className="chart-fill-bottom" />
+              </linearGradient>
+            </defs>
+            {y.ticks.map(v => <line key={`y${v}`} x1="0" x2="100" y1={py(v)} y2={py(v)} className="chart-grid" />)}
+            {x.ticks.map(t => <line key={`x${t}`} x1={px(t)} x2={px(t)} y1="0" y2="100" className="chart-grid chart-grid--time" />)}
+            {segments.map((segment, i) => (segment.length > 1 ? <path key={`a${i}`} d={area(segment)} className="chart-area" /> : null))}
+            {segments.map((segment, i) => (segment.length > 1 ? <path key={`l${i}`} d={line(segment)} className="chart-market" /> : null))}
+            <line x1="0" x2="100" y1={py(Number(last.price))} y2={py(Number(last.price))} className="chart-last-line" />
+          </svg>
+          {segments.filter(s => s.length === 1).map(([p]) => (
+            <i key={p.t} className="price-chart__dot price-chart__dot--single" style={{left: `${px(p.t)}%`, top: `${py(Number(p.price))}%`}} />
+          ))}
+          <i className="price-chart__dot price-chart__dot--last" style={{left: `${px(last.t)}%`, top: `${py(Number(last.price))}%`}} />
+          {hovered && (
+            <>
+              <i className="price-chart__cursor" style={{left: `${px(hovered.t)}%`}} />
+              <i className="price-chart__dot" style={{left: `${px(hovered.t)}%`, top: `${py(Number(hovered.price))}%`}} />
+            </>
+          )}
+        </div>
+        <div className="price-chart__y" aria-hidden="true">
+          {y.ticks
+            .filter(v => Math.abs(py(v) - py(Number(last.price))) > 5) // keep the last-price chip readable
+            .map(v => <span key={v} style={{top: `${py(v)}%`}}>{formatTick(v, y.decimals)}</span>)}
+          <span className="price-chart__last" style={{top: `${py(Number(last.price))}%`}}>{formatTick(Number(last.price), Math.max(y.decimals, 2))}</span>
+        </div>
+        <div className="price-chart__x" aria-hidden="true">
+          {x.ticks.map(t => <span key={t} style={{left: `${px(t)}%`}}>{formatClock(t, x.withSeconds)}</span>)}
+        </div>
+      </div>
+
       <div className="chart-axis">
-        <span>{time(from)}</span>
-        <span>{points.filter(p => p.origin === 'history').length} minute closes · {points.filter(p => p.origin === 'live').length} live samples</span>
-        <span>{time(now)}</span>
+        <span>{formatClock(from, true)} – {formatClock(now, true)} local time</span>
+        <span>{history} minute closes · {series.length - history} live samples</span>
       </div>
     </div>
   );
@@ -71,7 +135,7 @@ export function Allocation({portfolio: p}: {portfolio: Portfolio}) {
           <tbody>
             {p.allocations.map(a => (
               <tr key={a.asset.id}>
-                <td><span className="portfolio-name"><AssetIcon asset={a.asset} /><span><strong>{a.asset.symbol}</strong><small>{a.asset.name}</small></span></span></td>
+                <td><Link className="portfolio-name" href={assetHref(a.asset.id)} title={`Open ${a.asset.symbol} in Assets`}><AssetIcon asset={a.asset} /><span><strong>{a.asset.symbol}</strong><small>{a.asset.name}</small></span></Link></td>
                 <td>{a.weight}%</td>
                 <td><ConstituentPrice assetId={a.asset.id} /></td>
                 <td title="Requires on-chain holdings (Phase III)">—</td>

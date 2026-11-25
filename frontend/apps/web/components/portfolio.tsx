@@ -1,12 +1,13 @@
 'use client';
 import Link from 'next/link';
 import {useState} from 'react';
-import {ArrowLeft, ArrowDown} from 'lucide-react';
+import {ArrowLeft, ArrowDown, ArrowUpRight, Copy} from 'lucide-react';
 import {Badge, Button, Card, Metric, Empty} from '@indexfi/ui';
 import {portfolioById} from '@/domain/fixtures';
 import {usd, compact, percent, FUNDING_TOKEN, type Portfolio, type Side} from '@/domain/model';
 import {Allocation} from './charts';
-import {AssetChart, HISTORY_WINDOWS} from './asset-chart';
+import {AssetChart, HISTORY_WINDOWS, windowLabelOf} from './asset-chart';
+import {assetHref, createHref} from '@/lib/routes';
 
 function TradePanel({p}: {p: Portfolio}) {
   const [side, setSide] = useState<Side>('buy');
@@ -33,6 +34,7 @@ function TradePanel({p}: {p: Portfolio}) {
         <Button type="submit" className="full-width" disabled>Execution adapter pending</Button>
       </form>
       <p className="fine-print">Live quotes, wallet approvals and atomic execution are not connected in this phase. Selling is not direct collateral redemption.</p>
+      <Link className="button button--secondary full-width" href={createHref({from: p.id})}><Copy size={15} /> Use as template for your own portfolio</Link>
     </Card>
   );
 }
@@ -55,7 +57,10 @@ function PortfolioContent({p}: {p: Portfolio}) {
             <p>{p.symbol} · {p.description}</p>
           </div>
         </div>
-        <Badge tone={p.paused ? 'bad' : 'warn'}>{p.paused ? 'Paused' : `Fixture · ${p.venue}`}</Badge>
+        <div className="detail-actions">
+          <Badge tone={p.paused ? 'bad' : 'warn'}>{p.paused ? 'Paused' : `Fixture · ${p.venue}`}</Badge>
+          <Link className="button button--secondary" href={createHref({from: p.id})}><Copy size={15} /> Use as template</Link>
+        </div>
       </div>
       <div className="detail-grid">
         <div className="stack">
@@ -84,6 +89,7 @@ function PortfolioContent({p}: {p: Portfolio}) {
             windowMs={windowMs}
             onWindow={setWindowMs}
             title="Constituent reference prices"
+            actions={<Link className="text-link" href={assetHref(selected.id, windowLabelOf(windowMs))}>Open {selected.symbol} in Assets <ArrowUpRight size={15} /></Link>}
           />
           <Card>
             <div className="card-heading"><h2>Composition</h2><Badge>Buy and hold</Badge></div>

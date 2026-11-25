@@ -68,3 +68,6 @@ export const portfolios: readonly Portfolio[] = [
 ];
 
 export const portfolioById = (id: string) => portfolios.find(p => p.id === id) ?? null;
+
+/** Fixture portfolios that include the asset, for cross-links from asset views. */
+export const portfoliosHolding = (assetId: string) => portfolios.filter(p => p.allocations.some(a => a.asset.id === assetId));

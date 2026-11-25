@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import {useRouter} from 'next/navigation';
 import {useMemo, useState} from 'react';
 import {ArrowUpRight, Plus, Search, LayoutGrid, List} from 'lucide-react';
 import {Badge, Card, Metric, Empty} from '@indexfi/ui';
@@ -66,6 +67,7 @@ export function Explore() {
   const [sort, setSort] = useState('aum');
   const [view, setView] = useState<'table' | 'cards'>('table');
   const [filter, setFilter] = useState('all');
+  const router = useRouter();
   const all = portfolios;
   const visible = all
     .filter(
@@ -153,7 +155,7 @@ export function Explore() {
               </thead>
               <tbody>
                 {visible.map(p => (
-                  <tr key={p.id}>
+                  <tr key={p.id} className="row-link" onClick={event => { if (!(event.target as HTMLElement).closest('a')) router.push(`/portfolio/${p.id}`); }}>
                     <td>
                       <Link href={`/portfolio/${p.id}`} className="portfolio-name">
                         <span className="token-mark">{p.symbol.slice(0, 2)}</span>
