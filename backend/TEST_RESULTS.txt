@@ -1,0 +1,17 @@
+INDEXFI PHASE I — QUALITY GATE (2026-11-25)
+
+Interpreter: CPython 3.12.12 (uv-managed). uv 0.9.25.
+
+uv lock / uv sync --all-packages --locked     PASS (38 packages)
+ruff check packages services tests            PASS
+ruff format --check packages services tests   PASS (41 files)
+mypy (strict, 10 packages, 30 source files)   PASS
+pytest -ra                                    PASS (27 passed, 0 skipped)
+python -m ind_server --help                   PASS
+
+bash check.sh: PASS
+
+LIVE ATLAS (2026-11-25):
+- ind_server.verify --seconds 60: 70 feeds observed, 66/66 assets selected
+- server: cache initialized ~2s after connect; /snapshot 200 with 66 prices every second
+- Parquet: one file per UTC minute (66 rows); /history 200

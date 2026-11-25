@@ -1,0 +1,13 @@
+[project]
+name = "ind-atlas"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = ["ind-core", "ind-ws", "returns>=0.24,<1"]
+
+[build-system]
+requires = ["uv_build>=0.9,<0.10"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+ind-core = { workspace = true }
+ind-ws = { workspace = true }

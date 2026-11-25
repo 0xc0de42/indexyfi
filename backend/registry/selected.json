@@ -1,0 +1,401 @@
+{
+  "verified": true,
+  "assets": [
+    {
+      "asset_id": "56:0x000ae314e2a2172a039b26378814c252734f556a",
+      "symbol": "ASTER",
+      "feed_id": 723,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x0ca5d51d0277bd006fd9607d3e560785ebad8222",
+      "symbol": "PLTRB",
+      "feed_id": 945,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x0d8ce2a99bb6e3b7db580ed848240e4a0f9ae153",
+      "symbol": "FIL",
+      "feed_id": 736,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82",
+      "symbol": "CAKE",
+      "feed_id": 733,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x1a9fd6ec3144da3dd6ea13ec1c25c58423a379b1",
+      "symbol": "SPA",
+      "feed_id": 722,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3",
+      "symbol": "DAI",
+      "feed_id": 640,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x1ba42e5193dfa8b03d15dd1b86a3113bbbef8eeb",
+      "symbol": "ZEC",
+      "feed_id": 642,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x1ce0c2827e2ef14d5c4f29a091d735a204794041",
+      "symbol": "AVAX",
+      "feed_id": 1056,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x1d2f0da169ceb9fc7b3144628db156f3f6c60dbe",
+      "symbol": "XRP",
+      "feed_id": 634,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x1fa4a73a3f0133f0025378af00236f3abdee5d63",
+      "symbol": "NEAR",
+      "feed_id": 1055,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x205812cdbed920aff76c6580abd681a46d11efc7",
+      "symbol": "QQQB",
+      "feed_id": 947,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x2170ed0880ac9a755fd29b2688956bd959f933f8",
+      "symbol": "ETH",
+      "feed_id": 632,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x22b1458e780f8fa71e2f84502cee8b5a3cc731fa",
+      "symbol": "M",
+      "feed_id": 1060,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x25e572b466d152604d9e6c3e53b432b978825342",
+      "symbol": "SQQQB",
+      "feed_id": 1041,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x2859e4544c4bb03966803b044a93563bd2d0dd4d",
+      "symbol": "SHIB",
+      "feed_id": 1062,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x38dd26788cf2d901e3abf04efe3007d459d0fc53",
+      "symbol": "ANTB",
+      "feed_id": 1169,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x3ee2200efb3400fabb9aacf31297cbdd1d435d47",
+      "symbol": "ADA",
+      "feed_id": 630,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x3f53de71c126bdabae20f9cd64848d317f6c3238",
+      "symbol": "GOOGLB",
+      "feed_id": 952,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x40af3827f39d0eacbf4a168f8d4ee67c121d11c9",
+      "symbol": "TUSD",
+      "feed_id": 740,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x4338665cbb7b2485a8855a139b75d5e34ab0db94",
+      "symbol": "LTC",
+      "feed_id": 644,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x4b0f1812e5df2a09796481ff14017e6005508003",
+      "symbol": "TWT",
+      "feed_id": 741,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x4bd17003473389a42daf6a0a729f6fdb328bbbd7",
+      "symbol": "VAI",
+      "feed_id": 1049,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x55d398326f99059ff775485246999027b3197955",
+      "symbol": "USDT",
+      "feed_id": 647,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x570a5d26f7765ecb712c0924e4de545b89fd43df",
+      "symbol": "SOL",
+      "feed_id": 635,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x585bde7c54abb5ccd7791f923d6c2187635f3952",
+      "symbol": "COINB",
+      "feed_id": 949,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x5d3a1ff2b6bab83b63cd9ad0787074081a52ef34",
+      "symbol": "USDe",
+      "feed_id": 638,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x5f7a56e877b9130608bf8be962621011182fefe1",
+      "symbol": "QCOMB",
+      "feed_id": 954,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x64748bea17b6d19e242adf20425de2440c656142",
+      "symbol": "LITEB",
+      "feed_id": 946,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x6bdcce4a559076e37755a78ce0c06214e59e4444",
+      "symbol": "B",
+      "feed_id": 720,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x7083609fce4d1d8dc0c979aab8c869ea2c873402",
+      "symbol": "DOT",
+      "feed_id": 735,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c",
+      "symbol": "BTCB",
+      "feed_id": 751,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x7138b48df7d98d7e3cc221bfe7192d0a178182d8",
+      "symbol": "SPYB",
+      "feed_id": 956,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x740e075cbbea22a082b9d6679e65e82767875b6a",
+      "symbol": "GLWB",
+      "feed_id": 951,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x7425889fe94f9d693e8daefe88bcced6acfef4c0",
+      "symbol": "METAB",
+      "feed_id": 944,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x75fd4cf6f8392e41e70391d60c90c0d5211603a1",
+      "symbol": "AMDB",
+      "feed_id": 942,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x783c3f003f172c6ac5ac700218a357d2d66ee2a2",
+      "symbol": "B2",
+      "feed_id": 719,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x7d73496d792fa2c8144788e88217fa4e9a7e18ea",
+      "symbol": "CC",
+      "feed_id": 639,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x80106cb3ead06659a5ad19df39d9b4733863b9b0",
+      "symbol": "MSFTB",
+      "feed_id": 943,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x84575b87395c970f1f48e87d87a8db36ed653716",
+      "symbol": "CDL",
+      "feed_id": 721,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x87d00066cf131ff54b72b134a217d5401e5392b6",
+      "symbol": "PUFFER",
+      "feed_id": 726,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d",
+      "symbol": "USD1",
+      "feed_id": 643,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x8ff795a6f4d97e7887c79bea79aba5cc76444adf",
+      "symbol": "BCH",
+      "feed_id": 631,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x93862d63fd9fd488b1328e9b47717d75e994a84b",
+      "symbol": "DRAMB",
+      "feed_id": 950,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x95034f653d5d161890836ad2b6b8cc49d14e029a",
+      "symbol": "AB",
+      "feed_id": 724,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0x9be61a38725b265bc3eb7bfdf17afdfc9d26c130",
+      "symbol": "AT",
+      "feed_id": 729,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xa2e3356610840701bdf5611a53974510ae27e2e1",
+      "symbol": "wBETH",
+      "feed_id": 744,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xb035723d62e0e2ea7499d76355c9d560f13ba404",
+      "symbol": "OIK",
+      "feed_id": 1051,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b",
+      "symbol": "slisBNB",
+      "feed_id": 890,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xba2ae424d960c26247dd6c32edc70b295c744c43",
+      "symbol": "DOGE",
+      "feed_id": 628,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xbe82f76637dba2c114c41df856c2c51e522e2cb8",
+      "symbol": "EWYB",
+      "feed_id": 941,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xbf5140a22578168fd562dccf235e5d43a02ce9b1",
+      "symbol": "UNI",
+      "feed_id": 742,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xc5f0f7b66764f6ec8c8dff7ba683102295e16409",
+      "symbol": "FDUSD",
+      "feed_id": 732,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xcf6bb5389c92bdda8a3747ddb454cb7a64626c63",
+      "symbol": "XVS",
+      "feed_id": 745,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xd97d097a89113fa59b76c572e5b2eb647e8eefaf",
+      "symbol": "SOXLB",
+      "feed_id": 955,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xe256bc2a4f5297f8ba6f043f180a46300ecbcbb1",
+      "symbol": "NBISB",
+      "feed_id": 953,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xe614e2fc6c787035ff51f452e8e826bfd32d5283",
+      "symbol": "INTCB",
+      "feed_id": 940,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xe747e54783ba3f77a8e5251a3cba19ebe9c0e197",
+      "symbol": "TAKE",
+      "feed_id": 725,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xe81c6bb0266cd68b4f17278531dd03ea1f12da4e",
+      "symbol": "CBRSB",
+      "feed_id": 948,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xe87afb3076aeb0f9b14e368de8145ae6a2826a14",
+      "symbol": "MSTRB",
+      "feed_id": 939,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xe9e7cea3dedca5984780bafc599bd69add087d56",
+      "symbol": "BUSD",
+      "feed_id": 760,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xebe29695f8047c13d36e7a790ca8c1b239ffad1c",
+      "symbol": "WDCB",
+      "feed_id": 957,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xf307910a4c7bbc79691fd374889b36d8531b08e3",
+      "symbol": "ANKR",
+      "feed_id": 731,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xf4b385849f2e817e92bffbfb9aeb48f950ff4444",
+      "symbol": "EGL1",
+      "feed_id": 730,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xf81ac2e1a0373dde1bce01e2fe694a9b7e3bfcb9",
+      "symbol": "XUSD",
+      "feed_id": 648,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xf8a0bf9cf54bb92f17374d9e9a321e6a111a51bd",
+      "symbol": "LINK",
+      "feed_id": 636,
+      "channel": "public"
+    },
+    {
+      "asset_id": "56:0xfb6115445bff7b52feb98650c87f44907e58f802",
+      "symbol": "AAVE",
+      "feed_id": 734,
+      "channel": "public"
+    }
+  ]
+}

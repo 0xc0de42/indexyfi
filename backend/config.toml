@@ -1,0 +1,25 @@
+[logger]
+level = "INFO"
+colors = true
+# Seconds between status lines (feeds priced, update rate, oldest price); 0 disables.
+status_interval_seconds = 10
+
+[server]
+host = "127.0.0.1"
+port = 8000
+frontend_origin = "http://localhost:3000"
+
+[atlas.ws]
+url = "wss://push.atlasoracle.io/ws"
+
+[assets]
+registry = "registry/selected.json"
+candidates = "registry/candidates.json"
+python_module = "packages/assets/src/ind_assets/selected.py"
+
+[snapshot]
+interval_seconds = 1
+
+[history]
+directory = "data/history"
+persist_interval_seconds = 60
