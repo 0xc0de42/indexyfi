@@ -1,0 +1,34 @@
+# Local research and superseded artifacts
+/dump/
+
+# Archives and temporary extraction directories
+*.zip
+/portfolio-frontend-v2/
+
+# Dependencies and framework output
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/coverage/
+**/artifacts/
+**/cache/
+**/*.tsbuildinfo
+
+# Local environments and secrets
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+
+# Logs, Python caches, and editor/OS files
+*.log
+**/__pycache__/
+*.py[cod]
+.DS_Store
+.idea/
+.vscode/
+
+# Tool-generated local instructions
+**/AGENTS.md
