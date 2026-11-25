@@ -121,3 +121,19 @@ details .fine-print{font-family:var(--font-mono);font-size:11px;overflow-wrap:an
   .hero-preview__metrics{grid-template-columns:1fr 1fr}
   .hero-preview__metrics>.metric:nth-child(3){display:none}
 }
+
+/* Phase II: live reference prices */
+.environment__status{font-weight:600}
+.environment__status--good{color:var(--good)}
+.environment__status--warn{color:var(--warn)}
+.environment__status--bad{color:var(--bad)}
+.row-button{background:none;border:0;padding:0;text-align:left;color:inherit;cursor:pointer;font:inherit}
+.row-button:hover strong{color:var(--primary)}
+.market-table tbody tr.row--selected td{background:color-mix(in oklab,var(--primary) 7%,var(--card))}
+.card--selected{border-color:var(--primary)}
+.chart-tabs button{display:inline-flex;align-items:center;gap:6px}
+.chart-tabs .asset-icon{width:18px;height:18px;border-width:1px;font-size:8px}
+.chart-tabs+.chart-tabs{margin-top:10px}
+.price-chart .chart-axis{gap:8px}
+.price-chart .chart-axis span:nth-child(2){color:var(--muted-foreground)}
+

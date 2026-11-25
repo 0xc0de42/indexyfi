@@ -1,11 +1,65 @@
-import {z} from 'zod';
-export const assetSchema=z.object({id:z.string(),symbol:z.string(),name:z.string(),category:z.string(),price:z.number().positive().nullable(),color:z.string(),oracle:z.enum(['simulated','verified','unverified']),chainId:z.number().optional(),tokenAddress:z.string().optional(),metadataAddress:z.string().optional(),decimals:z.number().optional(),logoPath:z.string().optional(),eligibility:z.enum(['verified','preview']).optional(),backingNote:z.string().optional(),atlasFeedId:z.number().int().positive().optional(),atlasFeedName:z.string().optional()});
-export const portfolioSchema=z.object({id:z.string(),name:z.string(),symbol:z.string(),description:z.string(),category:z.string(),allocations:z.array(z.object({asset:assetSchema,weight:z.number().positive().max(100),currentWeight:z.number().optional(),quantity:z.number().optional()})),reference:z.number().positive().nullable(),marketPrice:z.number().positive().nullable(),return30d:z.number().nullable(),volume:z.number().nonnegative().nullable(),liquidity:z.number().nonnegative().nullable(),aum:z.number().nonnegative().nullable(),supply:z.number().positive().nullable(),creator:z.string().nullable(),createdAt:z.string(),phase:z.enum(['launch','graduated']),progress:z.number().min(0).max(100).nullable(),creatorFeeBps:z.number().nonnegative().nullable(),backing:z.enum(['unverified','verified','simulated']),oracleAgeSeconds:z.number().nonnegative().nullable(),tokenAddress:z.string().optional(),vaultAddress:z.string().optional(),venue:z.string(),paused:z.boolean().default(false)});
-export const pointSchema=z.object({timestamp:z.string(),reference:z.number().positive().nullable(),market:z.number().positive().nullable(),live:z.boolean().optional(),carriedForward:z.boolean().optional()});
-export type Asset=z.infer<typeof assetSchema>;export type Portfolio=z.infer<typeof portfolioSchema>;export type Point=z.infer<typeof pointSchema>;export type Side='buy'|'sell';
-export type Draft={name:string;symbol:string;description:string;category:string;allocations:{asset:Asset;weight:number}[];funding:number};
-export type Holding={portfolioId:string;quantity:number};export type Trade={id:string;portfolioId:string;side:Side;quantity:number;amount:number;fee:number;price:number;time:string};
-export const categories=['Crypto','DeFi','RWA','Thematic','Stablecoins','Mixed'];
-export const usd=(v:number|null|undefined,digits=2)=>v==null?'—':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:digits,minimumFractionDigits:digits}).format(v);
-export const compact=(v:number|null|undefined)=>v==null?'—':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',notation:'compact',maximumFractionDigits:1}).format(v);
-export const percent=(v:number|null|undefined)=>v==null?'—':`${v>0?'+':''}${v.toFixed(2)}%`;
+import type {RegistryAsset} from '../data/registry.generated';
+
+/** Chain-56 reference asset with its verified Atlas feed. Prices live in the price store, not here. */
+export type Asset = RegistryAsset & {readonly color: string};
+
+/**
+ * Portfolio as displayed. Until contracts are integrated (Phase III) every portfolio
+ * is a labelled fixture: its NAV, market, AUM, volume and progress values are
+ * illustrative, never computed from live prices.
+ */
+export interface Portfolio {
+  readonly id: string;
+  readonly name: string;
+  readonly symbol: string;
+  readonly description: string;
+  readonly category: string;
+  readonly allocations: readonly {readonly asset: Asset; readonly weight: number}[];
+  readonly source: 'fixture';
+  readonly reference: number | null;
+  readonly marketPrice: number | null;
+  readonly return30d: number | null;
+  readonly volume: number | null;
+  readonly liquidity: number | null;
+  readonly aum: number | null;
+  readonly supply: number | null;
+  readonly creator: string | null;
+  readonly createdAt: string;
+  readonly phase: 'launch' | 'graduated';
+  readonly progress: number | null;
+  readonly creatorFeeBps: number | null;
+  readonly tokenAddress?: string;
+  readonly vaultAddress?: string;
+  readonly venue: string;
+  readonly paused: boolean;
+}
+
+export type Side = 'buy' | 'sell';
+export type Draft = {name: string; symbol: string; description: string; category: string; allocations: {asset: Asset; weight: number}[]; funding: number};
+
+/** Settlement and funding token. USD reference prices assume USD/USDT parity. */
+export const FUNDING_TOKEN = 'USDT';
+export const categories = ['Crypto', 'DeFi', 'RWA', 'Thematic', 'Stablecoins', 'Mixed'];
+
+export const usd = (v: number | null | undefined, digits = 2) =>
+  v == null ? '—' : new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD', maximumFractionDigits: digits, minimumFractionDigits: digits}).format(v);
+export const compact = (v: number | null | undefined) =>
+  v == null ? '—' : new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1}).format(v);
+export const percent = (v: number | null | undefined) => (v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(2)}%`);
+
+/** Render an exact decimal price string; conversion to number happens only here, for display. */
+export function formatPrice(price: string | null | undefined): string {
+  if (price == null) return '—';
+  const value = Number(price);
+  if (!Number.isFinite(value)) return '—';
+  const digits = value >= 1 ? 2 : value >= 0.01 ? 4 : value > 0 ? Math.min(12, 2 - Math.floor(Math.log10(value)) + 2) : 2;
+  return usd(value, digits);
+}
+
+/** Seconds between a Unix-seconds source timestamp and the browser clock. */
+export function ageLabel(sourceTimestamp: number, now: number): string {
+  const seconds = Math.max(0, Math.round(now / 1000 - sourceTimestamp));
+  if (seconds < 120) return `${seconds}s ago`;
+  if (seconds < 7_200) return `${Math.round(seconds / 60)}m ago`;
+  return `${Math.round(seconds / 3_600)}h ago`;
+}

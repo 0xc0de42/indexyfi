@@ -1,4 +1,85 @@
 'use client';
-import type {Point,Portfolio} from '@/domain/model';import {AssetIcon} from './asset-icon';
-export function PriceChart({history}:{history:Point[]}){const rows=[...history].filter(p=>Number.isFinite(Date.parse(p.timestamp))).sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp));const values=rows.flatMap(p=>[p.reference,p.market].filter((v):v is number=>v!==null));if(!values.length)return <div className="empty chart-empty">No price observations for this interval.</div>;const low=Math.min(...values),high=Math.max(...values),pad=Math.max((high-low)*.12,high*.0005),min=low-pad,max=high+pad;const y=(v:number)=>200-(v-min)/(max-min)*200;const start=Date.parse(rows[0].timestamp),duration=Date.parse(rows.at(-1)!.timestamp)-start;const x=(p:Point)=>duration>0?(Date.parse(p.timestamp)-start)*600/duration:300;function line(k:'reference'|'market'){let previous=false;return rows.map((p,i)=>{const v=p[k];if(v===null){previous=false;return '';}const s=`${previous?'L':'M'}${x(p)},${y(v)}`;previous=true;return s;}).join(' ');}function area(){const pts=rows.filter(p=>p.market!==null);if(pts.length<2)return '';return `M${x(pts[0])},200 `+pts.map(p=>`L${x(p)},${y(p.market as number)}`).join(' ')+` L${x(pts.at(-1)!)},200 Z`;}return <div className="price-chart"><div className="chart-legend"><span><i className="legend-market"/> Market</span><span><i className="legend-reference"/> NAV</span></div><svg viewBox="0 0 600 200" preserveAspectRatio="none" role="img" aria-label="Portfolio market price and NAV history"><defs><linearGradient id="chart-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" className="chart-fill-top"/><stop offset="1" className="chart-fill-bottom"/></linearGradient></defs>{[0,50,100,150,200].map(v=><line key={v} x1="0" x2="600" y1={v} y2={v} className="chart-grid"/>)}{area()&&<path d={area()} className="chart-area"/>}<path d={line('reference')} className="chart-reference"/><path d={line('market')} className="chart-market"/>{rows.length===1&&values.map((v,i)=><circle key={i} cx="300" cy={y(v)} r="3" fill="var(--chart-market)"/>)}</svg><div className="chart-axis"><span>{new Date(rows[0].timestamp).toLocaleTimeString()}</span><span>{new Date(rows.at(-1)!.timestamp).toLocaleTimeString()}</span></div></div>;}
-export function Allocation({portfolio:p}:{portfolio:Portfolio}){return <><div className="allocation-bar">{p.allocations.map(a=><span key={a.asset.id} style={{width:`${a.currentWeight??a.weight}%`,background:a.asset.color}}/>)}</div><div className="table-scroll"><table><thead><tr><th>Asset</th><th>Initial weight</th><th>Current weight</th><th>Quantity</th></tr></thead><tbody>{p.allocations.map(a=><tr key={a.asset.id}><td><span className="portfolio-name"><AssetIcon asset={a.asset}/><span><strong>{a.asset.symbol}</strong><small>{a.asset.name}</small></span></span></td><td>{a.weight}%</td><td>{a.currentWeight==null?'—':`${a.currentWeight.toFixed(2)}%`}</td><td>{a.quantity?.toPrecision(5)??'—'}</td></tr>)}</tbody></table></div></>;}
+import type {Portfolio} from '@/domain/model';
+import {formatPrice} from '@/domain/model';
+import {splitAtGaps, type SeriesPoint} from '@/lib/history';
+import {useAssetPrice} from '@/lib/prices';
+import {AssetIcon} from './asset-icon';
+
+const W = 600;
+const H = 200;
+const time = (ms: number) => new Date(ms).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+
+/**
+ * One asset's reference price over [now - window, now]. Minute closes and 1 s live
+ * samples are drawn as received; gaps longer than 90 s break the line.
+ */
+export function PriceLineChart({points, now, windowMs, label}: {points: readonly SeriesPoint[]; now: number; windowMs: number; label: string}) {
+  const values = points.map(p => Number(p.price)).filter(Number.isFinite);
+  if (!values.length) return <div className="empty chart-empty">No stored or live observations in this window yet.</div>;
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  const pad = Math.max((high - low) * 0.12, high * 0.0005);
+  const min = low - pad;
+  const max = high + pad;
+  const from = now - windowMs;
+  const x = (t: number) => Math.min(W, Math.max(0, ((t - from) / windowMs) * W));
+  const y = (v: number) => H - ((v - min) / (max - min)) * H;
+  const segments = splitAtGaps(points);
+  const last = points[points.length - 1];
+  const first = points[0];
+  const change = values.length > 1 ? (Number(last.price) / Number(first.price) - 1) * 100 : null;
+  return (
+    <div className="price-chart">
+      <div className="chart-legend">
+        <span><i className="legend-market" /> {label} reference price (USD)</span>
+        <span>
+          {formatPrice(first.price)} → {formatPrice(last.price)}
+          {change !== null && <strong className={change < 0 ? 'negative' : 'positive'}> {change > 0 ? '+' : ''}{change.toFixed(3)}%</strong>}
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={`${label} reference price history`}>
+        {[0, 50, 100, 150, 200].map(v => <line key={v} x1="0" x2={W} y1={v} y2={v} className="chart-grid" />)}
+        {segments.map((segment, i) =>
+          segment.length > 1 ? (
+            <path key={i} d={segment.map((p, j) => `${j ? 'L' : 'M'}${x(p.t).toFixed(2)},${y(Number(p.price)).toFixed(2)}`).join(' ')} className="chart-market" />
+          ) : (
+            <circle key={i} cx={x(segment[0].t)} cy={y(Number(segment[0].price))} r="2.5" fill="var(--chart-market)" />
+          ),
+        )}
+      </svg>
+      <div className="chart-axis">
+        <span>{time(from)}</span>
+        <span>{points.filter(p => p.origin === 'history').length} minute closes · {points.filter(p => p.origin === 'live').length} live samples</span>
+        <span>{time(now)}</span>
+      </div>
+    </div>
+  );
+}
+
+function ConstituentPrice({assetId}: {assetId: string}) {
+  const price = useAssetPrice(assetId);
+  return <span title={price ? `${price.price} USD` : undefined}>{formatPrice(price?.price)}</span>;
+}
+
+export function Allocation({portfolio: p}: {portfolio: Portfolio}) {
+  return (
+    <>
+      <div className="allocation-bar">{p.allocations.map(a => <span key={a.asset.id} style={{width: `${a.weight}%`, background: a.asset.color}} />)}</div>
+      <div className="table-scroll">
+        <table>
+          <thead><tr><th>Asset</th><th>Initial weight</th><th>Reference price</th><th>Current weight</th></tr></thead>
+          <tbody>
+            {p.allocations.map(a => (
+              <tr key={a.asset.id}>
+                <td><span className="portfolio-name"><AssetIcon asset={a.asset} /><span><strong>{a.asset.symbol}</strong><small>{a.asset.name}</small></span></span></td>
+                <td>{a.weight}%</td>
+                <td><ConstituentPrice assetId={a.asset.id} /></td>
+                <td title="Requires on-chain holdings (Phase III)">—</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
