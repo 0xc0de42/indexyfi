@@ -2,7 +2,7 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {api, describeApiError, MAX_HISTORY_MS, type PriceSnapshot} from './api';
 import {SeriesTracker, type SeriesPoint} from './history';
-import {useSnapshotListener} from './prices';
+import {useHistoryCache, useSnapshotListener} from './prices';
 
 export type HistoryStatus = 'loading' | 'ok' | 'error';
 
@@ -31,6 +31,7 @@ export function useAssetHistory(assetIds: readonly string[], windowMs: number): 
   const [version, setVersion] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
+  const cache = useHistoryCache();
 
   useEffect(() => {
     const current = tracker.current!;
@@ -43,7 +44,13 @@ export function useAssetHistory(assetIds: readonly string[], windowMs: number): 
     const end = new Date();
     setStatus('loading');
     setError(null);
-    void api.history({start: new Date(end.getTime() - window), end, assetIds: ids}, controller.signal).then(result => {
+    const cached = attempt === 0 ? cache.usable(window) : null;
+    const load = async () => {
+      const fromBoot = cached ? await cached : null;
+      if (fromBoot) return {ok: true, value: fromBoot} as const;
+      return api.history({start: new Date(end.getTime() - window), end, assetIds: ids}, controller.signal);
+    };
+    void load().then(result => {
       if (controller.signal.aborted) return;
       if (result.ok) {
         current.setHistory(result.value);
@@ -57,7 +64,7 @@ export function useAssetHistory(assetIds: readonly string[], windowMs: number): 
       setVersion(v => v + 1);
     });
     return () => controller.abort();
-  }, [ids, window, attempt]);
+  }, [ids, window, attempt, cache]);
 
   const onSnapshot = useCallback((snapshot: PriceSnapshot) => {
     tracker.current!.addLive(snapshot);
