@@ -1,17 +1,25 @@
 'use client';
 import {useEffect, useRef, useState} from 'react';
-import {Check, ArrowRight, ArrowLeft, X, RotateCcw} from 'lucide-react';
+import {Check, ArrowRight, ArrowLeft, X, RotateCcw, Pencil} from 'lucide-react';
 import {Button, Card, Badge, Empty} from '@indexfi/ui';
 import {referenceAssets, testnetCollateral} from '@/lib/catalog';
 import {usePriceState} from '@/lib/prices';
 import {draftIssues, equalWeights, MIN_LIQUIDITY} from '@/domain/policy';
+import {addItem, isEqualSplit, normalize, removeItem, totalOf} from '@/domain/allocation';
+import {suggestTicker} from '@/domain/ticker';
 import {applyPrefill, DRAFT_KEY, EMPTY_DRAFT, parseDraft, serializeDraft, type Prefill} from '@/lib/draft';
 import {replaceQuery} from '@/lib/routes';
 import {categories, formatPrice, usd, FUNDING_TOKEN, type Asset, type Draft} from '@/domain/model';
 import {AssetIcon} from './asset-icon';
+import {AllocationEditor, segmentColor} from './allocation-editor';
 import {apiStatusText} from './api-status';
 
 const steps = ['Identity', 'Composition', 'Allocation', 'Funding', 'Review & launch'];
+const FUNDING_PRESETS = [100, 500, 1_000, 5_000];
+
+/** Older drafts may not total 100%; the editor keeps the invariant from then on. */
+const repair = (draft: Draft): Draft =>
+  draft.allocations.length && totalOf(draft.allocations) !== 100 ? {...draft, allocations: normalize(draft.allocations)} : draft;
 
 function readStored(): string | null {
   try {
@@ -27,13 +35,17 @@ export function Create({prefill}: {prefill: Prefill}) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [locked, setLocked] = useState<ReadonlySet<string>>(() => new Set());
+  const [symbolEdited, setSymbolEdited] = useState(false);
+  const [attempted, setAttempted] = useState<ReadonlySet<number>>(() => new Set());
   const loaded = useRef(false);
 
   // Restore this tab's draft, then apply a link's prefill once and drop it from the URL.
   useEffect(() => {
     const saved = parseDraft(readStored());
     const result = applyPrefill(saved?.draft ?? EMPTY_DRAFT, prefill);
-    setD(result.draft);
+    setD(repair(result.draft));
+    setSymbolEdited(Boolean(result.draft.symbol));
     setStep(result.notice ? 0 : (saved?.step ?? 0));
     setNotice(result.notice ?? (saved && saved.draft.allocations.length ? 'Your draft from this session was restored.' : null));
     if (prefill.assets || prefill.from) replaceQuery({assets: undefined, from: undefined});
@@ -52,26 +64,49 @@ export function Create({prefill}: {prefill: Prefill}) {
     setStep(0);
     setError('');
     setNotice(null);
+    setLocked(new Set());
+    setSymbolEdited(false);
+    setAttempted(new Set());
   }
   const prices = usePriceState();
   const api = apiStatusText(prices);
   const update = <K extends keyof Draft>(k: K, v: Draft[K]) => setD(old => ({...old, [k]: v}));
-  const total = d.allocations.reduce((s, a) => s + a.weight, 0);
   const priceOf = (a: Asset) => prices.byAsset.get(a.id)?.price;
 
+  const lockedIndex = (allocations: Draft['allocations']) => new Set(allocations.flatMap((x, i) => (locked.has(x.asset.id) ? [i] : [])));
+  /** Add or remove an asset; an equal split stays equal, custom weights keep their proportions. */
   function toggle(a: Asset) {
-    setD(old => ({
-      ...old,
-      allocations: equalWeights(
-        old.allocations.some(x => x.asset.id === a.id) ? old.allocations.filter(x => x.asset.id !== a.id) : [...old.allocations, {asset: a, weight: 0}],
-      ),
-    }));
+    setD(old => {
+      const index = old.allocations.findIndex(x => x.asset.id === a.id);
+      const equal = isEqualSplit(old.allocations);
+      const allocations =
+        index >= 0
+          ? equal ? equalWeights(old.allocations.filter(x => x.asset.id !== a.id)) : removeItem(old.allocations, index, lockedIndex(old.allocations))
+          : equal ? equalWeights([...old.allocations, {asset: a, weight: 0}]) : addItem(old.allocations, {asset: a, weight: 0}, lockedIndex(old.allocations));
+      return {...old, allocations};
+    });
+    setLocked(old => {
+      if (!old.has(a.id)) return old;
+      const next = new Set(old);
+      next.delete(a.id);
+      return next;
+    });
   }
-  function setWeight(id: string, w: number) {
-    update('allocations', d.allocations.map(a => (a.asset.id === id ? {...a, weight: w} : a)));
+  function toggleLock(id: string) {
+    setLocked(old => {
+      const next = new Set(old);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   }
+  function setName(name: string) {
+    setD(old => ({...old, name, symbol: symbolEdited ? old.symbol : suggestTicker(name)}));
+  }
+  const issues = draftIssues(d);
+  const fieldError = (prefix: string) => (attempted.has(step) ? issues.find(issue => issue.step === step && issue.message.startsWith(prefix))?.message : undefined);
   function next() {
-    const relevant = draftIssues(d).filter(issue => issue.step === step);
+    setAttempted(old => new Set(old).add(step));
+    const relevant = issues.filter(issue => issue.step === step);
     if (relevant.length) {
       setError(relevant.map(issue => issue.message).join(' '));
       return;
@@ -114,12 +149,34 @@ export function Create({prefill}: {prefill: Prefill}) {
         <Card className="wizard-card">
           <div className="card-heading"><h2>{steps[step]}</h2><Badge>{step + 1} / 5</Badge></div>
           {notice && <div className="notice notice--good" role="status">{notice}</div>}
-          <form onSubmit={e => { e.preventDefault(); if (step < 4) next(); }}>
+          <form noValidate onSubmit={e => { e.preventDefault(); if (step < 4) next(); }}>
             <div className="form-stack">
               {step === 0 && (
                 <>
-                  <label className="field">Portfolio name<input required maxLength={64} placeholder="e.g. Crypto Leaders" value={d.name} onChange={e => update('name', e.target.value)} /></label>
-                  <label className="field">Token symbol<input required maxLength={10} placeholder="BLUE" value={d.symbol} onChange={e => update('symbol', e.target.value.toUpperCase())} /></label>
+                  <label className="field">
+                    Portfolio name
+                    <input required maxLength={64} placeholder="e.g. Crypto Leaders" value={d.name} aria-invalid={Boolean(fieldError('Enter'))} onChange={e => setName(e.target.value)} />
+                    {fieldError('Enter') && <span className="field__error">{fieldError('Enter')}</span>}
+                  </label>
+                  <label className="field">
+                    Token symbol
+                    <input
+                      required
+                      maxLength={10}
+                      placeholder="BLUE"
+                      value={d.symbol}
+                      aria-invalid={Boolean(fieldError('Use'))}
+                      onChange={e => {
+                        setSymbolEdited(e.target.value !== '');
+                        update('symbol', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''));
+                      }}
+                    />
+                    {fieldError('Use') ? (
+                      <span className="field__error">{fieldError('Use')}</span>
+                    ) : (
+                      <span className="field__hint">{symbolEdited ? '2–10 letters or digits.' : 'Suggested from the name; type to change it.'}</span>
+                    )}
+                  </label>
                   <label className="field">Category<select value={d.category} onChange={e => update('category', e.target.value)}>{categories.map(c => <option key={c}>{c}</option>)}</select></label>
                   <label className="field">Description<textarea maxLength={300} rows={3} value={d.description} onChange={e => update('description', e.target.value)} placeholder="Describe your investment idea" /></label>
                 </>
@@ -159,29 +216,32 @@ export function Create({prefill}: {prefill: Prefill}) {
                 </>
               )}
               {step === 2 && (
-                <>
-                  <div className="card-heading">
-                    <span className="muted">Initial weights</span>
-                    <Button type="button" variant="secondary" onClick={() => update('allocations', equalWeights(d.allocations))}>Equal weight</Button>
-                  </div>
-                  {d.allocations.map(a => (
-                    <div className="allocation-control" key={a.asset.id}>
-                      <span className="portfolio-name"><AssetIcon asset={a.asset} /><strong>{a.asset.symbol}</strong></span>
-                      <input aria-label={`${a.asset.symbol} slider`} type="range" min="0" max="100" step="0.01" value={a.weight} onChange={e => setWeight(a.asset.id, Number(e.target.value))} />
-                      <label className="weight-number"><input aria-label={`${a.asset.symbol} percent`} type="number" min="0" max="100" step="0.01" value={a.weight} onChange={e => setWeight(a.asset.id, Number(e.target.value))} />%</label>
-                    </div>
-                  ))}
-                  <div className="allocation-bar">{d.allocations.map(a => <span key={a.asset.id} style={{width: `${a.weight}%`, background: a.asset.color}} />)}</div>
-                  <div className="card-heading">
-                    <span>Total allocation{Math.abs(total - 100) >= 0.00001 && <span className="muted"> · {total < 100 ? `${(100 - total).toFixed(2)}% left to allocate` : `${(total - 100).toFixed(2)}% over`}</span>}</span>
-                    <strong className={Math.abs(total - 100) < 0.00001 ? 'positive' : 'negative'}>{total.toFixed(2)}%</strong>
-                  </div>
-                  <p className="muted">Weights drift with market prices after launch. No automated rebalancing.</p>
-                </>
+                <AllocationEditor
+                  allocations={d.allocations}
+                  locked={locked}
+                  funding={d.funding}
+                  onChange={allocations => update('allocations', allocations)}
+                  onToggleLock={toggleLock}
+                  onRemove={id => {
+                    const asset = d.allocations.find(a => a.asset.id === id)?.asset;
+                    if (asset) toggle(asset);
+                  }}
+                />
               )}
               {step === 3 && (
                 <>
-                  <label className="field">Initial funding ({FUNDING_TOKEN})<input type="number" step="0.01" min="0.01" required value={d.funding} onChange={e => update('funding', Number(e.target.value))} /></label>
+                  <label className="field">
+                    Initial funding ({FUNDING_TOKEN})
+                    <input type="number" step="0.01" min="0.01" required value={d.funding} aria-invalid={Boolean(fieldError('Funding'))} onChange={e => update('funding', Number(e.target.value))} />
+                    {fieldError('Funding') && <span className="field__error">{fieldError('Funding')}</span>}
+                  </label>
+                  <div className="preset-row" role="group" aria-label="Funding presets">
+                    {FUNDING_PRESETS.map(amount => (
+                      <button type="button" key={amount} className="preset-chip" aria-pressed={d.funding === amount} onClick={() => update('funding', amount)}>
+                        {amount.toLocaleString('en-US')} {FUNDING_TOKEN}
+                      </button>
+                    ))}
+                  </div>
                   <dl className="key-values">
                     <div><dt>Separate initial market liquidity</dt><dd>{MIN_LIQUIDITY} {FUNDING_TOKEN}</dd></div>
                     <div><dt>Subtotal before execution and protocol fees</dt><dd>{usd(d.funding + MIN_LIQUIDITY)} {FUNDING_TOKEN}</dd></div>
@@ -210,10 +270,39 @@ export function Create({prefill}: {prefill: Prefill}) {
               )}
               {step === 4 && (
                 <>
-                  <div className="review-title"><h3>{d.name} · {d.symbol}</h3><span>{d.category} / Buy and hold</span></div>
+                  <div className="review-title">
+                    <h3>{d.name} · {d.symbol}</h3>
+                    <span>{d.category} / Buy and hold</span>
+                    <button type="button" className="text-button" onClick={() => setStep(0)}><Pencil size={13} /> Edit</button>
+                  </div>
+                  <div className="review-section">
+                    <div className="card-heading">
+                      <strong>Composition</strong>
+                      <span>
+                        <button type="button" className="text-button" onClick={() => setStep(1)}><Pencil size={13} /> Assets</button>{' '}
+                        <button type="button" className="text-button" onClick={() => setStep(2)}><Pencil size={13} /> Weights</button>
+                      </span>
+                    </div>
+                    <div className="allocation-bar">{d.allocations.map((a, i) => <span key={a.asset.id} style={{width: `${a.weight}%`, background: segmentColor(i)}} />)}</div>
+                    <div className="table-scroll">
+                      <table>
+                        <thead><tr><th>Asset</th><th>Weight</th><th>{FUNDING_TOKEN}</th><th>Reference price</th></tr></thead>
+                        <tbody>
+                          {d.allocations.map((a, i) => (
+                            <tr key={a.asset.id}>
+                              <td><span className="portfolio-name"><i className="alloc-row__swatch" style={{background: segmentColor(i)}} /><AssetIcon asset={a.asset} /><strong>{a.asset.symbol}</strong></span></td>
+                              <td>{a.weight}%</td>
+                              <td>{usd((d.funding * a.weight) / 100)}</td>
+                              <td>{formatPrice(priceOf(a.asset))}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                   <dl className="key-values">
                     <div><dt>Constituents</dt><dd>{d.allocations.length}</dd></div>
-                    <div><dt>{FUNDING_TOKEN} investment</dt><dd>{usd(d.funding)}</dd></div>
+                    <div><dt>{FUNDING_TOKEN} investment <button type="button" className="text-button" onClick={() => setStep(3)}><Pencil size={12} /> Edit</button></dt><dd>{usd(d.funding)}</dd></div>
                     <div><dt>Initial trading liquidity</dt><dd>{MIN_LIQUIDITY} {FUNDING_TOKEN}</dd></div>
                     <div><dt>Creator fee</dt><dd>Contract configuration pending</dd></div>
                     <div><dt>Initial shares</dt><dd>Contract quote required</dd></div>
