@@ -1,87 +1,47 @@
 'use client';
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {api, describeApiError, MAX_HISTORY_MS, type PriceSnapshot} from './api';
-import {SeriesTracker, type SeriesPoint} from './history';
-import {useHistoryCache, useSnapshotListener} from './prices';
+import {useMemo, useSyncExternalStore} from 'react';
+import {describeApiError} from './api';
+import type {SeriesPoint} from './history';
+import {CHUNKS, type HistoryProgress} from './history-store';
+import {useHistoryStore} from './prices';
 
 export type HistoryStatus = 'loading' | 'ok' | 'error';
 
 export interface AssetHistory {
   readonly status: HistoryStatus;
   readonly error: string | null;
-  /** Browser time used to bound the window on the latest render. */
+  /** "now" for the chart window: time of the store's last update. */
   readonly now: number;
+  readonly progress: HistoryProgress;
   series(assetId: string): SeriesPoint[];
   retry(): void;
 }
 
+const zero = () => 0;
+const serverProgress: HistoryProgress = {chunksDone: 0, chunksTotal: CHUNKS, coveredMs: 0, done: false, error: null};
+
 /**
- * History for the given assets over the last `windowMs`: fetched once per
- * (assets, window) change, then extended by live snapshots. Outdated requests are
- * aborted. History errors never affect live prices.
+ * History for the given assets over the last `windowMs`, read from the shared store
+ * that is preloaded at start (24 h, all assets) and kept current. Issues no requests,
+ * so switching asset or window is instant. `loading` means the preload has not yet
+ * reached back across the window.
  */
 export function useAssetHistory(assetIds: readonly string[], windowMs: number): AssetHistory {
+  const store = useHistoryStore();
+  const version = useSyncExternalStore(store.subscribe, store.getVersion, zero);
+  const progress = useSyncExternalStore(store.subscribe, store.getProgress, () => serverProgress);
+  const now = useSyncExternalStore(store.subscribe, store.getClock, zero);
   const key = assetIds.join('|');
-  const ids = useMemo(() => (key ? key.split('|') : []), [key]);
-  const window = Math.min(Math.max(windowMs, 60_000), MAX_HISTORY_MS);
-  const tracker = useRef<SeriesTracker | null>(null);
-  if (!tracker.current) tracker.current = new SeriesTracker(ids);
-  const [status, setStatus] = useState<HistoryStatus>('loading');
-  const [error, setError] = useState<string | null>(null);
-  const [version, setVersion] = useState(0);
-  const [attempt, setAttempt] = useState(0);
-  const [now, setNow] = useState(() => Date.now());
-  const cache = useHistoryCache();
-
-  useEffect(() => {
-    const current = tracker.current!;
-    current.track(ids);
-    if (!ids.length) {
-      setStatus('ok');
-      return;
-    }
-    const controller = new AbortController();
-    const end = new Date();
-    setStatus('loading');
-    setError(null);
-    const cached = attempt === 0 ? cache.usable(window) : null;
-    const load = async () => {
-      const fromBoot = cached ? await cached : null;
-      if (fromBoot) return {ok: true, value: fromBoot} as const;
-      return api.history({start: new Date(end.getTime() - window), end, assetIds: ids}, controller.signal);
-    };
-    void load().then(result => {
-      if (controller.signal.aborted) return;
-      if (result.ok) {
-        current.setHistory(result.value);
-        setStatus('ok');
-      } else if (result.error.kind !== 'aborted') {
-        current.clearHistory();
-        setStatus('error');
-        setError(describeApiError(result.error));
-      }
-      setNow(Date.now());
-      setVersion(v => v + 1);
-    });
-    return () => controller.abort();
-  }, [ids, window, attempt, cache]);
-
-  const onSnapshot = useCallback((snapshot: PriceSnapshot) => {
-    tracker.current!.addLive(snapshot);
-    setNow(Date.now());
-    setVersion(v => v + 1);
-  }, []);
-  useSnapshotListener(onSnapshot);
-
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    const status: HistoryStatus = progress.error ? 'error' : progress.done || progress.coveredMs >= windowMs ? 'ok' : 'loading';
+    return {
       status,
-      error,
+      error: progress.error ? describeApiError(progress.error) : null,
       now,
-      series: (assetId: string) => tracker.current!.series(assetId, now, window),
-      retry: () => setAttempt(a => a + 1),
-    }),
-    // version changes whenever the tracker's contents change.
-    [status, error, now, window, version],
-  );
+      progress,
+      // version 0 = nothing loaded yet (also the server render).
+      series: (assetId: string) => (version === 0 || !key.split('|').includes(assetId) ? [] : store.series(assetId, now, windowMs)),
+      retry: () => store.retry(),
+    };
+  }, [store, key, windowMs, now, version, progress]);
 }

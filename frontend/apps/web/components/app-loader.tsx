@@ -1,12 +1,14 @@
 'use client';
-import {useEffect, useState, type ReactNode} from 'react';
+import {useEffect, useState, useSyncExternalStore, type ReactNode} from 'react';
 import {referenceAssets} from '@/lib/catalog';
-import {useHistoryCache, usePriceState} from '@/lib/prices';
+import {useHistoryStore, usePriceState} from '@/lib/prices';
+import {CHUNKS, type HistoryProgress} from '@/lib/history-store';
 
 /**
  * Start-up loader. It is part of the server HTML, so it is visible on first paint,
  * while the app renders underneath (inert) and warms what the first screen needs:
- * the first complete price snapshot, all token logos and five minutes of history.
+ * the first complete price snapshot, all token logos and 24 h of history for every
+ * asset (so every chart window renders instantly).
  * It never blocks indefinitely: Skip appears after a few seconds and Continue on
  * failure. Shown once per page load.
  */
@@ -16,14 +18,14 @@ const EXIT_MS = 450;
 const TOTAL = referenceAssets.length;
 
 type Phase = 'loading' | 'leaving' | 'done';
-type Settle = 'pending' | 'ok' | 'failed';
+const serverProgress: HistoryProgress = {chunksDone: 0, chunksTotal: CHUNKS, coveredMs: 0, done: false, error: null};
 
 export function AppLoader({children}: {children: ReactNode}) {
   const prices = usePriceState();
-  const cache = useHistoryCache();
+  const store = useHistoryStore();
+  const progressOfHistory = useSyncExternalStore(store.subscribe, store.getProgress, () => serverProgress);
   const [phase, setPhase] = useState<Phase>('loading');
   const [logosSettled, setLogosSettled] = useState(0);
-  const [history, setHistory] = useState<Settle>('pending');
   const [minElapsed, setMinElapsed] = useState(false);
   const [canSkip, setCanSkip] = useState(false);
 
@@ -53,32 +55,25 @@ export function AppLoader({children}: {children: ReactNode}) {
     };
   }, []);
 
-  // Five minutes of history for all assets, shared with the first charts.
-  useEffect(() => {
-    let cancelled = false;
-    void cache.prefetch().then(result => {
-      if (!cancelled) setHistory(result.ok ? 'ok' : 'failed');
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [cache]);
-
   const priced = referenceAssets.filter(asset => prices.byAsset.has(asset.id)).length;
   const pricesReady = prices.status === 'ok' && priced >= TOTAL;
   const apiDown = prices.status === 'unreachable' || prices.status === 'error';
-  const failed = apiDown || history === 'failed';
-  const ready = pricesReady && logosSettled >= TOTAL && history !== 'pending';
-  const progress = Math.round(((priced + logosSettled) / (2 * TOTAL)) * 80 + (history !== 'pending' ? 20 : 0));
+  const historyFailed = progressOfHistory.error !== null;
+  const historyDone = progressOfHistory.done || historyFailed;
+  const failed = apiDown || historyFailed;
+  const ready = pricesReady && logosSettled >= TOTAL && historyDone;
+  const progress = Math.round(((priced + logosSettled) / (2 * TOTAL)) * 50 + (historyDone ? 50 : (progressOfHistory.chunksDone / progressOfHistory.chunksTotal) * 50));
   const status = apiDown
     ? 'Price API unreachable · retrying'
     : prices.status === 'not_initialized'
       ? 'Price server is starting up'
       : !pricesReady
         ? `Loading reference prices · ${priced} / ${TOTAL}`
-        : history === 'pending'
-          ? 'Loading recent history'
-          : 'Ready';
+        : historyFailed
+          ? 'History unavailable · charts show live samples'
+          : !historyDone
+            ? `Loading history · ${progressOfHistory.chunksDone} / ${progressOfHistory.chunksTotal} h`
+            : 'Ready';
 
   useEffect(() => {
     if (phase === 'loading' && ready && minElapsed) setPhase('leaving');

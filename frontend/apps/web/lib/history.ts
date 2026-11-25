@@ -2,7 +2,7 @@ import type {PriceSnapshot} from './api';
 
 /**
  * Chart series = persisted minute closes from `/history` merged with the 1-second
- * `/snapshot` samples observed while the page is open. Points are keyed by server
+ * `/snapshot` samples observed since the app started. Points are keyed by server
  * sample time per asset, so a minute close that was also seen live appears once.
  * Real gaps are preserved; nothing is interpolated or backfilled.
  */
@@ -15,8 +15,6 @@ export interface SeriesPoint {
   readonly origin: 'history' | 'live';
 }
 
-/** Live samples kept per asset while a chart is open (1 h at 1 Hz). */
-export const MAX_LIVE_POINTS = 3_600;
 /** Consecutive points further apart than this are drawn as a gap. */
 export const GAP_MS = 90_000;
 
@@ -51,47 +49,4 @@ export function splitAtGaps(points: readonly SeriesPoint[], gapMs = GAP_MS): Ser
     else segments.push([point]);
   }
   return segments;
-}
-
-/**
- * Per-chart state: one history response plus a bounded live buffer. History can
- * arrive before or after live samples; neither replaces the other.
- */
-export class SeriesTracker {
-  private history = new Map<string, SeriesPoint[]>();
-  private live = new Map<string, SeriesPoint[]>();
-
-  constructor(private assetIds: readonly string[]) {}
-
-  /** Change tracked assets; live buffers of assets that stay tracked are kept. */
-  track(assetIds: readonly string[]): void {
-    this.assetIds = assetIds;
-    for (const id of [...this.live.keys()]) if (!assetIds.includes(id)) this.live.delete(id);
-    this.history.clear();
-  }
-
-  setHistory(snapshots: readonly PriceSnapshot[]): void {
-    this.history = new Map(this.assetIds.map(id => [id, pointsFor(snapshots, id, 'history')]));
-  }
-
-  clearHistory(): void {
-    this.history.clear();
-  }
-
-  addLive(snapshot: PriceSnapshot): void {
-    for (const id of this.assetIds) {
-      const [point] = pointsFor([snapshot], id, 'live');
-      if (!point) continue;
-      const buffer = this.live.get(id) ?? [];
-      const last = buffer.at(-1);
-      if (last && last.t === point.t) continue;
-      buffer.push(point);
-      if (buffer.length > MAX_LIVE_POINTS) buffer.splice(0, buffer.length - MAX_LIVE_POINTS);
-      this.live.set(id, buffer);
-    }
-  }
-
-  series(assetId: string, now: number, windowMs: number): SeriesPoint[] {
-    return trimToWindow(mergeSeries(this.history.get(assetId) ?? [], this.live.get(assetId) ?? []), now, windowMs);
-  }
 }

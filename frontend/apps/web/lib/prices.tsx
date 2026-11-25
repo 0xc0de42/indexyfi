@@ -1,21 +1,28 @@
 'use client';
 import {createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode} from 'react';
 import {api, type AssetPrice, type PriceSnapshot} from './api';
-import {RecentHistoryCache} from './history-cache';
+import {HistoryStore} from './history-store';
 import {INITIAL_PRICE_STATE, PricePoller, type PriceState} from './poller';
 
 /**
- * App-level price store. Exactly one PricePoller exists per browser tab; components
- * select from it by canonical asset ID and never issue their own `/snapshot` requests.
+ * App-level price and history stores. Exactly one PricePoller and one HistoryStore exist
+ * per browser tab; components select from them by canonical asset ID and never issue
+ * their own `/snapshot` or `/history` requests.
  */
-const PollerContext = createContext<{poller: PricePoller; history: RecentHistoryCache} | null>(null);
+const PollerContext = createContext<{poller: PricePoller; history: HistoryStore} | null>(null);
 
 export function PriceProvider({children}: {children: ReactNode}) {
-  const [value] = useState(() => ({poller: new PricePoller({client: api}), history: new RecentHistoryCache(api)}));
+  const [value] = useState(() => ({poller: new PricePoller({client: api}), history: new HistoryStore({client: api})}));
   useEffect(() => {
-    value.poller.start();
-    void value.history.prefetch();
-    return () => value.poller.stop();
+    const {poller, history} = value;
+    const unsubscribe = poller.onSnapshot(snapshot => history.addSnapshot(snapshot));
+    poller.start();
+    history.start();
+    return () => {
+      unsubscribe();
+      poller.stop();
+      history.stop();
+    };
   }, [value]);
   return <PollerContext.Provider value={value}>{children}</PollerContext.Provider>;
 }
@@ -30,8 +37,8 @@ function usePoller(): PricePoller {
   return useStore().poller;
 }
 
-/** The start-up history prefetch shared by the loader and the first charts. */
-export function useHistoryCache(): RecentHistoryCache {
+/** Shared 24 h history of every reference asset (preloaded at start). */
+export function useHistoryStore(): HistoryStore {
   return useStore().history;
 }
 
