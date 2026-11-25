@@ -1,22 +1,58 @@
 'use client';
-import {useState} from 'react';
-import {Check, ArrowRight, ArrowLeft} from 'lucide-react';
+import {useEffect, useRef, useState} from 'react';
+import {Check, ArrowRight, ArrowLeft, X, RotateCcw} from 'lucide-react';
 import {Button, Card, Badge, Empty} from '@indexfi/ui';
 import {referenceAssets, testnetCollateral} from '@/lib/catalog';
 import {usePriceState} from '@/lib/prices';
-import {draftErrors, equalWeights, MIN_LIQUIDITY} from '@/domain/policy';
+import {draftIssues, equalWeights, MIN_LIQUIDITY} from '@/domain/policy';
+import {applyPrefill, DRAFT_KEY, EMPTY_DRAFT, parseDraft, serializeDraft, type Prefill} from '@/lib/draft';
+import {replaceQuery} from '@/lib/routes';
 import {categories, formatPrice, usd, FUNDING_TOKEN, type Asset, type Draft} from '@/domain/model';
 import {AssetIcon} from './asset-icon';
 import {apiStatusText} from './api-status';
 
 const steps = ['Identity', 'Composition', 'Allocation', 'Funding', 'Review & launch'];
-const initial: Draft = {name: '', symbol: '', description: '', category: 'Crypto', allocations: [], funding: 100};
 
-export function Create() {
+function readStored(): string | null {
+  try {
+    return sessionStorage.getItem(DRAFT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function Create({prefill}: {prefill: Prefill}) {
   const [step, setStep] = useState(0);
-  const [d, setD] = useState<Draft>(initial);
+  const [d, setD] = useState<Draft>(EMPTY_DRAFT);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const loaded = useRef(false);
+
+  // Restore this tab's draft, then apply a link's prefill once and drop it from the URL.
+  useEffect(() => {
+    const saved = parseDraft(readStored());
+    const result = applyPrefill(saved?.draft ?? EMPTY_DRAFT, prefill);
+    setD(result.draft);
+    setStep(result.notice ? 0 : (saved?.step ?? 0));
+    setNotice(result.notice ?? (saved && saved.draft.allocations.length ? 'Your draft from this session was restored.' : null));
+    if (prefill.assets || prefill.from) replaceQuery({assets: undefined, from: undefined});
+    loaded.current = true;
+    // Runs once per page load; later prefill changes come with a new navigation.
+  }, []);
+  useEffect(() => {
+    if (!loaded.current) return;
+    try {
+      sessionStorage.setItem(DRAFT_KEY, serializeDraft(d, step));
+    } catch {}
+  }, [d, step]);
+
+  function startOver() {
+    setD(EMPTY_DRAFT);
+    setStep(0);
+    setError('');
+    setNotice(null);
+  }
   const prices = usePriceState();
   const api = apiStatusText(prices);
   const update = <K extends keyof Draft>(k: K, v: Draft[K]) => setD(old => ({...old, [k]: v}));
@@ -35,19 +71,9 @@ export function Create() {
     update('allocations', d.allocations.map(a => (a.asset.id === id ? {...a, weight: w} : a)));
   }
   function next() {
-    const all = draftErrors(d);
-    const relevant =
-      step === 0
-        ? all.filter(e => e.startsWith('Enter') || e.startsWith('Use'))
-        : step === 1
-          ? all.filter(e => e.startsWith('Select') || e.startsWith('Duplicate'))
-          : step === 2
-            ? all.filter(e => /weight/i.test(e))
-            : step === 3
-              ? all.filter(e => e.startsWith('Funding'))
-              : all;
+    const relevant = draftIssues(d).filter(issue => issue.step === step);
     if (relevant.length) {
-      setError(relevant.join(' '));
+      setError(relevant.map(issue => issue.message).join(' '));
       return;
     }
     setError('');
@@ -63,6 +89,10 @@ export function Create() {
         <div className="eyebrow">Creator / Launch</div>
         <h1>Create a portfolio.</h1>
         <p>Choose existing assets, allocate your {FUNDING_TOKEN} and create a fixed-supply, buy-and-hold basket.</p>
+        <div className="notice notice--neutral">
+          Preview: you can design and review a portfolio with live reference prices. Launching needs the contract integration (Phase III), so nothing is
+          deployed or charged. Your draft is kept while this tab is open.
+        </div>
       </div>
       <div className="wizard-grid">
         <aside className="wizard-aside">
@@ -79,9 +109,11 @@ export function Create() {
             <h3>One basket. Fixed supply.</h3>
             <p className="muted">Pre-funded with {FUNDING_TOKEN}. No additional minting, arbitrary creator withdrawals or rebalancing. Investors exit by selling.</p>
           </Card>
+          <button type="button" className="text-button start-over" onClick={startOver}><RotateCcw size={13} /> Start over</button>
         </aside>
         <Card className="wizard-card">
           <div className="card-heading"><h2>{steps[step]}</h2><Badge>{step + 1} / 5</Badge></div>
+          {notice && <div className="notice notice--good" role="status">{notice}</div>}
           <form onSubmit={e => { e.preventDefault(); if (step < 4) next(); }}>
             <div className="form-stack">
               {step === 0 && (
@@ -99,6 +131,15 @@ export function Create() {
                     not verified testnet collateral ({testnetCollateral.length} chain-97 collateral assets verified so far).
                   </div>
                   {prices.status !== 'ok' && <div className="notice notice--warn" role="status">{api.label}. {api.detail ?? 'Prices appear once the API responds.'}</div>}
+                  {d.allocations.length > 0 && (
+                    <div className="chip-list" aria-label="Selected assets">
+                      {d.allocations.map(a => (
+                        <button type="button" key={a.asset.id} className="chip" onClick={() => toggle(a.asset)} aria-label={`Remove ${a.asset.symbol}`}>
+                          <AssetIcon asset={a.asset} /> {a.asset.symbol} <X size={13} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <label className="field">Search assets<input placeholder="Name or symbol" value={search} onChange={e => setSearch(e.target.value)} /></label>
                   {!options.length ? (
                     <Empty>No matching assets.</Empty>
@@ -114,7 +155,7 @@ export function Create() {
                       ))}
                     </div>
                   )}
-                  <p className="muted">{d.allocations.length} selected · no arbitrary asset-count limit; execution remains gas-bounded.</p>
+                  <p className="muted">{d.allocations.length} selected{d.allocations.length < 2 ? ' · select at least two' : ''} · weights are spread equally; adjust them next.</p>
                 </>
               )}
               {step === 2 && (
@@ -131,7 +172,10 @@ export function Create() {
                     </div>
                   ))}
                   <div className="allocation-bar">{d.allocations.map(a => <span key={a.asset.id} style={{width: `${a.weight}%`, background: a.asset.color}} />)}</div>
-                  <div className="card-heading"><span>Total allocation</span><strong className={Math.abs(total - 100) < 0.00001 ? 'positive' : 'negative'}>{total.toFixed(2)}%</strong></div>
+                  <div className="card-heading">
+                    <span>Total allocation{Math.abs(total - 100) >= 0.00001 && <span className="muted"> · {total < 100 ? `${(100 - total).toFixed(2)}% left to allocate` : `${(total - 100).toFixed(2)}% over`}</span>}</span>
+                    <strong className={Math.abs(total - 100) < 0.00001 ? 'positive' : 'negative'}>{total.toFixed(2)}%</strong>
+                  </div>
                   <p className="muted">Weights drift with market prices after launch. No automated rebalancing.</p>
                 </>
               )}
