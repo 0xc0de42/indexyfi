@@ -39,7 +39,6 @@ Open http://127.0.0.1:3000. `pnpm test`, `pnpm typecheck`, `pnpm build` are the 
 
 `pnpm test`, `pnpm typecheck`, `pnpm build`, `pnpm registry:check`. With the
 backend running: `INDEXFI_PROXY_URL=http://127.0.0.1:3000/backend pnpm test:live`.
-See `INTEGRATION_STATUS.md` for the Phase II ledger and report.
 
 ## Product
 
