@@ -221,6 +221,9 @@ details .fine-print{font-family:var(--font-mono);font-size:11px;overflow-wrap:an
 .detail-actions .badge{margin-bottom:0}
 .trade-panel .button--secondary{margin-top:14px}
 td a.portfolio-name:hover strong{color:var(--primary)}
+.connect-prompt{max-width:720px;padding:32px}
+.connect-prompt h2{font-size:20px;font-weight:500}
+.connect-prompt p{margin:10px 0 22px;max-width:560px}
 .price-cell{text-align:right}
 .price-cell small{display:block;font-size:11px;color:var(--subtle-foreground);margin-top:2px}
 .market-table--dense th:last-child{text-align:right}
