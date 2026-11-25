@@ -6,7 +6,10 @@
     "dev": "corepack pnpm --filter @indexfi/web dev",
     "build": "corepack pnpm --filter @indexfi/web build",
     "typecheck": "corepack pnpm --filter @indexfi/web typecheck",
-    "test": "corepack pnpm --filter @indexfi/web test"
+    "test": "corepack pnpm --filter @indexfi/web test",
+    "registry:generate": "corepack pnpm --filter @indexfi/web registry:generate",
+    "registry:check": "corepack pnpm --filter @indexfi/web registry:check",
+    "test:live": "corepack pnpm --filter @indexfi/web test:live"
   },
   "engines": {
     "node": ">=20.9.0"

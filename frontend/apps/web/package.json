@@ -6,7 +6,10 @@
     "build": "next build",
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "registry:generate": "node scripts/generate-registry.mjs",
+    "registry:check": "node scripts/generate-registry.mjs --check",
+    "test:live": "INDEXFI_LIVE=1 vitest run live.test.ts"
   },
   "dependencies": {
     "@indexfi/ui": "workspace:*",
