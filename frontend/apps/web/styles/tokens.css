@@ -1,4 +1,69 @@
-/* Replaceable visual identity. Inspired by institutional Gateway/Ostium restraint, not its assets or brand. */
-:root,[data-theme="light"]{color-scheme:light;--background:#f4f3ef;--foreground:#211f1c;--card:#fffefa;--card-foreground:#211f1c;--muted:#efede8;--muted-foreground:#77736a;--border:#e0ded6;--primary:#d84e20;--primary-foreground:#fff;--secondary:#f1efe9;--secondary-foreground:#29251f;--accent:#f9e9de;--ring:#d84e20;--good:#247452;--bad:#b43732;--warn:#98601c;--good-bg:#e7f1e9;--bad-bg:#fbeae6;--warn-bg:#fbf1de;--chart-market:#d84e20;--chart-reference:#57776f;--chart-fill:#d84e2010;--radius:7px;--radius-sm:5px;--shadow:none;--content-width:1320px;--font-ui:Arial,Helvetica,ui-sans-serif,system-ui,sans-serif;--font-display:Georgia,'Times New Roman',serif;--hero-surface:#eae5d9;--hero-ink:#c45328;}
-[data-theme="dark"]{color-scheme:dark;--background:#171817;--foreground:#efeee8;--card:#21221f;--card-foreground:#efeee8;--muted:#2b2c28;--muted-foreground:#a5a39a;--border:#363831;--primary:#fb8757;--primary-foreground:#21170e;--secondary:#2c2e28;--secondary-foreground:#efeee8;--accent:#423025;--ring:#fb8757;--good:#8bc3a4;--bad:#f49488;--warn:#e3be83;--good-bg:#233a2e;--bad-bg:#442a26;--warn-bg:#403522;--chart-market:#fb8757;--chart-reference:#91b8a7;--chart-fill:#fb875715;--hero-surface:#292b25;--hero-ink:#fb8757;}
+/* Replaceable visual identity. Inspired by institutional Gateway/Ostium restraint
+   (geometric sans, square corners, hairline rules, single orange accent), not its assets or brand. */
+:root,[data-theme="light"]{
+  color-scheme:light;
+  --background:#f6f6f4;
+  --foreground:#17120f;
+  --card:#ffffff;
+  --card-foreground:#17120f;
+  --muted:#f1f0ee;
+  --muted-foreground:#6f6a65;
+  --subtle-foreground:#9a948e;
+  --border:color-mix(in oklab,var(--foreground) 10%,transparent);
+  --border-strong:color-mix(in oklab,var(--foreground) 18%,transparent);
+  --primary:#eb5013;
+  --primary-hover:#d64610;
+  --primary-foreground:#ffffff;
+  --primary-muted:color-mix(in oklab,var(--primary) 9%,transparent);
+  --primary-border:color-mix(in oklab,var(--primary) 32%,transparent);
+  --secondary:#ffffff;
+  --secondary-foreground:#17120f;
+  --accent:color-mix(in oklab,var(--primary) 8%,var(--card));
+  --ring:#eb5013;
+  --good:#1a7a4c;--bad:#c23030;--warn:#a25a0a;
+  --good-bg:color-mix(in oklab,var(--good) 10%,transparent);
+  --bad-bg:color-mix(in oklab,var(--bad) 9%,transparent);
+  --warn-bg:color-mix(in oklab,var(--warn) 10%,transparent);
+  --chart-market:#eb5013;
+  --chart-reference:#17120f;
+  --chart-fill-top:color-mix(in oklab,#eb5013 12%,transparent);
+  --chart-fill:#eb501310;
+  --grid-line:color-mix(in oklab,var(--foreground) 5%,transparent);
+  --glow:0 24px 80px -24px color-mix(in oklab,var(--primary) 45%,transparent);
+  --radius:0px;--radius-sm:0px;
+  --shadow:none;
+  --content-width:1280px;
+  --font-ui:var(--font-instrument),ui-sans-serif,system-ui,sans-serif;
+  --font-display:var(--font-manrope),var(--font-instrument),ui-sans-serif,system-ui,sans-serif;
+  --font-label:var(--font-ui);
+  --font-mono:var(--font-jetbrains),ui-monospace,SFMono-Regular,Menlo,monospace;
+  --hero-surface:var(--card);
+  --hero-ink:var(--primary);
+}
+[data-theme="dark"]{
+  color-scheme:dark;
+  --background:#0f0f0f;
+  --foreground:#f4f4f5;
+  --card:#171717;
+  --card-foreground:#f4f4f5;
+  --muted:#1f1f1f;
+  --muted-foreground:#a1a1a6;
+  --subtle-foreground:#6e6e73;
+  --border:color-mix(in oklab,var(--foreground) 9%,transparent);
+  --border-strong:color-mix(in oklab,var(--foreground) 16%,transparent);
+  --primary:#ff5a19;
+  --primary-hover:#ff6f36;
+  --primary-foreground:#140a05;
+  --secondary:#171717;
+  --secondary-foreground:#f4f4f5;
+  --accent:color-mix(in oklab,var(--primary) 12%,var(--card));
+  --ring:#ff5a19;
+  --good:#3ccf8e;--bad:#ff5c6c;--warn:#f0a94b;
+  --chart-market:#ff5a19;
+  --chart-reference:#d4d4d8;
+  --chart-fill-top:color-mix(in oklab,#ff5a19 22%,transparent);
+  --chart-fill:#ff5a1915;
+  --grid-line:color-mix(in oklab,var(--foreground) 4%,transparent);
+  --glow:0 24px 90px -30px color-mix(in oklab,var(--primary) 50%,transparent);
+}
 @theme inline{--color-background:var(--background);--color-foreground:var(--foreground);--color-card:var(--card);--color-card-foreground:var(--card-foreground);--color-primary:var(--primary);--color-primary-foreground:var(--primary-foreground);--color-muted:var(--muted);--color-muted-foreground:var(--muted-foreground);--color-border:var(--border);--color-ring:var(--ring);--color-secondary:var(--secondary);--color-secondary-foreground:var(--secondary-foreground);}
