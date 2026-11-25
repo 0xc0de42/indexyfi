@@ -1,0 +1,14 @@
+{
+  "name": "indexfi-frontend-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.12.1",
+  "scripts": {
+    "dev": "corepack pnpm --filter @indexfi/web dev",
+    "build": "corepack pnpm --filter @indexfi/web build",
+    "typecheck": "corepack pnpm --filter @indexfi/web typecheck",
+    "test": "corepack pnpm --filter @indexfi/web test"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}
