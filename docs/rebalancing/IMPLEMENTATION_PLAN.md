@@ -1,4 +1,4 @@
-# IndexFi — Dynamic rebalancing: contracts and backend implementation plan
+# IndexFi — Dynamic rebalancing and index rules: contracts and backend implementation plan
 
 Date: 2026-11-26. Status: **plan**. The frontend is built against the interface below (`frontend/apps/web/lib/rebalance.ts`,
 `lib/vaults.ts` → `rebalanceAbi` / `factoryRebalanceAbi`, `lib/keeper-api.ts`) and detects support at runtime, so it works
@@ -112,7 +112,53 @@ GET /v1/rebalancer/status[?vault=0x…]   200 {"updated_at": ISO8601, "vaults": 
 6. **Ops:** run beside the price server; log every decision; alert on `failed`; the keeper wallet needs tBNB
    (~0.001 tBNB per 13-asset rebalance at 0.1 gwei).
 
-## 4. Rollout order and acceptance
+## 4. Index rules: top-N by market cap (S&P-style top-cap tracking)
+
+Frontend: `lib/index-rule.ts` (selection + capped market-cap weights), Composition step "Index: top N by market cap",
+Review "Composition rule", portfolio Rebalancing card (rule + live reconstitution preview).
+
+| Knob | Options | On-chain `IndexRule` |
+|---|---|---|
+| Mode | Manual selection, Index | `kind` 0 manual, 1 top-N by market cap |
+| Universe | All, or a category (Crypto, ETF, LST, Stablecoin, Tokenized equity) | `universe` = keccak256(category label), 0x0 = all |
+| Size | Top 5, 10, 15, 20 | `size` |
+| Weighting | Market cap, Equal | `weighting` 0 cap, 1 equal |
+| Max weight | No cap, 10%, 25%, 35% (only if size × cap ≥ 100%) | `maxWeightBps` |
+
+Weights: proportional to CMC market cap, capped (excess redistributed proportionally, repeated), floor 50 bps, largest
+remainder to exactly 10,000 bps. Assets without a market cap are excluded, never guessed; a short universe uses what exists.
+
+### 4.1 Contracts (vault/factory 5.2, with §2)
+```solidity
+struct IndexRule { uint8 kind; uint8 size; uint8 weighting; uint16 maxWeightBps; bytes32 universe; }
+// factory: createVaultWithPrices(..., RebalanceConfig rebalance, IndexRule rule); buildCreateArgs(..., rebalance, rule)
+function indexRule() external view returns (uint8 kind, uint8 size, uint8 weighting, uint16 maxWeightBps, bytes32 universe);
+function reconstituteWithPrices(bytes[] calldata payloads, bytes[] calldata signatures, Constituent[] calldata next,
+    uint256[] calldata minOut, uint256 deadline) external returns (uint256 navBefore, uint256 navAfter);   // index operator only
+event Reconstituted(address indexed operator, address[] removed, address[] added);
+```
+- Market caps are off-chain (CMC), so the contract cannot verify the ranking. `reconstituteWithPrices` is restricted to an
+  **index operator** set at launch (the keeper), and the contract enforces what it can: every new constituent is an
+  adapter-supported, oracle-bound asset; `next.length ≤ size`; weights sum to 10,000 and respect `maxWeightBps`; same
+  interval/threshold gate as a rebalance (a reconstitution is a rebalance with a changed basket); NAV-loss cap 1%.
+- Removed assets are sold fully; added ones bought; then weights are set to `next`. Emits `Reconstituted` + `Rebalanced`.
+- Anyone can audit a reconstitution against CMC data at that time (the keeper publishes its inputs, §4.2).
+- Bytecode: reconstitution reuses the rebalance trade loop; if it does not fit, move trade sizing into `RebalanceMath`.
+
+### 4.2 Keeper
+- For an index vault that is due: read the rule, take CMC market caps from the backend's `/v1/cmc/quotes` for the
+  deployment's executable assets, compute the selection with the **same algorithm as `lib/index-rule.ts`** (shared test
+  vectors), and call `reconstituteWithPrices` if the constituent set changed, else `rebalanceWithPrices`.
+- Write the inputs (quote timestamps, ranked caps, resulting weights) into the status file / an append-only log, and
+  expose them as `last_reconstitution` in `/v1/rebalancer/status` for auditability.
+- Skip (state `failed`, reason `market_data`) if any candidate's quote is missing or older than one CMC refresh.
+
+### 4.3 Caveats to show users
+- Ranking uses CMC market caps of the **mapped listings**. For tokenized equities these are the token listings' caps,
+  not the companies' (e.g. a tokenized Microsoft can rank below smaller companies), so "top tech" means top tokenized tech.
+- Only the deployment's executable assets are eligible; CMC data never grants eligibility.
+
+## 5. Rollout order and acceptance
 1. Contracts + tests (§2.4) → 2. local keeper integration test → 3. chain-97 redeploy + relaunch (§2.5) → 4. keeper on
    chain 97 → 5. frontend already live: Review step stores settings; portfolio page shows drift, schedule, keeper state and
    history; "Rebalance now" works for anyone when due.

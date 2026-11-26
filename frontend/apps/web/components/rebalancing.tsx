@@ -1,13 +1,16 @@
 'use client';
 import {useQuery} from '@tanstack/react-query';
-import {useEffect, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import type {Address} from 'viem';
 import {Badge, Button, Card, Metric} from '@indexfi/ui';
 import {usePublicClient} from 'wagmi';
 import {KEEPER_STATE_LABEL, keeperStatus} from '@/lib/keeper-api';
 import {bpsLabel, driftOf, rebalanceStatus, relativeTime, settingsLabel, type RebalanceState} from '@/lib/rebalance';
 import {useVaultTransaction} from '@/lib/use-vaults';
-import {feedIdsFor, readRebalance, rebalanceAbi, rebalanceHistory, signedPrices, units, type Deployment, type VaultSnapshot} from '@/lib/vaults';
+import {feedIdsFor, readIndexRule, readRebalance, rebalanceAbi, rebalanceHistory, signedPrices, units, type Deployment, type VaultSnapshot} from '@/lib/vaults';
+import {referenceAssets, referenceCategories} from '@/lib/catalog';
+import {useCmcState} from '@/lib/cmc';
+import {reconstitutionPreview, ruleLabel, selectIndex} from '@/lib/index-rule';
 import type {Valuation} from '@/lib/valuation';
 
 const STATE_TEXT: Record<RebalanceState, string> = {
@@ -33,6 +36,16 @@ export function Rebalancing({d, v, val}: {d: Deployment; v: VaultSnapshot; val: 
   });
   const keeper = useQuery({queryKey: ['keeper-status', v.address], enabled: !!config.data, queryFn: () => keeperStatus(v.address), refetchInterval: 30_000, retry: false});
   const [quoteError, setQuoteError] = useState('');
+  // Index rule (5.2+): what the next reconstitution would change, from live CMC market caps.
+  const rule = useQuery({queryKey: ['index-rule', v.address], enabled: !!client && !!config.data, queryFn: () => readIndexRule(client!, v.address as Address, referenceCategories), staleTime: Infinity});
+  const cmc = useCmcState();
+  const preview = useMemo(() => {
+    if (!rule.data) return null;
+    const executable = new Set(d.assets.map(a => a.referenceAssetId));
+    const sel = selectIndex(referenceAssets.filter(a => executable.has(a.id)), rule.data, a => cmc.rows.get(a.id)?.quote?.marketCap);
+    return sel.constituents.length ? reconstitutionPreview(v.holdings.map(h => h.referenceAssetId), sel) : null;
+  }, [rule.data, d.assets, cmc.rows, v.holdings]);
+  const symbolOf = (id: string) => v.holdings.find(h => h.referenceAssetId === id)?.symbol ?? id;
 
   const drift = val ? driftOf(val) : {driftBps: null, legs: []};
   const settings = config.data ? {intervalSeconds: config.data.intervalSeconds, thresholdBps: config.data.thresholdBps} : null;
@@ -93,6 +106,14 @@ export function Rebalancing({d, v, val}: {d: Deployment; v: VaultSnapshot; val: 
 
       {settings && config.data && (
         <>
+          {rule.data && (
+            <p className="fine-print" data-testid="index-rule-status">
+              Index rule: {ruleLabel(rule.data)}, re-selected at each rebalance.
+              {preview && (preview.add.length || preview.remove.length
+                ? <> If reconstituted now: add {preview.add.map(a => a.symbol).join(', ') || 'none'}; remove {preview.remove.map(symbolOf).join(', ') || 'none'}.</>
+                : <> The current holdings match today&apos;s top {rule.data.size}.</>)}
+            </p>
+          )}
           <p className="fine-print">
             Last rebalance: {history.data?.length ? when(history.data[0].at) : `none yet (launch ${when(config.data.lastRebalanceAt)})`}
             {keeper.data?.kind === 'ok' && keeper.data.status

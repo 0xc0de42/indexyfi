@@ -1,8 +1,9 @@
 import type {Asset, Draft} from '@/domain/model';
 import {categories} from '@/domain/model';
 import {equalWeights} from '@/domain/policy';
-import {referenceAssetById} from './catalog';
+import {referenceAssetById, referenceCategories} from './catalog';
 import {DEFAULT_REBALANCE, isValidRebalance} from './rebalance';
+import {DEFAULT_INDEX_RULE, isValidIndexRule} from './index-rule';
 
 /**
  * Create-wizard draft kept in this browser tab, so researching an asset or a
@@ -10,7 +11,7 @@ import {DEFAULT_REBALANCE, isValidRebalance} from './rebalance';
  * no longer resolves against the registry is dropped on load.
  */
 export const DRAFT_KEY = 'indexfi-create-draft';
-export const EMPTY_DRAFT: Draft = {name: '', symbol: '', description: '', category: 'Crypto', allocations: [], rebalance: DEFAULT_REBALANCE};
+export const EMPTY_DRAFT: Draft = {name: '', symbol: '', description: '', category: 'Crypto', allocations: [], rebalance: DEFAULT_REBALANCE, index: DEFAULT_INDEX_RULE};
 
 export interface SavedDraft {
   readonly draft: Draft;
@@ -29,6 +30,16 @@ function rebalanceOf(value: unknown): Draft['rebalance'] {
   const r = value as Record<string, unknown>;
   const parsed = {intervalSeconds: finite(r.intervalSeconds, -1), thresholdBps: finite(r.thresholdBps, -1)};
   return isValidRebalance(parsed) ? parsed : EMPTY_DRAFT.rebalance;
+}
+
+function indexOf(value: unknown): Draft['index'] {
+  if (typeof value !== 'object' || value === null) return EMPTY_DRAFT.index;
+  const r = value as Record<string, unknown>;
+  const parsed = {
+    kind: r.kind === 'topCap' ? 'topCap' : 'manual', universe: text(r.universe, 40), size: finite(r.size, -1),
+    weighting: r.weighting === 'equal' ? 'equal' : 'cap', maxWeightBps: finite(r.maxWeightBps, -1),
+  } as const;
+  return isValidIndexRule(parsed, referenceCategories) ? parsed : EMPTY_DRAFT.index;
 }
 
 export function parseDraft(raw: string | null): SavedDraft | null {
@@ -60,6 +71,7 @@ export function parseDraft(raw: string | null): SavedDraft | null {
       category: categories.includes(category) ? category : EMPTY_DRAFT.category,
       allocations,
       rebalance: rebalanceOf(record.rebalance),
+      index: indexOf(record.index),
     },
     step: Math.min(3, Math.max(0, Math.trunc(finite(record.step, 0)))),
   };

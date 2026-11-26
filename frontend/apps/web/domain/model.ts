@@ -7,7 +7,9 @@ export type Asset = RegistryAsset & {readonly color: string};
 export type Side = 'buy' | 'sell';
 export type Draft = {name: string; symbol: string; description: string; category: string; allocations: {asset: Asset; weight: number}[];
   /** Rebalancing chosen at launch (stored on chain by vault 5.2+): minimum seconds between rebalances (0 = off) and drift threshold. */
-  rebalance: {intervalSeconds: number; thresholdBps: number}};
+  rebalance: {intervalSeconds: number; thresholdBps: number};
+  /** How constituents are chosen: by hand, or top-N of a category by CMC market cap (lib/index-rule.ts). */
+  index: {kind: 'manual' | 'topCap'; universe: string; size: number; weighting: 'cap' | 'equal'; maxWeightBps: number}};
 
 /** Settlement and funding token. USD reference prices assume USD/USDT parity. */
 export const FUNDING_TOKEN = 'USDT';
