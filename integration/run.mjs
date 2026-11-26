@@ -109,6 +109,7 @@ try{
       'function token() view returns(address)',
       'function previewRedeem(address,uint256) view returns(uint256,uint256,uint256)',
       'function previewRedeemInKind(address,uint256) view returns(uint256[],uint256[],uint256[])',
+      'function constituents() view returns((address token,uint16 weightBps)[])',
     ],provider);
     const factory=new ethers.Contract(manifest.factory,['function isVault(address) view returns(bool)'],provider);
     assert(await factory.isVault(vaultAddress),'Factory does not recognise the launched vault');
@@ -142,20 +143,23 @@ try{
     assert(received===net,`Depositor received ${received}, expected net ${net}`);
 
     // In-kind exit for the rest: underlying tokens, no swaps, 10 bps of each to the creator.
-    const legs=await Promise.all(manifest.assets.map(a=>new ethers.Contract(a.address,erc20,provider)));
+    // Legs follow the vault's constituent order, not the manifest's.
+    const basketAssets=(await vault.constituents()).map(c=>manifest.assets.find(a=>a.address.toLowerCase()===c.token.toLowerCase()));
+    assert(basketAssets.length===2&&basketAssets.every(Boolean)&&basketAssets.map(a=>a.symbol).join()==='ETH,BTCB','Vault basket is not ETH/BTCB from the manifest');
+    const legs=basketAssets.map(a=>new ethers.Contract(a.address,erc20,provider));
     const [kindGross,kindFees,kindNet]=await vault.previewRedeemInKind(depositor,rest);
     await page.locator('.segmented button',{hasText:/^Redeem in kind$/}).click();
     await page.getByTestId('vault-amount').fill(ethers.formatUnits(rest,18));
-    await page.getByText(`${units(kindNet[0],manifest.assets[0].decimals)} ${manifest.assets[0].symbol}`,{exact:true}).waitFor({timeout:15_000});
+    await page.getByText(`${units(kindNet[0],basketAssets[0].decimals)} ${basketAssets[0].symbol}`,{exact:true}).waitFor({timeout:15_000});
     const legBalances=who=>Promise.all(legs.map(l=>l.balanceOf(who)));
     const [dep0,cre0]=await Promise.all([legBalances(depositor),legBalances(creator)]);
     await page.getByTestId('vault-submit').click();
     await page.getByTestId('wallet-shares').getByText('0',{exact:true}).waitFor({timeout:30_000});
     const [dep1,cre1]=await Promise.all([legBalances(depositor),legBalances(creator)]);
     kindGross.forEach((g,k)=>{
-      assert(kindFees[k]===g*10n/10000n,`In-kind fee for ${manifest.assets[k].symbol} is not 10 bps`);
-      assert(dep1[k]-dep0[k]===kindNet[k],`Depositor received wrong ${manifest.assets[k].symbol}`);
-      assert(cre1[k]-cre0[k]===kindFees[k],`Creator received wrong ${manifest.assets[k].symbol} fee`);
+      assert(kindFees[k]===g*10n/10000n,`In-kind fee for ${basketAssets[k].symbol} is not 10 bps`);
+      assert(dep1[k]-dep0[k]===kindNet[k],`Depositor received wrong ${basketAssets[k].symbol}`);
+      assert(cre1[k]-cre0[k]===kindFees[k],`Creator received wrong ${basketAssets[k].symbol} fee`);
     });
     assert((await token.balanceOf(depositor))===0n,'Depositor still holds portfolio tokens');
 
@@ -163,7 +167,8 @@ try{
     await page.getByTestId('onchain-vault-row').first().waitFor({timeout:30_000});
     result={vault:vaultAddress,backendPrices:66,depositUSDT:'100',depositFeeUSDT:ethers.formatUnits(depositFee,6),
       sharesIssued:ethers.formatUnits(shares,18),usdtExit:{shares:ethers.formatUnits(half,18),grossUSDT:ethers.formatUnits(gross,6),feeUSDT:ethers.formatUnits(fee,6),netUSDT:ethers.formatUnits(net,6)},
-      inKindExit:Object.fromEntries(manifest.assets.map((a,k)=>[a.symbol,{net:ethers.formatUnits(kindNet[k],a.decimals),creatorFee:ethers.formatUnits(kindFees[k],a.decimals)}]))};
+      executableAssets:manifest.assets.length,
+      inKindExit:Object.fromEntries(basketAssets.map((a,k)=>[a.symbol,{net:ethers.formatUnits(kindNet[k],a.decimals),creatorFee:ethers.formatUnits(kindFees[k],a.decimals)}]))};
     console.log(JSON.stringify({browserE2E:'passed',...result},null,2));
   }finally{await browser.close();}
 

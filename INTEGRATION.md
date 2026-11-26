@@ -60,7 +60,7 @@ corepack pnpm install --frozen-lockfile
 NEXT_PUBLIC_VAULT_CHAIN_ID=31337 NEXT_PUBLIC_VAULT_RPC_URL=http://127.0.0.1:8545 PYTHON_API_URL=http://127.0.0.1:8000 corepack pnpm dev
 ```
 
-Open `http://127.0.0.1:3000`. In a disposable wallet profile connect to local chain 31337 and use a funded local fixture account from the deployment manifest/Hardhat node. Do not reuse local test keys on public chains. Create with 100 USDT collateral and 10 USDT liquidity; then inspect portfolio, deposit, redeem, trade and manage LP. The fixture token only supports ETH/BTCB in the supplied deployment script. Historical data depends on actual observed samples.
+Open `http://127.0.0.1:3000`. In a disposable wallet profile connect to local chain 31337 and use a funded local fixture account from the deployment manifest/Hardhat node. Do not reuse local test keys on public chains. Create with 100 USDT collateral and 10 USDT liquidity; then inspect portfolio, deposit, redeem, trade and manage LP. The deployment script makes every registry asset (66) executable: a mock token, a 20M USDT V2 pool, an adapter route and an oracle price each. Prices are fixed by default (ETH 2000, BTCB 80000, others 1, matching `integration/market_fixture.py`); set `FIXTURE_PRICES_URL=http://127.0.0.1:8000/snapshot` to seed them from the live price server. A basket holds at most 32 constituents. Historical data depends on actual observed samples.
 
 ## Cross-service smoke (opt-in; modifies only local fixture state)
 
