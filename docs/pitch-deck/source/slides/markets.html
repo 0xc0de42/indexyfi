@@ -1,0 +1,16 @@
+<section id="markets" class="dark">
+<p class="eyebrow">Primary and secondary</p>
+<h2 class="title">Two ways in, two ways out</h2>
+<table class="mkt">
+<tr class="hdr"><th style="width:20%"></th><th class="c-primary" style="width:40%">Primary market</th><th class="c-secondary" style="width:40%">Secondary market</th></tr>
+<tr><td class="c-label">Where</td><td>IndexFi vault</td><td>PancakeSwap V2 pool</td></tr>
+<tr><td class="c-label">Get in</td><td>Deposit USDT → new shares</td><td>Buy shares from the pool</td></tr>
+<tr><td class="c-label">Get out</td><td>Redeem → pro-rata USDT</td><td>Sell shares into the pool</td></tr>
+<tr><td class="c-label">Price</td><td>Atlas on-chain NAV</td><td>Whatever the pool clears at</td></tr>
+<tr><td class="c-label">Fee</td><td>10 bps to the creator</td><td>Pool’s standard swap fee</td></tr>
+<tr><td class="c-label">Supply</td><td>Issued and redeemed</td><td>Unchanged; shares move</td></tr>
+<tr><td class="c-label">Oracle</td><td>Deposit yes, redeem no</td><td>Not needed</td></tr>
+</table>
+<div class="foot"><p class="ft">IndexFi · BNB Bangkok 2026</p><p class="ft pg"></p></div>
+<aside>The primary market is the vault: deposits buy the basket at current weights and mint new backed shares; redemptions sell your pro-rata slice of every holding back to USDT. Redemption doesn’t need an oracle at all. The secondary market is an ordinary PancakeSwap V2 pool where existing shares change hands at the market price. The two prices can differ, and that gap is what arbitrage closes.</aside>
+</section>

@@ -1,0 +1,32 @@
+<section id="how" class="light">
+<p class="eyebrow">How it works</p>
+<h2 class="title">From basket to tradable token</h2>
+<div class="flow">
+<div class="card in" style="--i:1">
+<p class="num">1</p>
+<h3 class="card-title">Choose</h3>
+<p class="card-small">Pick assets and fixed starting weights that sum to 100%. Constituents never change.</p>
+</div>
+<x-shape kind="arrow-right" class="flow-arrow"></x-shape>
+<div class="card in" style="--i:2">
+<p class="num">2</p>
+<h3 class="card-title">Fund</h3>
+<p class="card-small">Put in at least 100 USDT of collateral, plus a separate liquidity amount of at least 1 USDT.</p>
+</div>
+<x-shape kind="arrow-right" class="flow-arrow"></x-shape>
+<div class="card in" style="--i:3">
+<p class="num">3</p>
+<h3 class="card-title">Acquire</h3>
+<p class="card-small">The vault buys every asset on PancakeSwap. Shares are issued on the value actually acquired, at 1 USDT NAV.</p>
+</div>
+<x-shape kind="arrow-right" class="flow-arrow"></x-shape>
+<div class="card in" style="--i:4">
+<p class="num">4</p>
+<h3 class="card-title">Graduate</h3>
+<p class="card-small">OpenFour moves the token to a PancakeSwap V2 pool priced at NAV. The creator gets the LP tokens, unlocked.</p>
+</div>
+</div>
+<p class="note">Creator keeps the backed shares not placed in the pool. No manager, no rebalancing: weights drift with prices.</p>
+<div class="foot"><p class="ft">IndexFi · BNB Bangkok 2026</p><p class="ft pg"></p></div>
+<aside>A creator picks the assets and weights, which never change. They fund collateral and initial liquidity separately. Step 3 is the heart of it: the collateral USDT is split by weight and swapped into each asset on PancakeSwap, with slippage protection on every leg. The vault then counts what it actually received, not what the quote promised, values those holdings with Atlas on-chain prices, and mints one share per 1 USDT of value, rounded down. Swap costs therefore reduce the share count instead of diluting anyone, so NAV starts at 1 USDT. Finally OpenFour graduates the token to a PancakeSwap V2 pool seeded at NAV, and the creator gets unlocked LP tokens. The target is for steps 3 and 4 to run in one transaction.</aside>
+</section>

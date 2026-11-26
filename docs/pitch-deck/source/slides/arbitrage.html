@@ -1,0 +1,35 @@
+<section id="arbitrage" class="dark">
+<p class="eyebrow">Arbitrage</p>
+<h2 class="title">Arbitrage pulls price toward NAV</h2>
+<div class="row">
+<div class="card in" style="--i:1">
+<h3 class="card-title">Premium: price above NAV</h3>
+<svg class="arb-svg" viewBox="0 0 736 160" width="736" height="160" aria-label="Market price starts above the dashed NAV line and falls toward it">
+<line x1="0" y1="120" x2="736" y2="120" stroke="#A9B1BF" stroke-width="3" stroke-dasharray="12 10"/>
+<path d="M0 24 C 140 20, 220 40, 320 70 S 520 116, 736 118" fill="none" stroke="#6E9BFF" stroke-width="5"/>
+<circle cx="8" cy="24" r="8" fill="#F2B632"/>
+</svg>
+<ol class="steps">
+<li>Deposit USDT, get new shares at NAV</li>
+<li>Sell them on PancakeSwap</li>
+<li>Selling pushes the price down</li>
+</ol>
+</div>
+<div class="card in" style="--i:2">
+<h3 class="card-title">Discount: price below NAV</h3>
+<svg class="arb-svg" viewBox="0 0 736 160" width="736" height="160" aria-label="Market price starts below the dashed NAV line and rises toward it">
+<line x1="0" y1="40" x2="736" y2="40" stroke="#A9B1BF" stroke-width="3" stroke-dasharray="12 10"/>
+<path d="M0 136 C 140 140, 220 120, 320 90 S 520 44, 736 42" fill="none" stroke="#6E9BFF" stroke-width="5"/>
+<circle cx="8" cy="136" r="8" fill="#F2B632"/>
+</svg>
+<ol class="steps">
+<li>Buy shares on PancakeSwap</li>
+<li>Redeem them for pro-rata USDT</li>
+<li>Buying pushes the price up</li>
+</ol>
+</div>
+</div>
+<p class="note">Dashed line: NAV. Solid line: pool price. Worth doing only after the 10 bps fee, swap costs, slippage and gas; convergence isn’t guaranteed.</p>
+<div class="foot"><p class="ft">IndexFi · BNB Bangkok 2026</p><p class="ft pg"></p></div>
+<aside>This is the distinctive part. Because issuance and redemption are permissionless, anyone can arbitrage. If the token trades at a premium, deposit at NAV and sell into the pool. At a discount, buy from the pool and redeem. Either trade moves the market price toward NAV. It only works when the spread beats fees, slippage and gas, and thin liquidity limits it. In the demo we show this on a controlled local pool, clearly labeled.</aside>
+</section>

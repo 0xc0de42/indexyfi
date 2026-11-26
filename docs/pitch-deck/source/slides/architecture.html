@@ -1,0 +1,38 @@
+<section id="architecture" class="dark">
+<p class="eyebrow">Architecture</p>
+<h2 class="title">What IndexFi is built on</h2>
+<div class="stack">
+<div class="layer in" style="--i:1">
+<div class="box">
+<h3 class="box-title">Web app</h3>
+<p class="box-text">Next.js, wagmi/viem and RainbowKit. Create, deposit, redeem and trade from one place.</p>
+</div>
+<div class="box">
+<h3 class="box-title">Price server</h3>
+<p class="box-text">Python service streaming 66 live Atlas feeds for the asset browser and charts.</p>
+</div>
+</div>
+<div class="layer in" style="--i:2">
+<div class="box box-core">
+<h3 class="box-title">IndexFi contracts</h3>
+<p class="box-text">Factory, multi-asset basket vault and preset validator, with Atlas valuation and PancakeSwap route adapters and fixed 10 bps fees.</p>
+</div>
+</div>
+<div class="layer in" style="--i:3">
+<div class="box">
+<h3 class="box-title">OpenFour</h3>
+<p class="box-text">Core, Registry, standard token and V2 migration library, reused rather than rewritten.</p>
+</div>
+<div class="box">
+<h3 class="box-title">Atlas</h3>
+<p class="box-text">On-chain reference NAV for issuance and the opening pool price.</p>
+</div>
+<div class="box">
+<h3 class="box-title">PancakeSwap V2</h3>
+<p class="box-text">Executes the basket swaps and hosts the secondary pool.</p>
+</div>
+</div>
+</div>
+<div class="foot"><p class="ft">IndexFi · BNB Bangkok 2026</p><p class="ft pg"></p></div>
+<aside>Reuse first. We use OpenFour’s official Core, Registry, token and migration library, and only write what a basket needs: a custom multi-asset vault, a preset validator and a factory. Atlas provides the on-chain reference price used for issuance; PancakeSwap executes the swaps and hosts the pool. The Python server only displays live Atlas prices: it holds no keys and is never used as an on-chain price source.</aside>
+</section>
