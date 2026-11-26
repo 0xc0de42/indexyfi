@@ -6,6 +6,7 @@ requires-python = "==3.12.*"
 members = [
     "ind-assets",
     "ind-atlas",
+    "ind-cmc",
     "ind-config",
     "ind-core",
     "ind-fs",
@@ -161,6 +162,25 @@ requires-dist = [
 ]
 
 [[package]]
+name = "ind-cmc"
+version = "0.1.0"
+source = { editable = "packages/cmc" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "ind-core" },
+    { name = "pyarrow" },
+    { name = "returns" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiohttp", specifier = ">=3.11,<4" },
+    { name = "ind-core", editable = "packages/core" },
+    { name = "pyarrow", specifier = ">=18,<24" },
+    { name = "returns", specifier = ">=0.24,<1" },
+]
+
+[[package]]
 name = "ind-config"
 version = "0.1.0"
 source = { editable = "packages/config" }
@@ -231,6 +251,7 @@ dependencies = [
     { name = "aiohttp" },
     { name = "ind-assets" },
     { name = "ind-atlas" },
+    { name = "ind-cmc" },
     { name = "ind-config" },
     { name = "ind-core" },
     { name = "ind-history" },
@@ -244,6 +265,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.11,<4" },
     { name = "ind-assets", editable = "packages/assets" },
     { name = "ind-atlas", editable = "packages/atlas" },
+    { name = "ind-cmc", editable = "packages/cmc" },
     { name = "ind-config", editable = "packages/config" },
     { name = "ind-core", editable = "packages/core" },
     { name = "ind-history", editable = "packages/history" },

@@ -23,3 +23,15 @@ interval_seconds = 1
 [history]
 directory = "data/history"
 persist_interval_seconds = 60
+
+[cmc]
+enabled = false
+mapping = "registry/cmc.json"
+directory = "data/cmc"
+quote_seconds = 900
+history_days = 30
+history_max_query_days = 365
+history_delay_seconds = 600
+concurrency = 1
+retries = 2
+timeout_seconds = 30
