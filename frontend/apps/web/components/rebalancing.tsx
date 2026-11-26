@@ -5,7 +5,10 @@ import type {Address} from 'viem';
 import {Badge, Button, Card, Metric} from '@indexfi/ui';
 import {usePublicClient} from 'wagmi';
 import {KEEPER_STATE_LABEL, keeperStatus} from '@/lib/keeper-api';
-import {bpsLabel, driftOf, rebalancePlan, rebalanceStatus, relativeTime, settingsLabel, type RebalanceState} from '@/lib/rebalance';
+import {bpsLabel, driftOf, nextScheduled, rebalancePlan, rebalanceStatus, relativeTime, settingsLabel, simulateRebalances, type RebalanceState} from '@/lib/rebalance';
+import {useVaultLaunchTime} from '@/lib/use-vaults';
+import {useHistoryStore} from '@/lib/prices';
+import {formatUnits} from 'viem';
 import {portfolioSettings, type PortfolioSettings} from '@/lib/portfolio-settings';
 import {usd} from '@/domain/model';
 import {useVaultTransaction} from '@/lib/use-vaults';
@@ -68,6 +71,28 @@ export function Rebalancing({d, v, val}: {d: Deployment; v: VaultSnapshot; val: 
   const status = settings ? rebalanceStatus(settings, config.data?.lastRebalanceAt ?? 0, drift.driftBps, now) : null;
   const plan = val && settings && settings.intervalSeconds > 0 ? rebalancePlan(val) : null;
   const isDemo = !config.data && !!demo;
+  // Demo schedule: counted from the vault's real launch time; history replayed from the app's stored Atlas prices (24 h).
+  const launch = useVaultLaunchTime(isDemo ? d : undefined, v.address as Address);
+  const history24 = useHistoryStore();
+  const minute = Math.floor(now / 60);
+  const scheduled = isDemo && settings && launch.data ? nextScheduled(launch.data, settings.intervalSeconds, now) : null;
+  const simulated = useMemo(() => {
+    if (!isDemo || !settings || settings.intervalSeconds <= 0 || !launch.data) return null;
+    const end = minute * 60, windowStart = Math.max(launch.data, end - 86_400);
+    const first = launch.data + Math.ceil((windowStart - launch.data) / settings.intervalSeconds) * settings.intervalSeconds;
+    const series = new Map(v.holdings.map(h => [h.referenceAssetId, history24.series(h.referenceAssetId, end * 1000, 86_400_000)]));
+    const priceAt = (id: string, at: number) => {
+      const pts = series.get(id) ?? [];
+      let best: number | null = null;
+      for (const pt of pts) { if (pt.t <= at * 1000) best = Number(pt.price); else break; }
+      return best;
+    };
+    const checks = first <= end ? Math.floor((end - first) / settings.intervalSeconds) + 1 : 0;
+    return {from: first, checks, events: simulateRebalances({
+      holdings: v.holdings.map(h => ({id: h.referenceAssetId, units: Number(formatUnits(h.balance, h.decimals)), targetPct: Number(h.weightBps) / 100})),
+      priceAt, start: first - settings.intervalSeconds, end, intervalSeconds: settings.intervalSeconds, thresholdBps: settings.thresholdBps,
+    })};
+  }, [isDemo, settings, launch.data, minute, v.holdings, history24]);
   const scale = Math.max(settings?.thresholdBps ?? 100, drift.driftBps ?? 0) * 1.25;
 
   async function rebalanceNow() {
@@ -96,6 +121,9 @@ export function Rebalancing({d, v, val}: {d: Deployment; v: VaultSnapshot; val: 
       <div className="price-metrics">
         <Metric label="Current drift" value={<span className="rebalance-drift">{drift.driftBps === null ? '—' : bpsLabel(Math.round(drift.driftBps))}</span>} detail="largest weight gap, Atlas prices" />
         <Metric label="Settings" value={settings ? (settings.intervalSeconds === 0 ? 'Off' : `${bpsLabel(settings.thresholdBps)} · ${settingsLabel(settings).split(',')[0].replace('At most every ', 'every ')}`) : '—'} detail={settings ? `threshold · minimum interval${isDemo ? (demo?.source === 'launch' ? ' · chosen at launch' : ' · demo preset') : ''}` : 'chosen at launch'} />
+        {isDemo && settings && settings.intervalSeconds > 0 && (
+          <Metric label="Next scheduled check" value={scheduled ? relativeTime(scheduled, now) : launch.isLoading ? '…' : '—'} detail={scheduled ? `${when(scheduled)} · every ${settingsLabel(settings).split(',')[0].replace('At most every ', '')} since launch` : 'from the launch time'} />
+        )}
         {settings && config.data && settings.intervalSeconds > 0 && (
           <Metric label="Next eligible" value={status?.eligibleAt == null ? '—' : status.eligibleAt <= now ? 'Now' : relativeTime(status.eligibleAt, now)} detail={status?.eligibleAt ? when(status.eligibleAt) : undefined} />
         )}
@@ -150,6 +178,17 @@ export function Rebalancing({d, v, val}: {d: Deployment; v: VaultSnapshot; val: 
                 ? <> Re-selection now would add {demoPreview.add.map(a => a.symbol).join(', ') || 'none'} and remove {demoPreview.remove.map(symbolOf).join(', ') || 'none'}.</>
                 : <> The current holdings match today&apos;s top {demoRule.size}.</>)}
             </p>
+          )}
+          {simulated && (
+            <div data-testid="rebalance-simulated">
+              <strong className="fine-print">Simulated over the last 24 h (stored Atlas prices)</strong>
+              {!simulated.checks
+                ? <p className="muted">No scheduled check has passed since launch yet; the first is {relativeTime(simulated.from, now)}.</p>
+                : !simulated.events.length
+                ? <p className="muted">No rebalance would have triggered: drift stayed below {bpsLabel(settings.thresholdBps)} at all {simulated.checks} scheduled check{simulated.checks === 1 ? '' : 's'}.</p>
+                : <ul className="rebalance-history">{simulated.events.slice(-6).reverse().map(e => (
+                    <li key={e.at}>{when(e.at)} · drift {bpsLabel(Math.round(e.driftBps))} · turnover {usd(e.turnoverUsd)}</li>))}</ul>}
+            </div>
           )}
           <p className="fine-print">Demo: this shows what the rebalancer would do with the settings above, at signed Atlas prices through USDT. It is not executed on chain yet; on-chain rebalancing is the next contract release.</p>
         </div>

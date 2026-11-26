@@ -108,3 +108,45 @@ export function rebalancePlan(val: Pick<Valuation, 'holdings'>, minUsd = 0.01): 
   const turnoverUsd = trades.filter(t => t.side === 'sell').reduce((s, t) => s + t.usd, 0);
   return {trades, turnoverUsd, feeUsd: turnoverUsd * 2 * 0.0025};
 }
+
+/** Next scheduled check for a demo schedule counted from launch: the first boundary launch + k·interval after now. */
+export function nextScheduled(launchSeconds: number, intervalSeconds: number, nowSeconds: number): number | null {
+  if (intervalSeconds <= 0) return null;
+  if (nowSeconds < launchSeconds) return launchSeconds + intervalSeconds;
+  return launchSeconds + (Math.floor((nowSeconds - launchSeconds) / intervalSeconds) + 1) * intervalSeconds;
+}
+
+export interface SimulatedRebalance {
+  /** Unix seconds of the interval boundary. */
+  readonly at: number;
+  readonly driftBps: number;
+  readonly turnoverUsd: number;
+}
+/**
+ * Replay a rebalancing schedule over past prices (demo): starting from the given balances, at every interval boundary
+ * value the holdings, and when drift ≥ threshold record a rebalance and reset the simulated balances to the target
+ * weights (value kept, minus PancakeSwap fees on the turnover). Boundaries where any price is missing are skipped.
+ */
+export function simulateRebalances({holdings, priceAt, start, end, intervalSeconds, thresholdBps, feeRate = 0.0025}: {
+  holdings: readonly {id: string; units: number; targetPct: number}[];
+  priceAt: (id: string, atSeconds: number) => number | null;
+  start: number; end: number; intervalSeconds: number; thresholdBps: number; feeRate?: number;
+}): SimulatedRebalance[] {
+  if (intervalSeconds <= 0 || !holdings.length) return [];
+  const units = new Map(holdings.map(h => [h.id, h.units]));
+  const events: SimulatedRebalance[] = [];
+  for (let t = start + intervalSeconds; t <= end; t += intervalSeconds) {
+    const prices = holdings.map(h => priceAt(h.id, t));
+    if (prices.some(p => p === null || !(p > 0))) continue;
+    const values = holdings.map((h, i) => units.get(h.id)! * prices[i]!);
+    const total = values.reduce((s, x) => s + x, 0);
+    if (!(total > 0)) continue;
+    const driftBps = Math.max(...holdings.map((h, i) => Math.abs((values[i] / total) * 100 - h.targetPct))) * 100;
+    if (driftBps < thresholdBps) continue;
+    const turnoverUsd = holdings.reduce((s, h, i) => s + Math.max(0, values[i] - (total * h.targetPct) / 100), 0);
+    const after = total - turnoverUsd * 2 * feeRate;
+    holdings.forEach((h, i) => units.set(h.id, (after * h.targetPct) / 100 / prices[i]!));
+    events.push({at: t, driftBps, turnoverUsd});
+  }
+  return events;
+}

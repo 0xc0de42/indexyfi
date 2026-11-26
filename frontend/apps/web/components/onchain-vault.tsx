@@ -19,7 +19,7 @@ import {useCmcState} from '@/lib/cmc';
 import {cmcPct, cmcUsd, pctTone, relationLabel} from '@/lib/cmc-format';
 import {createHref} from '@/lib/routes';
 import {formatPrice, usd} from '@/domain/model';
-import {useVault, useVaultDeployment, useVaultTransaction, type VaultAction} from '@/lib/use-vaults';
+import {useVault, useVaultDeployment, useVaultLaunchTime, useVaultTransaction, type VaultAction} from '@/lib/use-vaults';
 
 type Mode='deposit'|'redeem'|'redeemInKind'|'buy'|'sell'|'addLiquidity'|'removeLiquidity';
 type Quote={action:VaultAction; lines:readonly [string,string][]; key:string};
@@ -32,6 +32,8 @@ export function OnchainVault({address}:{address:Address}) {
   const account=useAccount();
   const vault=useVault(deployment.data,address);
   const transaction=useVaultTransaction(deployment.data);
+  // Flap tax tokens: the buy/sell tax applies only within taxDuration of the launch.
+  const launchTime=useVaultLaunchTime(deployment.data?.provider==='flap'?deployment.data:undefined,address);
   const prices=usePriceState();
   const cmc=useCmcState();
   const [mode,setMode]=useState<Mode>('deposit');
@@ -80,8 +82,15 @@ export function OnchainVault({address}:{address:Address}) {
           if(mode==='buy'||mode==='sell'){
             const buy=mode==='buy',path=buy?[d.settlementToken,v.token]:[v.token,d.settlementToken];
             const outputs=await client.readContract({address:d.router,abi:routerAbi,functionName:'getAmountsOut',args:[value,path]});
-            const out=outputs.at(-1)??0n;if(out===0n)throw Error('Swap output is zero.');
-            publish({kind:'swap',token:v.token,buy,amount:value,out},[['Expected output',buy?shares(out):cash(out)]]);
+            const raw=outputs.at(-1)??0n;if(raw===0n)throw Error('Swap output is zero.');
+            // Flap: getAmountsOut ignores the token tax, so apply it while the tax period is active.
+            const f=d.flap,taxBps=f?(buy?f.buyTaxBps:f.sellTaxBps):0;
+            const ends=f&&launchTime.data?launchTime.data+f.taxDuration:null;
+            const active=!!f&&taxBps>0&&(ends===null||Date.now()/1000<ends);
+            const out=active?raw*BigInt(10_000-taxBps)/10_000n:raw;
+            const rows:[string,string][]=[[f?'Expected output (after tax)':'Expected output',buy?shares(out):cash(out)]];
+            if(f) rows.push(['Trading tax',active?`${taxBps/100}% ${buy?'buy':'sell'} tax${ends?` until ${new Date(ends*1000).toLocaleTimeString([], {hour12:false})}`:' (launch time unknown, assumed active)'}`:`0% (${taxBps?'tax period ended':'no tax on this side'})`]);
+            publish({kind:'swap',token:v.token,buy,amount:value,out},rows);
           } else if(mode==='addLiquidity'){
             const tokenAmount=value*v.pool.shares/v.pool.cash;
             if(tokenAmount===0n)throw Error('Liquidity amount too small.');
@@ -96,7 +105,7 @@ export function OnchainVault({address}:{address:Address}) {
       }catch(err){if(active)setQuoteError(err instanceof Error?err.message.split('\n')[0]:'Quote failed');}
     }
     void preview();return()=>{active=false;};
-  },[amount,mode,address,deployment.client,deployment.data,vault.data,account.address,key]);
+  },[amount,mode,address,deployment.client,deployment.data,vault.data,account.address,key,launchTime.data]);
 
   // Display valuation: on-chain holdings x latest Atlas prices (no staleness check); execution re-prices on chain.
   const val=useMemo(()=>vault.data&&deployment.data?valuation(vault.data,prices.byAsset,deployment.data.settlementDecimals):null,[vault.data,prices.byAsset,deployment.data]);

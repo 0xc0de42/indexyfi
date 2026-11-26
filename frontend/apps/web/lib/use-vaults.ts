@@ -7,7 +7,7 @@ import {factoryRebalanceAbi, indexRuleArg, rebalanceAbi} from './vaults';
 import type {RebalanceSettings} from './rebalance';
 import {flapErrorMessage} from './flap';
 import type {Draft} from '@/domain/model';
-import {loadFlapDeployment} from './vaults';
+import {loadFlapDeployment, vaultLaunchTime} from './vaults';
 import {authorizeLaunch, launchDigest, launchSigner, newRequestId, factoryAbi, feedIdsFor, floorOutput, gasLimit, legMinimums, listVaults, loadDeployment, signedPrices, vaultAbi, vaultChain, vaultEvent, vaultSnapshot, routerAbi, type Deployment, type GasKind} from './vaults';
 
 export function useDeployment() {
@@ -39,6 +39,11 @@ export function useVaultDeployment(address?:Address) {
     queryFn:async()=>flap.data&&address&&await client!.readContract({address:flap.data.factory,abi:factoryAbi,functionName:'isVault',args:[address]})?'flap' as const:'openfour' as const,staleTime:Infinity});
   const data=owner.data==='flap'?flap.data??undefined:owner.data==='openfour'?openfour.data:undefined;
   return {client,data,isLoading:openfour.isLoading||!flap.isFetched||owner.isLoading,isError:openfour.isError&&!data,error:openfour.error};
+}
+/** A vault's launch time (Unix seconds), cached for the session; null if the RPC cannot find it. */
+export function useVaultLaunchTime(d:Deployment|undefined,vault:Address|undefined){
+  const client=usePublicClient({chainId:d?.chainId??vaultChain.id});
+  return useQuery({queryKey:['vault-launch-time',d?.factory??'none',vault??'none'],enabled:!!d&&!!vault&&!!client,queryFn:()=>vaultLaunchTime(client!,d!,vault!),staleTime:Infinity,retry:1});
 }
 export function useDirectory(d?:Deployment) {
   const client=usePublicClient({chainId:d?.chainId??vaultChain.id});

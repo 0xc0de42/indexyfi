@@ -292,6 +292,19 @@ async function verifyDeployment(client:PublicClient,d:Deployment):Promise<Deploy
   if(assetDecimals.some((n,i)=>n!==d.assets[i].decimals))throw Error('Execution asset decimals mismatch');
   return d;
 }
+/** Unix seconds of the block that created `vault` (its factory's VaultCreated), searching back in RPC-sized chunks. */
+export async function vaultLaunchTime(client:PublicClient,d:Deployment,vault:Address,chunk=40_000n):Promise<number|null>{
+  const latest=await client.getBlockNumber();
+  const floor=BigInt(d.deploymentBlock);
+  for(let to=latest;to>=floor;to-=chunk){
+    const from=to-chunk+1n>floor?to-chunk+1n:floor;
+    const logs=await client.getContractEvents({address:d.factory,abi:factoryAbi,eventName:'VaultCreated',args:{vault},fromBlock:from,toBlock:to}).catch(()=>null);
+    if(logs===null) return null;
+    if(logs.length) return Number((await client.getBlock({blockNumber:logs[0].blockNumber})).timestamp);
+    if(from===floor) break;
+  }
+  return null;
+}
 export async function listVaults(client:PublicClient,d:Deployment,at?:bigint) {
   const blockNumber=at??await client.getBlockNumber({cacheTime:0});
   const config={address:d.factory,abi:factoryAbi,blockNumber} as const;

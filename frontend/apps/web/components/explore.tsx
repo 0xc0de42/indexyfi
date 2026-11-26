@@ -88,6 +88,7 @@ export function Explore() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'aum' | 'recent' | 'name' | 'premium'>('aum');
   const [view, setView] = useState<'table' | 'cards'>('table');
+  const [venueFilter, setVenueFilter] = useState<'all' | 'openfour' | 'flap'>('all');
   const router = useRouter();
   const deployment = useDeployment();
   const {vaults, isLoading, isError} = useVaults(deployment.data);
@@ -101,6 +102,7 @@ export function Explore() {
     return [...of, ...fl];
   }, [vaults, flapVaults.vaults, prices.byAsset, deployment.data, flap.data]);
   const visible = rows
+    .filter(({d}) => venueFilter === 'all' || d.provider === venueFilter)
     .filter(({v}) => `${v.name} ${v.symbol} ${v.creator} ${v.holdings.map(h => h.symbol).join(' ')}`.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) =>
       sort === 'recent' ? 0 : sort === 'name' ? a.v.name.localeCompare(b.v.name)
@@ -142,6 +144,15 @@ export function Explore() {
       <div className="toolbar">
         <div />
         <div className="toolbar-actions">
+          {flap.data && (
+            <label className="sort">
+              <select aria-label="Launch venue" value={venueFilter} onChange={e => setVenueFilter(e.target.value as typeof venueFilter)}>
+                <option value="all">All venues</option>
+                <option value="openfour">OpenFour</option>
+                <option value="flap">Flap</option>
+              </select>
+            </label>
+          )}
           <label className="sort">
             <select aria-label="Sort portfolios" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
               <option value="aum">AUM</option>
