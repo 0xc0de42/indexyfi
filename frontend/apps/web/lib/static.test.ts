@@ -14,6 +14,12 @@ function sources(dir: string): string[] {
 }
 const files = roots.flatMap(root => sources(join(web, root)));
 
+// The one sanctioned exception: the server-side route that fetches Atlas-signed prices for on-chain injection
+// (createVaultWithPrices / depositWithPrices / redeemWithPrices). The key stays on the server; the browser only
+// receives signed payloads that the oracle contract verifies. Guarded below: server-only, imported only by the route.
+const SERVER_ATLAS_BOUNDARY = [join('app', 'api', 'atlas', 'signed', 'route.ts'), join('lib', 'server', 'atlas-pull.ts')];
+const SERVER_ONLY_PATTERNS = new Set(['direct Atlas access', 'API keys']);
+
 describe('transport boundaries', () => {
   it.each([
     ['direct Atlas access', /atlasoracle|push\.atlas/i],
@@ -22,9 +28,20 @@ describe('transport boundaries', () => {
     ['versioned or invented backend paths', /\/backend\/(v1|health|assets|ws)\b|['"`]\/(v1|health)\//],
     ['API keys', /ATLAS_API_KEY|api[_-]?key/i],
     ['demo mode', /NEXT_PUBLIC_DATA_MODE|demo-store|useDemo/],
-  ])('has no %s in application code', (_label, pattern) => {
-    const offenders = files.filter(path => pattern.test(readFileSync(path, 'utf8'))).map(path => relative(web, path));
+  ])('has no %s in application code', (label, pattern) => {
+    const offenders = files.filter(path => pattern.test(readFileSync(path, 'utf8'))).map(path => relative(web, path))
+      .filter(path => !(SERVER_ONLY_PATTERNS.has(label) && SERVER_ATLAS_BOUNDARY.includes(path)));
     expect(offenders).toEqual([]);
+  });
+
+  it('keeps the signed-price Atlas boundary server-only', () => {
+    for (const path of SERVER_ATLAS_BOUNDARY) {
+      const source = readFileSync(join(web, path), 'utf8');
+      expect(source, path).not.toMatch(/['"]use client['"]/);
+      expect(source, path).not.toMatch(/NEXT_PUBLIC_/);
+    }
+    const importers = files.filter(path => /from\s+['"][^'"]*lib\/server\//.test(readFileSync(path, 'utf8'))).map(path => relative(web, path));
+    expect(importers).toEqual([join('app', 'api', 'atlas', 'signed', 'route.ts')]);
   });
 
   it('issues /snapshot requests only from the API client', () => {

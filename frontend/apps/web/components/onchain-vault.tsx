@@ -7,7 +7,7 @@ import {formatUnits, type Address} from 'viem';
 import {useAccount} from 'wagmi';
 import {usePriceState} from '@/lib/prices';
 import {referenceAssetById} from '@/lib/catalog';
-import {exactAmount, units, vaultAbi, routerAbi, lpAmounts, floorOutput} from '@/lib/vaults';
+import {exactAmount, units, vaultAbi, routerAbi, lpAmounts, floorOutput, quoteDeposit} from '@/lib/vaults';
 import {useDeployment, useVault, useVaultTransaction, type VaultAction} from '@/lib/use-vaults';
 
 type Mode='deposit'|'redeem'|'redeemInKind'|'buy'|'sell'|'addLiquidity'|'removeLiquidity';
@@ -44,7 +44,7 @@ export function OnchainVault({address}:{address:Address}) {
       const publish=(action:VaultAction,lines:Quote['lines'])=>{if(active)setQuote({action,lines,key});};
       try {
         if(mode==='deposit'){
-          const [out,outputs]=await client.readContract({address,abi:vaultAbi,functionName:'previewDeposit',args:[value]});
+          const [out,outputs]=await quoteDeposit(client,d,address,v.holdings.map(h=>h.feedId),value);
           publish({kind:'deposit',vault:address,amount:value,shares:out,outputs},[['Creator fee (0.1%)',cash(value*10n/10000n)],['Expected tokens',shares(out)]]);
         } else if(mode==='redeem') {
           if(!account.address)throw Error('Connect your wallet to quote a redemption.');

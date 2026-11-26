@@ -1,5 +1,6 @@
 import {decodeEventLog, encodeFunctionData, erc20Abi, formatUnits, getAddress, isAddress, parseAbi, parseUnits, type Address, type PublicClient, type TransactionReceipt} from 'viem';
 import {bscTestnet, hardhat} from 'viem/chains';
+import {NO_PRICES, pricesByFeed, type SignedPrices} from './atlas-signed';
 import {z} from 'zod';
 import {referenceAssetById} from './catalog';
 import {marketPrice18} from './pool-math';
@@ -8,8 +9,26 @@ export {marketPrice18,lpAmounts} from './pool-math';
 const selectedChain = process.env.NEXT_PUBLIC_VAULT_CHAIN_ID || '97';
 if (!['31337', '97'].includes(selectedChain)) throw Error('Unsupported vault chain');
 export const vaultChain = selectedChain === '31337' ? hardhat : bscTestnet;
-export const vaultRpc = process.env.NEXT_PUBLIC_VAULT_RPC_URL ||
-  (vaultChain.id === 31337 ? 'http://127.0.0.1:8545' : process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL);
+/**
+ * Keyless chain-97 RPC endpoints, fastest first (all answered chain 97 and Multicall3 on 2026-11-26, 480–650 ms).
+ * BNB Chain documents 10K requests / 5 min per endpoint; PublicNode publishes no limit. No API keys, so no quota to run
+ * out and nothing secret in the bundle. The app fails over between them (components/providers.tsx).
+ */
+export const BSC_TESTNET_RPCS = [
+  'https://bsc-testnet-rpc.publicnode.com',
+  'https://bsc-testnet-dataseed.bnbchain.org',
+  'https://bsc-testnet.bnbchain.org',
+  'https://bsc-prebsc-dataseed.bnbchain.org',
+] as const;
+const rpcList = (value?: string) => (value ?? '').split(',').map(url => url.trim()).filter(Boolean);
+/** NEXT_PUBLIC_VAULT_RPC_URL (one URL) wins; else NEXT_PUBLIC_VAULT_RPC_URLS (comma list); else the defaults. */
+export const vaultRpcs: readonly string[] =
+  process.env.NEXT_PUBLIC_VAULT_RPC_URL ? [process.env.NEXT_PUBLIC_VAULT_RPC_URL]
+  : vaultChain.id === 31337 ? ['http://127.0.0.1:8545']
+  : rpcList(process.env.NEXT_PUBLIC_VAULT_RPC_URLS).length ? rpcList(process.env.NEXT_PUBLIC_VAULT_RPC_URLS)
+  : process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ? [process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL]
+  : BSC_TESTNET_RPCS;
+export const vaultRpc = vaultRpcs[0];
 export const manifestUrl = process.env.NEXT_PUBLIC_VAULT_MANIFEST_URL || `/deployments/${vaultChain.id}.json`;
 const address = z.string().refine(x => isAddress(x)).transform(x => getAddress(x));
 const decimals = z.number().int().min(0).max(18);
@@ -41,6 +60,8 @@ export const factoryAbi = parseAbi([constituent, basket,
   'function vaultCount() view returns (uint256)', 'function vaultAt(uint256 index) view returns (address)',
   'function previewCreate(Basket basket,uint256 seedUSDT) view returns (uint256[] tokenOut)',
   'function createVault(uint256 requestId,Basket basket,uint256 seedUSDT,uint256 liquidityUSDT,uint256 minCreatorShares,uint256[] minTokenOut,uint256 deadline,bytes launchAuthorization) payable returns (address vault,uint256 seedShares)',
+  'function createVaultWithPrices(bytes[] payloads,bytes[] signatures,uint256 requestId,Basket basket,uint256 seedUSDT,uint256 liquidityUSDT,uint256 minCreatorShares,uint256[] minTokenOut,uint256 deadline,bytes launchAuthorization) payable returns (address vault,uint256 seedShares)',
+  'function quoteCreateWithPrices(bytes[] payloads,bytes[] signatures,Basket basket,uint256 seedUSDT) returns (uint256[] tokenOut)',
   'function usedRequestIds(uint256 requestId) view returns (bool)', 'function isVault(address vault) view returns (bool)',
   'event VaultCreated(address indexed creator,address indexed vault,uint256 indexed requestId,uint256 seedUSDT)',
   'event PortfolioLaunched(address indexed vault,address indexed token,address indexed pair,uint256 collateralUSDT,uint256 liquidityUSDT,uint256 outstandingSupply)',
@@ -57,6 +78,10 @@ export const vaultAbi = parseAbi([constituent,
   'function previewDeposit(uint256 usdtIn) view returns (uint256 shares,uint256[] tokenOut)',
   'function previewRedeem(address holder,uint256 shares) view returns (uint256 grossUSDT,uint256 creatorFeeUSDT,uint256 netUSDT)',
   'function deposit(uint256 usdtIn,uint256 minSharesOut,uint256[] minTokenOut,uint256 deadline) returns (uint256 shares)',
+  'function depositWithPrices(bytes[] payloads,bytes[] signatures,uint256 usdtIn,uint256 minSharesOut,uint256[] minTokenOut,uint256 deadline) returns (uint256 shares)',
+  'function quoteDepositWithPrices(bytes[] payloads,bytes[] signatures,uint256 usdtIn) returns (uint256 shares,uint256[] tokenOut)',
+  'function redeemWithPrices(bytes[] payloads,bytes[] signatures,uint256 shares,uint256 minNetUSDT,uint256[] minAssetOut,uint256 deadline) returns (uint256 netUSDT,uint256 creatorFeeUSDT)',
+  'function redeemInKindWithPrices(bytes[] payloads,bytes[] signatures,uint256 shares,uint256[] minAmountsOut,uint256 deadline) returns (uint256[] netAmounts,uint256[] creatorFeeAmounts)',
   'function previewRedeemAssets(address holder,uint256 shares) view returns (uint256[] assetAmounts,uint256[] expectedUSDT)',
   'function previewRedeemInKind(address holder,uint256 shares) view returns (uint256[] grossAmounts,uint256[] creatorFeeAmounts,uint256[] netAmounts)',
   'function redeem(uint256 shares,uint256 minNetUSDT,uint256[] minAssetOut,uint256 deadline) returns (uint256 netUSDT,uint256 creatorFeeUSDT)',
@@ -79,6 +104,30 @@ export function floorOutput(quote:bigint, slipBps:number) {
 }
 /** Applies the slippage floor independently to every leg; zero legs stay zero. */
 export const legMinimums=(quotes:readonly bigint[],slipBps:number)=>quotes.map(q=>floorOutput(q,slipBps));
+
+/** Ceiling for any one transaction: below the 16,777,216 per-transaction cap (EIP-7825) that Hardhat's Osaka rules enforce. */
+export const GAS_CAP=16_000_000n;
+export type GasKind='create'|'deposit'|'redeem'|'redeemInKind'|'swap'|'addLiquidity'|'removeLiquidity';
+/**
+ * Size-based limits (~25% over gas measured on the fixture, 2–32 assets): launch 4.03M→11.88M,
+ * deposit 0.43M→4.66M, redeem 0.39M→4.56M, in-kind 0.23M→2.61M, plus ~0.15M + ~30k per feed for the signed
+ * price update the *WithPrices entry points run first. Used when a node cannot estimate.
+ */
+const FALLBACK:{[K in GasKind]:{base:bigint;perLeg:bigint}}={
+  create:{base:4_650_000n,perLeg:340_000n}, deposit:{base:450_000n,perLeg:210_000n}, redeem:{base:450_000n,perLeg:210_000n},
+  redeemInKind:{base:350_000n,perLeg:140_000n}, swap:{base:600_000n,perLeg:0n}, addLiquidity:{base:600_000n,perLeg:0n}, removeLiquidity:{base:600_000n,perLeg:0n},
+};
+/**
+ * Explicit gas limit for a write. Every write sends one, so wallets never re-estimate: Hardhat's estimator overshoots
+ * by ~8/3 and fails above the per-transaction cap for launches of 9+ assets, although execution needs far less.
+ * Uses the node's estimate +20% when available, else the size-based fallback; never above GAS_CAP.
+ */
+export function gasLimit(kind:GasKind,legs:number,estimate?:bigint):bigint {
+  if(!Number.isInteger(legs)||legs<0) throw Error('Invalid leg count');
+  const f=FALLBACK[kind];
+  const limit=estimate&&estimate>0n ? estimate*12n/10n : f.base+f.perLeg*BigInt(legs);
+  return limit>GAS_CAP ? GAS_CAP : limit;
+}
 /** High-entropy, nonzero launch request ID (never derived from vaultCount). */
 export function newRequestId():bigint {
   const bytes=crypto.getRandomValues(new Uint8Array(32));
@@ -207,12 +256,45 @@ export async function poolSnapshot(client:PublicClient,d:Deployment,token:Addres
   const [cash,shares]=cashFirst?[reserves[0],reserves[1]]:[reserves[1],reserves[0]];
   return {cash,shares,supply,lpBalance,marketPrice:marketPrice18(cash,shares,d.settlementDecimals)};
 }
+/** Feed ids of the given execution tokens, in order. */
+export function feedIdsFor(d:Deployment,tokens:readonly Address[]):number[] {
+  return tokens.map(t=>{const a=d.assets.find(x=>x.address===getAddress(t));if(!a)throw Error('Unknown executable asset');return a.feedId;});
+}
+/**
+ * Latest Atlas-signed prices for the given feeds, from this app's server route (the key stays server-side).
+ * The local fixture's mock oracle is owner-priced, so nothing is injected there.
+ */
+export async function signedPrices(d:Pick<Deployment,'fixture'>,feeds:readonly number[],signal?:AbortSignal):Promise<SignedPrices> {
+  if(d.fixture||!feeds.length) return NO_PRICES;
+  const response=await fetch(`/api/atlas/signed?feeds=${feeds.join(',')}`,{cache:'no-store',signal});
+  const body=await response.json().catch(()=>null) as {payloads?:unknown;signatures?:unknown;message?:unknown}|null;
+  if(!response.ok||!body||!Array.isArray(body.payloads)||!Array.isArray(body.signatures)||body.payloads.length!==body.signatures.length)
+    throw Error(`Signed Atlas prices unavailable${body&&typeof body.message==='string'?`: ${body.message}`:''}`);
+  return {payloads:body.payloads as `0x${string}`[],signatures:body.signatures as `0x${string}`[]};
+}
 export async function quoteCreate(client:PublicClient,d:Deployment,basket:{name:string;symbol:string;metadataURI:string;constituents:{token:Address;weightBps:number}[]},seed:bigint,liquidity:bigint){
-  const blockNumber=await client.getBlockNumber({cacheTime:0});
-  const outputs=await client.readContract({address:d.factory,abi:factoryAbi,functionName:'previewCreate',args:[basket,seed],blockNumber});
-  const prices=await Promise.all(basket.constituents.map(a=>client.readContract({address:d.oracle,abi:oracleAbi,functionName:'price18',args:[a.token],blockNumber})));
+  let outputs:readonly bigint[], prices:bigint[];
+  if(d.fixture){
+    const blockNumber=await client.getBlockNumber({cacheTime:0});
+    outputs=await client.readContract({address:d.factory,abi:factoryAbi,functionName:'previewCreate',args:[basket,seed],blockNumber});
+    prices=await Promise.all(basket.constituents.map(a=>client.readContract({address:d.oracle,abi:oracleAbi,functionName:'price18',args:[a.token],blockNumber})));
+  } else {
+    // Quote with the latest signed prices injected inside eth_call, so no stored price is needed and the quote uses
+    // the same prices the launch will post.
+    const feeds=feedIdsFor(d,basket.constituents.map(c=>c.token));
+    const signed=await signedPrices(d,feeds);
+    outputs=(await client.simulateContract({address:d.factory,abi:factoryAbi,functionName:'quoteCreateWithPrices',args:[signed.payloads,signed.signatures,basket,seed]})).result;
+    const latest=pricesByFeed(signed);
+    prices=feeds.map(f=>{const r=latest.get(f);if(!r)throw Error('Atlas price missing for a basket asset');return r.price18;});
+  }
   const total=outputs.reduce((sum,o,i)=>{const asset=d.assets.find(a=>a.address===getAddress(basket.constituents[i].token));if(!asset)throw Error('Unknown executable asset');return sum+o*prices[i]/10n**BigInt(asset.decimals);},0n);
   const lpShares=liquidity*10n**BigInt(18-d.settlementDecimals);
   if(total<=lpShares)throw Error('Liquidity must be smaller than acquired collateral value');
   return {outputs,creatorShares:total-lpShares,lpShares,total};
+}
+/** Deposit quote; on public chains the latest signed prices are injected inside eth_call. */
+export async function quoteDeposit(client:PublicClient,d:Deployment,vault:Address,feeds:readonly number[],amount:bigint):Promise<readonly [bigint,readonly bigint[]]> {
+  if(d.fixture) return client.readContract({address:vault,abi:vaultAbi,functionName:'previewDeposit',args:[amount]});
+  const signed=await signedPrices(d,feeds);
+  return (await client.simulateContract({address:vault,abi:vaultAbi,functionName:'quoteDepositWithPrices',args:[signed.payloads,signed.signatures,amount]})).result;
 }

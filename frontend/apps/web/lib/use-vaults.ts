@@ -3,7 +3,7 @@ import {useRef,useState} from 'react';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useAccount, usePublicClient, useWalletClient} from 'wagmi';
 import {erc20Abi, getAddress, type Address, type Hash} from 'viem';
-import {authorizeLaunch, factoryAbi, floorOutput, legMinimums, listVaults, loadDeployment, vaultAbi, vaultChain, vaultEvent, vaultSnapshot, routerAbi, type Deployment} from './vaults';
+import {authorizeLaunch, factoryAbi, feedIdsFor, floorOutput, gasLimit, legMinimums, listVaults, loadDeployment, signedPrices, vaultAbi, vaultChain, vaultEvent, vaultSnapshot, routerAbi, type Deployment, type GasKind} from './vaults';
 
 export function useDeployment() {
   const client=usePublicClient({chainId:vaultChain.id});
@@ -54,6 +54,20 @@ export function useVaultTransaction(d?:Deployment) {
     try {
       await checkWallet();
       const minimum=(x:bigint)=>floorOutput(x,slip);
+      // Every vault write carries an explicit gas limit (see gasLimit): wallets would otherwise re-estimate, and Hardhat's
+      // estimator fails for launches of 9+ assets although they execute well under the per-transaction cap.
+      // Latest Atlas-signed prices travel inside the launch / deposit / redeem transaction (*WithPrices), fetched
+      // right before simulation so the oracle is updated and used atomically. None on the local fixture.
+      async function pricesForVault(vault:Address){
+        const legs=await publicClient.readContract({address:vault,abi:vaultAbi,functionName:'constituents'});
+        setPending('Fetching latest signed prices');
+        return signedPrices(deployment,feedIdsFor(deployment,legs.map(l=>l.token)));
+      }
+      async function withGas<R extends object>(request:R,kind:GasKind,legs:number):Promise<R & {gas:bigint}> {
+        // A simulation request carries the same fields estimateContractGas reads; viem's types just don't line them up.
+        const estimate=await publicClient.estimateContractGas(request as unknown as Parameters<typeof publicClient.estimateContractGas>[0]).catch(()=>undefined);
+        return {...request,gas:gasLimit(kind,legs,estimate)};
+      }
       async function approve(asset:Address,target:Address,spend:bigint,label:string){
         const token={address:asset,abi:erc20Abi} as const;
         const [allowance,balance]=await Promise.all([
@@ -87,37 +101,49 @@ export function useVaultTransaction(d?:Deployment) {
         const factory=eventSource;
         // A used or expired request ID is recoverable: obtain a fresh authorization and retry.
         let request;
+        setPending('Fetching latest signed prices');
+        const prices=await signedPrices(deployment,feedIdsFor(deployment,action.basket.constituents.map(c=>c.token)));
         for(let attempt=0;;attempt++){
           const auth=await authorizeLaunch(deployment);
           if(await publicClient.readContract({address:factory,abi:factoryAbi,functionName:'usedRequestIds',args:[auth.requestId]})){if(attempt<2)continue;throw Error('Launch request ID already used. Try again.');}
           try{
-            request=(await publicClient.simulateContract({address:factory,abi:factoryAbi,account:holder,functionName:'createVault',args:[auth.requestId,action.basket,action.seed,action.liquidity,minimum(action.creatorShares),action.outputs.map(minimum),deadline,auth.authorization]})).request;
+            request=(await publicClient.simulateContract({address:factory,abi:factoryAbi,account:holder,functionName:'createVaultWithPrices',args:[prices.payloads,prices.signatures,auth.requestId,action.basket,action.seed,action.liquidity,minimum(action.creatorShares),action.outputs.map(minimum),deadline,auth.authorization]})).request;
             break;
           }catch(err){if(attempt<2&&err instanceof Error&&/request id/i.test(err.message))continue;throw err;}
         }
-        await checkWallet();hash=await signer.writeContract(request);
+        const sized=await withGas(request,'create',action.basket.constituents.length);
+        await checkWallet();hash=await signer.writeContract(sized);
       } else if(action.kind==='deposit') {
         eventSource=action.vault;
-        const simulation=await publicClient.simulateContract({address:action.vault,abi:vaultAbi,account:holder,functionName:'deposit',args:[action.amount,minimum(action.shares),action.outputs.map(minimum),deadline]});
-        await checkWallet();hash=await signer.writeContract(simulation.request);
+        const prices=await pricesForVault(action.vault);
+        const simulation=await publicClient.simulateContract({address:action.vault,abi:vaultAbi,account:holder,functionName:'depositWithPrices',args:[prices.payloads,prices.signatures,action.amount,minimum(action.shares),action.outputs.map(minimum),deadline]});
+        const sized=await withGas(simulation.request,'deposit',action.outputs.length);
+        await checkWallet();hash=await signer.writeContract(sized);
       } else if(action.kind==='redeem') {
         eventSource=action.vault;
-        const simulation=await publicClient.simulateContract({address:action.vault,abi:vaultAbi,account:holder,functionName:'redeem',args:[action.amount,minimum(action.net),legMinimums(action.legs,slip),deadline]});
-        await checkWallet();hash=await signer.writeContract(simulation.request);
+        const prices=await pricesForVault(action.vault);
+        const simulation=await publicClient.simulateContract({address:action.vault,abi:vaultAbi,account:holder,functionName:'redeemWithPrices',args:[prices.payloads,prices.signatures,action.amount,minimum(action.net),legMinimums(action.legs,slip),deadline]});
+        const sized=await withGas(simulation.request,'redeem',action.legs.length);
+        await checkWallet();hash=await signer.writeContract(sized);
       } else if(action.kind==='redeemInKind') {
         eventSource=action.vault;
-        const simulation=await publicClient.simulateContract({address:action.vault,abi:vaultAbi,account:holder,functionName:'redeemInKind',args:[action.amount,legMinimums(action.net,slip),deadline]});
-        await checkWallet();hash=await signer.writeContract(simulation.request);
+        const prices=await pricesForVault(action.vault);
+        const simulation=await publicClient.simulateContract({address:action.vault,abi:vaultAbi,account:holder,functionName:'redeemInKindWithPrices',args:[prices.payloads,prices.signatures,action.amount,legMinimums(action.net,slip),deadline]});
+        const sized=await withGas(simulation.request,'redeemInKind',action.net.length);
+        await checkWallet();hash=await signer.writeContract(sized);
       } else if(action.kind==='swap') {
         const path=action.buy?[cash,action.token]:[action.token,cash];
         const simulation=await publicClient.simulateContract({address:router,abi:routerAbi,account:holder,functionName:'swapExactTokensForTokens',args:[action.amount,minimum(action.out),path,holder,deadline]});
-        await checkWallet();hash=await signer.writeContract(simulation.request);
+        const sized=await withGas(simulation.request,'swap',0);
+        await checkWallet();hash=await signer.writeContract(sized);
       } else if(action.kind==='addLiquidity') {
         const simulation=await publicClient.simulateContract({address:router,abi:routerAbi,account:holder,functionName:'addLiquidity',args:[cash,action.token,action.cash,action.shares,minimum(action.cash),minimum(action.shares),holder,deadline]});
-        await checkWallet();hash=await signer.writeContract(simulation.request);
+        const sized=await withGas(simulation.request,'addLiquidity',0);
+        await checkWallet();hash=await signer.writeContract(sized);
       } else {
         const simulation=await publicClient.simulateContract({address:router,abi:routerAbi,account:holder,functionName:'removeLiquidity',args:[cash,action.token,action.amount,minimum(action.cash),minimum(action.shares),holder,deadline]});
-        await checkWallet();hash=await signer.writeContract(simulation.request);
+        const sized=await withGas(simulation.request,'removeLiquidity',0);
+        await checkWallet();hash=await signer.writeContract(sized);
       }
       const receipt=await confirm(hash);
       const event=eventSource?vaultEvent(receipt,getAddress(eventSource)):undefined;

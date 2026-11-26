@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {exactAmount,floorOutput,parseDeployment,marketPrice18,lpAmounts,legMinimums,newRequestId,authorizeLaunch} from './vaults';
+import {exactAmount,floorOutput,parseDeployment,marketPrice18,lpAmounts,legMinimums,newRequestId,authorizeLaunch,gasLimit,GAS_CAP} from './vaults';
 
 const manifest={
   schemaVersion:5, fixture:true, supplyModel:"standard-openfour-inventory",
@@ -18,6 +18,21 @@ describe('vault boundary helpers',()=>{
     expect(exactAmount('100.000001',6)).toBe(100_000_001n);
     expect(exactAmount('0.0000001',6)).toBeUndefined();
     expect(exactAmount('-1',6)).toBeUndefined();
+  });
+  it('sends explicit gas limits that cover measured usage and stay under the per-transaction cap',()=>{
+    // Measured on the fixture (gas used): launch 2→4.03M, 14→7.10M, 32→11.88M; deposit 32→4.66M; redeem 32→4.56M; in-kind 32→2.61M.
+    expect(gasLimit('create',2)).toBeGreaterThan(4_034_840n);
+    expect(gasLimit('create',14)).toBeGreaterThan(7_104_304n);
+    expect(gasLimit('create',32)).toBeGreaterThan(11_881_394n);
+    expect(gasLimit('deposit',32)).toBeGreaterThan(4_659_758n);
+    expect(gasLimit('redeem',32)).toBeGreaterThan(4_559_928n);
+    expect(gasLimit('redeemInKind',32)).toBeGreaterThan(2_606_148n);
+    for(const kind of ['create','deposit','redeem','redeemInKind','swap','addLiquidity','removeLiquidity'] as const)
+      expect(gasLimit(kind,32)).toBeLessThanOrEqual(GAS_CAP);
+    expect(GAS_CAP).toBeLessThan(16_777_216n);
+    expect(gasLimit('deposit',9,1_000_000n)).toBe(1_200_000n); // node estimate +20%
+    expect(gasLimit('create',14,20_000_000n)).toBe(GAS_CAP); // never above the cap
+    expect(()=>gasLimit('create',-1)).toThrow();
   });
   it('floors output protections',()=>{
     expect(floorOutput(100_000_000n,100)).toBe(99_000_000n);
