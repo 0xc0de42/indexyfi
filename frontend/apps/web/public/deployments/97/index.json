@@ -1,0 +1,13 @@
+{
+  "chainId": 97,
+  "providers": [
+    {
+      "provider": "openfour",
+      "manifest": "/deployments/97.json"
+    },
+    {
+      "provider": "flap-direct-v3",
+      "manifest": "/deployments/97/flap.json"
+    }
+  ]
+}
