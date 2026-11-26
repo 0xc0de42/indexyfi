@@ -4,6 +4,15 @@ import {useAccount} from 'wagmi';
 import {Badge, Card, Empty, Metric} from '@indexfi/ui';
 import {FUNDING_TOKEN} from '@/domain/model';
 import {Wallet} from './wallet';
+import type {Address} from 'viem';
+import {units,type Deployment} from '@/lib/vaults';
+import {useDeployment,useDirectory,useVault} from '@/lib/use-vaults';
+
+function Position({deployment,address}:{deployment:Deployment;address:Address}){
+  const vault=useVault(deployment,address);
+  if(!vault.data||vault.data.shares===0n)return null;
+  return <tr><td><Link href={`/portfolio/${address}`}>{vault.data.name}</Link></td><td>{vault.data.symbol}</td><td>{units(vault.data.shares,18)}</td><td>{units(vault.data.basis,deployment.settlementDecimals)} USDT</td><td><Badge tone={vault.data.closed?'bad':'good'}>{vault.data.closed?'Closed':'Open'}</Badge></td></tr>;
+}
 
 /**
  * Wallet-backed holdings arrive with contract integration (Phase III). No simulated
@@ -11,6 +20,8 @@ import {Wallet} from './wallet';
  */
 export function Investments() {
   const account = useAccount();
+  const deployment=useDeployment();
+  const directory=useDirectory(deployment.data);
   const connected = account.isConnected && account.address;
   if (!connected)
     return (
@@ -38,20 +49,20 @@ export function Investments() {
       <div className="page-heading">
         <div className="eyebrow">Investor workspace</div>
         <h1>My investments</h1>
-        <p>Positions, created portfolios and trades are read from your wallet once the verified contract adapter is integrated.</p>
+        <p>Positions and remaining cost basis are read from the public vault contracts for this wallet.</p>
       </div>
       <div className="summary-grid">
         <Card><Metric label="Wallet" value={`${account.address!.slice(0, 6)}…${account.address!.slice(-4)}`} detail={`chain ${account.chainId}`} /></Card>
-        <Card><Metric label={`${FUNDING_TOKEN} balance`} value="—" detail="not read in this phase" /></Card>
-        <Card><Metric label="Portfolio holdings" value="—" detail="requires contract integration" /></Card>
+        <Card><Metric label="Contract network" value={deployment.data?.chainId??'—'} detail={deployment.data?'manifest verified':'loading'} /></Card>
+        <Card><Metric label="Public vaults" value={directory.data?.length??'—'} detail="factory directory" /></Card>
       </div>
       <Card>
-        <div className="card-heading"><h2>Positions</h2><Badge>Phase III</Badge></div>
-        <Empty>On-chain positions are not available yet. <Link href="/">Explore portfolios</Link></Empty>
+        <div className="card-heading"><h2>Positions</h2><Badge tone="good">On-chain</Badge></div>
+        {deployment.data&&directory.data?.length?<div className="table-scroll"><table><thead><tr><th>Vault</th><th>Token</th><th>Shares</th><th>Cost basis</th><th>Status</th></tr></thead><tbody>{directory.data.map(address=><Position key={address} deployment={deployment.data!} address={address}/>)}</tbody></table></div>:<Empty>No positions found. <Link href="/">Explore portfolios</Link></Empty>}
       </Card>
       <Card className="history-card">
-        <div className="card-heading"><h2>Created portfolios and trades</h2><Badge>Phase III</Badge></div>
-        <Empty>Portfolios you launch and your trades will appear here after contract integration.</Empty>
+        <div className="card-heading"><h2>Activity</h2><Badge>Receipt-backed</Badge></div>
+        <p className="muted">Confirmed deposit and redemption receipts are reflected in the balances above. Historical event pagination is deferred for the MVP.</p>
       </Card>
     </>
   );

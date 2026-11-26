@@ -7,6 +7,7 @@ import {Badge, Card, Metric, Empty} from '@indexfi/ui';
 import {portfolios} from '@/domain/fixtures';
 import {categories, compact, usd, percent, FUNDING_TOKEN, type Portfolio} from '@/domain/model';
 import {AssetIcon} from './asset-icon';
+import {OnchainDirectory} from './onchain-directory';
 
 function Tokens({p}: {p: Portfolio}) {
   return (
@@ -118,6 +119,7 @@ export function Explore() {
           <input aria-label="Search portfolios" placeholder="Search name, asset or creator" value={search} onChange={e => setSearch(e.target.value)} />
         </label>
       </section>
+      <OnchainDirectory />
       <div className="toolbar">
         <div className="tabs category-tabs">
           {['All', ...categories].map(c => <button key={c} aria-pressed={category === c} onClick={() => setCategory(c)}>{c}</button>)}

@@ -8,6 +8,8 @@ import {usd, compact, percent, FUNDING_TOKEN, type Portfolio, type Side} from '@
 import {Allocation} from './charts';
 import {AssetChart, HISTORY_WINDOWS, windowLabelOf} from './asset-chart';
 import {assetHref, createHref} from '@/lib/routes';
+import {isAddress} from 'viem';
+import {OnchainVault} from './onchain-vault';
 
 function TradePanel({p}: {p: Portfolio}) {
   const [side, setSide] = useState<Side>('buy');
@@ -138,6 +140,7 @@ function PortfolioContent({p}: {p: Portfolio}) {
 }
 
 export function PortfolioPage({id}: {id: string}) {
+  if (isAddress(id)) return <OnchainVault address={id} />;
   const p = portfolioById(id);
   if (!p) return <Empty>Portfolio not found. <Link href="/">Return to Explore</Link></Empty>;
   return <PortfolioContent key={p.id} p={p} />;

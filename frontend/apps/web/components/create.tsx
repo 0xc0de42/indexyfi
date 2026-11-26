@@ -1,10 +1,12 @@
 'use client';
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
+import {useRouter} from 'next/navigation';
+import type {Address} from 'viem';
 import {Check, ArrowRight, ArrowLeft, X, RotateCcw, Pencil} from 'lucide-react';
 import {Button, Card, Badge, Empty} from '@indexfi/ui';
-import {referenceAssets, testnetCollateral} from '@/lib/catalog';
+import {referenceAssets} from '@/lib/catalog';
 import {usePriceState} from '@/lib/prices';
-import {draftIssues, equalWeights, MIN_LIQUIDITY} from '@/domain/policy';
+import {draftIssues, equalWeights} from '@/domain/policy';
 import {addItem, isEqualSplit, normalize, removeItem, totalOf} from '@/domain/allocation';
 import {suggestTicker} from '@/domain/ticker';
 import {applyPrefill, DRAFT_KEY, EMPTY_DRAFT, parseDraft, serializeDraft, type Prefill} from '@/lib/draft';
@@ -13,6 +15,8 @@ import {categories, formatPrice, usd, FUNDING_TOKEN, type Asset, type Draft} fro
 import {AssetIcon} from './asset-icon';
 import {AllocationEditor, segmentColor} from './allocation-editor';
 import {apiStatusText} from './api-status';
+import {factoryAbi, exactAmount} from '@/lib/vaults';
+import {useDeployment, useVaultTransaction, type Basket} from '@/lib/use-vaults';
 
 const steps = ['Identity', 'Composition', 'Allocation', 'Funding', 'Review & launch'];
 const FUNDING_PRESETS = [100, 500, 1_000, 5_000];
@@ -30,6 +34,9 @@ function readStored(): string | null {
 }
 
 export function Create({prefill}: {prefill: Prefill}) {
+  const router = useRouter();
+  const deployment = useDeployment();
+  const transaction = useVaultTransaction(deployment.data);
   const [step, setStep] = useState(0);
   const [d, setD] = useState<Draft>(EMPTY_DRAFT);
   const [error, setError] = useState('');
@@ -38,6 +45,8 @@ export function Create({prefill}: {prefill: Prefill}) {
   const [locked, setLocked] = useState<ReadonlySet<string>>(() => new Set());
   const [symbolEdited, setSymbolEdited] = useState(false);
   const [attempted, setAttempted] = useState<ReadonlySet<number>>(() => new Set());
+  const [quote, setQuote] = useState<{seed: bigint; outputs: readonly bigint[]; basket: Basket}|null>(null);
+  const [quoteError, setQuoteError] = useState('');
   const loaded = useRef(false);
 
   // Restore this tab's draft, then apply a link's prefill once and drop it from the URL.
@@ -116,18 +125,47 @@ export function Create({prefill}: {prefill: Prefill}) {
   }
 
   const term = search.toLowerCase();
-  const options = referenceAssets.filter(a => `${a.name} ${a.symbol}`.toLowerCase().includes(term));
+  const supportedIds = useMemo(() => new Set(deployment.data?.assets.map(a => a.referenceAssetId) ?? []), [deployment.data]);
+  const options = referenceAssets.filter(a => supportedIds.has(a.id) && `${a.name} ${a.symbol}`.toLowerCase().includes(term));
+
+  useEffect(() => {
+    let active = true;
+    async function loadQuote() {
+      setQuote(null); setQuoteError('');
+      if (step !== 4 || !deployment.data || !deployment.client || issues.length) return;
+      const seed = exactAmount(String(d.funding), deployment.data.settlementDecimals);
+      const legs = d.allocations.map(a => {
+        const execution = deployment.data!.assets.find(x => x.referenceAssetId === a.asset.id);
+        return execution ? {token: execution.address as Address, weightBps: Math.round(a.weight * 100)} : undefined;
+      });
+      if (!seed || legs.some(x => !x)) { setQuoteError('Every constituent needs a verified execution contract.'); return; }
+      const basket: Basket = {name:d.name,symbol:d.symbol,metadataURI:`data:application/json,${encodeURIComponent(JSON.stringify({description:d.description,category:d.category}))}`,constituents:legs as Basket['constituents']};
+      try {
+        const outputs=await deployment.client.readContract({address:deployment.data.factory,abi:factoryAbi,functionName:'previewCreate',args:[basket,seed]});
+        if(active) setQuote({seed,outputs,basket});
+      } catch(err) { if(active) setQuoteError(err instanceof Error ? err.message.split('\n')[0] : 'Contract quote failed'); }
+    }
+    void loadQuote();
+    return ()=>{active=false;};
+  }, [step,d,deployment.data,deployment.client]);
+
+  async function launch() {
+    if(!quote || !deployment.data || !deployment.client) return;
+    const result=await transaction.submit({kind:'create',basket:quote.basket,seed:quote.seed,outputs:quote.outputs},100);
+    if(!result) return;
+    const count=await deployment.client.readContract({address:deployment.data.factory,abi:factoryAbi,functionName:'vaultCount'});
+    const vault=await deployment.client.readContract({address:deployment.data.factory,abi:factoryAbi,functionName:'vaultAt',args:[count-1n]});
+    sessionStorage.removeItem(DRAFT_KEY);
+    router.push(`/portfolio/${vault}`);
+  }
 
   return (
     <>
       <div className="page-heading">
         <div className="eyebrow">Creator / Launch</div>
         <h1>Create a portfolio.</h1>
-        <p>Choose existing assets, allocate your {FUNDING_TOKEN} and create a fixed-supply, buy-and-hold basket.</p>
-        <div className="notice notice--neutral">
-          Preview: you can design and review a portfolio with live reference prices. Launching needs the contract integration (Phase III), so nothing is
-          deployed or charged. Your draft is kept while this tab is open.
-        </div>
+        <p>Choose supported assets, seed the basket with at least 100 {FUNDING_TOKEN}, and open it for public deposits and redemptions.</p>
+        {deployment.isError && <div className="notice notice--bad">Contract deployment is unavailable on this network.</div>}
       </div>
       <div className="wizard-grid">
         <aside className="wizard-aside">
@@ -141,8 +179,8 @@ export function Create({prefill}: {prefill: Prefill}) {
           </ol>
           <Card>
             <div className="eyebrow">Launch rules</div>
-            <h3>One basket. Fixed supply.</h3>
-            <p className="muted">Pre-funded with {FUNDING_TOKEN}. No additional minting, arbitrary creator withdrawals or rebalancing. Investors exit by selling.</p>
+            <h3>Public basket vault.</h3>
+            <p className="muted">The creator receives the first shares. Public deposits mint shares and redemptions burn them. Profitable exits pay the creator 10% of realized gains.</p>
           </Card>
           <button type="button" className="text-button start-over" onClick={startOver}><RotateCcw size={13} /> Start over</button>
         </aside>
@@ -184,8 +222,7 @@ export function Create({prefill}: {prefill: Prefill}) {
               {step === 1 && (
                 <>
                   <div className="notice notice--neutral">
-                    {referenceAssets.length} verified reference assets (BNB Chain 56) with live USD reference prices from the IndexFi API. They are price references,
-                    not verified testnet collateral ({testnetCollateral.length} chain-97 collateral assets verified so far).
+                    {deployment.data?.assets.length ?? 0} execution assets are enabled by the active contract manifest. Their Atlas references provide display prices.
                   </div>
                   {prices.status !== 'ok' && <div className="notice notice--warn" role="status">{api.label}. {api.detail ?? 'Prices appear once the API responds.'}</div>}
                   {d.allocations.length > 0 && (
@@ -243,8 +280,8 @@ export function Create({prefill}: {prefill: Prefill}) {
                     ))}
                   </div>
                   <dl className="key-values">
-                    <div><dt>Separate initial market liquidity</dt><dd>{MIN_LIQUIDITY} {FUNDING_TOKEN}</dd></div>
-                    <div><dt>Subtotal before execution and protocol fees</dt><dd>{usd(d.funding + MIN_LIQUIDITY)} {FUNDING_TOKEN}</dd></div>
+                    <div><dt>Minimum opening seed</dt><dd>100 {FUNDING_TOKEN}</dd></div>
+                    <div><dt>Creator performance fee</dt><dd>10% of positive realized gains</dd></div>
                   </dl>
                   <div className="table-scroll">
                     <table>
@@ -303,19 +340,20 @@ export function Create({prefill}: {prefill: Prefill}) {
                   <dl className="key-values">
                     <div><dt>Constituents</dt><dd>{d.allocations.length}</dd></div>
                     <div><dt>{FUNDING_TOKEN} investment <button type="button" className="text-button" onClick={() => setStep(3)}><Pencil size={12} /> Edit</button></dt><dd>{usd(d.funding)}</dd></div>
-                    <div><dt>Initial trading liquidity</dt><dd>{MIN_LIQUIDITY} {FUNDING_TOKEN}</dd></div>
-                    <div><dt>Creator fee</dt><dd>Contract configuration pending</dd></div>
-                    <div><dt>Initial shares</dt><dd>Contract quote required</dd></div>
-                    <div><dt>Graduation</dt><dd>OpenFour → PancakeSwap</dd></div>
+                    <div><dt>Opening seed</dt><dd>{usd(d.funding)}</dd></div>
+                    <div><dt>Creator fee</dt><dd>10% of positive realized gains on redemption</dd></div>
+                    <div><dt>Execution quote</dt><dd>{quote ? `${quote.outputs.length} legs ready` : 'Loading contract quote'}</dd></div>
+                    <div><dt>Public access</dt><dd>Immediate after confirmed launch</dd></div>
                   </dl>
-                  <div className="notice notice--warn">Launch is unavailable until the atomic deployment adapter, verified testnet collateral and contract quotes are integrated (Phase III). Nothing is created or stored.</div>
+                  {(quoteError||transaction.error) && <div role="alert" className="notice notice--bad">{quoteError||transaction.error}</div>}
+                  {transaction.pending && <div role="status" className="notice notice--neutral">{transaction.pending}</div>}
                 </>
               )}
             </div>
             {error && <div role="alert" className="notice notice--bad">{error}</div>}
             <div className="wizard-actions">
               <Button type="button" variant="secondary" disabled={step === 0} onClick={() => { setStep(s => s - 1); setError(''); }}><ArrowLeft size={16} /> Back</Button>
-              <Button type="submit" disabled={step === 4}>{step === 4 ? 'Launch unavailable' : 'Continue'} <ArrowRight size={16} /></Button>
+              <Button type={step===4?'button':'submit'} disabled={step === 4 && (!quote||!transaction.ready||!!transaction.pending)} onClick={step===4?()=>void launch():undefined}>{step === 4 ? 'Launch vault' : 'Continue'} <ArrowRight size={16} /></Button>
             </div>
           </form>
         </Card>

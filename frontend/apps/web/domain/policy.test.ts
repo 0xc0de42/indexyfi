@@ -12,7 +12,7 @@ describe('draft rules', () => {
   });
   it('rejects duplicates and non-positive funding', () => {
     expect(draftErrors({...draft, allocations: [draft.allocations[0], draft.allocations[0]]})).toContain('Duplicate assets are not allowed.');
-    expect(draftErrors({...draft, funding: 0})).toContain('Funding must be positive.');
+    expect(draftErrors({...draft, funding: 0})).toContain('Funding must be at least 100 USDT.');
   });
   it('equal allocations total 100', () => {
     expect(equalWeights([0, 1, 2].map(() => ({weight: 0}))).reduce((s, a) => s + a.weight, 0)).toBeCloseTo(100);

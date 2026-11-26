@@ -1,8 +1,5 @@
 import type {Draft} from './model';
 
-/** Fixed initial market liquidity, in the funding token (USDT). */
-export const MIN_LIQUIDITY = 1;
-
 /** Wizard step an issue belongs to: 0 identity, 1 composition, 2 allocation, 3 funding. */
 export type DraftStep = 0 | 1 | 2 | 3;
 export interface DraftIssue {
@@ -18,7 +15,7 @@ export function draftIssues(d: Draft): DraftIssue[] {
   if (new Set(d.allocations.map(a => a.asset.id)).size !== d.allocations.length) e.push({step: 1, message: 'Duplicate assets are not allowed.'});
   if (d.allocations.some(a => !Number.isFinite(a.weight) || a.weight <= 0 || a.weight > 100)) e.push({step: 2, message: 'Every asset needs a positive weight.'});
   if (Math.abs(d.allocations.reduce((s, a) => s + a.weight, 0) - 100) > 1e-5) e.push({step: 2, message: 'Weights must total 100%.'});
-  if (!Number.isFinite(d.funding) || d.funding <= 0) e.push({step: 3, message: 'Funding must be positive.'});
+  if (!Number.isFinite(d.funding) || d.funding < 100) e.push({step: 3, message: 'Funding must be at least 100 USDT.'});
   return e;
 }
 
