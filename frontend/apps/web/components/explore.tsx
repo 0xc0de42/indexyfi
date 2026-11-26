@@ -9,6 +9,8 @@ import {referenceAssetById} from '@/lib/catalog';
 import {usePriceState} from '@/lib/prices';
 import {useDeployment, useVaults} from '@/lib/use-vaults';
 import {total, valuation, type Valuation} from '@/lib/valuation';
+import {graduation, LAUNCH} from '@/lib/launch';
+import {GraduationBar} from './graduation';
 import type {Deployment, VaultSnapshot} from '@/lib/vaults';
 import {AssetIcon} from './asset-icon';
 
@@ -34,7 +36,7 @@ function Featured({row, d}: {row?: Row; d?: Deployment}) {
       <div className="hero__aside">
         <div className="eyebrow">The portfolio standard</div>
         <h2>Transparent composition.<br />Open markets.</h2>
-        <p>Collateral-backed · Primary deposits and redemptions · PancakeSwap trading</p>
+        <p>Collateral-backed · Primary deposits and redemptions · PancakeSwap after graduation</p>
       </div>
     );
   const {v, val} = row;
@@ -51,9 +53,10 @@ function Featured({row, d}: {row?: Row; d?: Deployment}) {
       </div>
       <div className="hero-preview__metrics">
         <Metric label="NAV / share" value={usd(val.nav, 4)} />
-        <Metric label="Market price" value={usd(val.market, 4)} />
+        <Metric label={graduation(val.aum).graduated ? 'Market price' : 'Primary price'} value={usd(graduation(val.aum).graduated ? val.market : val.nav, 4)} />
         <Metric label="AUM" value={compact(val.aum)} />
       </div>
+      <GraduationBar g={graduation(val.aum)} aum={val.aum} />
       <div>
         <div className="allocation-bar">
           {byValue.map(h => <span key={h.referenceAssetId} style={{width: `${h.valuePct ?? h.targetPct}%`, background: referenceAssetById(h.referenceAssetId)?.color}} />)}
@@ -105,7 +108,7 @@ export function Explore() {
         <div>
           <div className="eyebrow">01 / Portfolio markets</div>
           <h1>Invest in ideas.<br /><span>Own the basket.</span></h1>
-          <p>Collateral-backed portfolio tokens: deposit or redeem {FUNDING_TOKEN} at NAV, or trade the same token on PancakeSwap.</p>
+          <p>Collateral-backed portfolio tokens: deposit or redeem {FUNDING_TOKEN} at NAV from day one; trading opens on PancakeSwap once a portfolio graduates at {compact(LAUNCH.graduationUSD)} AUM.</p>
           <div className="hero__actions">
             <Link className="button button--primary" href="/create"><Plus size={16} /> Create portfolio</Link>
             <a className="button button--secondary" href="#discover">Explore markets</a>
@@ -116,7 +119,7 @@ export function Explore() {
       <section className="summary-grid">
         <Card><Metric label="Listed portfolios" value={d ? rows.length : '—'} detail={d ? venue(d) : 'no deployment'} /></Card>
         <Card><Metric label="Assets under management" value={compact(total(rows.map(r => r.val.aum)))} detail="on-chain holdings × Atlas prices" /></Card>
-        <Card><Metric label="Trading liquidity" value={compact(total(rows.map(r => r.val.liquidity)))} detail="PancakeSwap pools" /></Card>
+        <Card><Metric label="Graduated" value={`${rows.filter(r => graduation(r.val.aum).graduated).length} / ${rows.length}`} detail={`PancakeSwap opens at ${compact(LAUNCH.graduationUSD)} AUM`} /></Card>
         <Card><Metric label="Assets held" value={assetsHeld} detail="distinct constituents" /></Card>
       </section>
       <section className="section-heading" id="discover">
@@ -160,7 +163,7 @@ export function Explore() {
           <div className="table-scroll">
             <table>
               <thead>
-                <tr><th>Portfolio</th><th>Assets</th><th>NAV / share</th><th>Market price</th><th>Premium</th><th>AUM</th><th>Liquidity</th><th>Venue</th><th /></tr>
+                <tr><th>Portfolio</th><th>Assets</th><th>NAV / share</th><th>Market price</th><th>Premium</th><th>AUM</th><th>Graduation</th><th>Venue</th><th /></tr>
               </thead>
               <tbody>
                 {visible.map(({v, val}) => (
@@ -173,11 +176,11 @@ export function Explore() {
                     </td>
                     <td><Tokens v={v} /></td>
                     <td>{usd(val.nav, 4)}</td>
-                    <td>{usd(val.market, 4)}</td>
-                    <td className={(val.premiumPct ?? 0) < 0 ? 'negative' : 'positive'}>{percent(val.premiumPct)}</td>
+                    <td>{graduation(val.aum).graduated ? usd(val.market, 4) : '—'}</td>
+                    <td className={(val.premiumPct ?? 0) < 0 ? 'negative' : 'positive'}>{graduation(val.aum).graduated ? percent(val.premiumPct) : '—'}</td>
                     <td>{compact(val.aum)}</td>
-                    <td>{compact(val.liquidity)}</td>
-                    <td><Badge tone={v.phase === 3 ? 'good' : 'neutral'}>{v.closed ? 'Closed' : v.phase === 3 ? 'PancakeSwap' : 'Launching'}</Badge></td>
+                    <td><GraduationBar g={graduation(val.aum)} aum={val.aum} detail={false} /><small className="muted">{graduation(val.aum).progressPct.toFixed(0)}%</small></td>
+                    <td><Badge tone={graduation(val.aum).graduated ? 'good' : 'neutral'}>{v.closed ? 'Closed' : graduation(val.aum).graduated ? 'PancakeSwap' : 'IndexFi primary'}</Badge></td>
                     <td><Link aria-label={`View ${v.name}`} href={`/portfolio/${v.address}`}><ArrowUpRight size={18} /></Link></td>
                   </tr>
                 ))}

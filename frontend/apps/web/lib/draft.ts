@@ -9,7 +9,7 @@ import {referenceAssetById} from './catalog';
  * no longer resolves against the registry is dropped on load.
  */
 export const DRAFT_KEY = 'indexfi-create-draft';
-export const EMPTY_DRAFT: Draft = {name: '', symbol: '', description: '', category: 'Crypto', allocations: [], funding: 100, liquidity: 10};
+export const EMPTY_DRAFT: Draft = {name: '', symbol: '', description: '', category: 'Crypto', allocations: []};
 
 export interface SavedDraft {
   readonly draft: Draft;
@@ -51,10 +51,8 @@ export function parseDraft(raw: string | null): SavedDraft | null {
       description: text(record.description, 300),
       category: categories.includes(category) ? category : EMPTY_DRAFT.category,
       allocations,
-      funding: finite(record.funding, EMPTY_DRAFT.funding),
-      liquidity: finite(record.liquidity, EMPTY_DRAFT.liquidity),
     },
-    step: Math.min(4, Math.max(0, Math.trunc(finite(record.step, 0)))),
+    step: Math.min(3, Math.max(0, Math.trunc(finite(record.step, 0)))),
   };
 }
 

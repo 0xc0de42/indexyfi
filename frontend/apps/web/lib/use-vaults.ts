@@ -3,7 +3,7 @@ import {useRef,useState} from 'react';
 import {useQueries, useQuery, useQueryClient} from '@tanstack/react-query';
 import {useAccount, usePublicClient, useWalletClient} from 'wagmi';
 import {erc20Abi, getAddress, type Address, type Hash} from 'viem';
-import {authorizeLaunch, factoryAbi, feedIdsFor, floorOutput, gasLimit, legMinimums, listVaults, loadDeployment, signedPrices, vaultAbi, vaultChain, vaultEvent, vaultSnapshot, routerAbi, type Deployment, type GasKind} from './vaults';
+import {authorizeLaunch, launchDigest, launchSigner, newRequestId, factoryAbi, feedIdsFor, floorOutput, gasLimit, legMinimums, listVaults, loadDeployment, signedPrices, vaultAbi, vaultChain, vaultEvent, vaultSnapshot, routerAbi, type Deployment, type GasKind} from './vaults';
 
 export function useDeployment() {
   const client=usePublicClient({chainId:vaultChain.id});
@@ -20,12 +20,22 @@ export function useVault(d:Deployment|undefined,address:Address|undefined) {
   const {address:holder}=useAccount();
   return useQuery({queryKey:['vaults',d?.factory??'unavailable','snapshot',address??'unavailable',holder??'public'],enabled:!!d&&!!address&&!!client,queryFn:()=>vaultSnapshot(client!,d!,address!,holder),refetchInterval:10000});
 }
+/** Whether the connected wallet may launch: always on the local fixture; on public chains only OpenFour Core's signer. */
+export function useCanLaunch(d?:Deployment){
+  const client=usePublicClient({chainId:d?.chainId??vaultChain.id});
+  const {address}=useAccount();
+  const signer=useQuery({queryKey:['launch-signer',d?.openfour?.core??'none'],enabled:!!d&&!d.fixture&&!!client,queryFn:()=>launchSigner(client!,d!),staleTime:60_000});
+  if(!d) return {canLaunch:false,signer:undefined};
+  if(d.fixture) return {canLaunch:true,signer:undefined};
+  return {canLaunch:!!address&&!!signer.data&&signer.data.toLowerCase()===address.toLowerCase(),signer:signer.data??undefined};
+}
 /** Every vault of the deployment with its on-chain snapshot, newest first. */
 export function useVaults(d?:Deployment) {
   const client=usePublicClient({chainId:d?.chainId??vaultChain.id});
   const {address:holder}=useAccount();
   const directory=useDirectory(d);
-  const addresses=[...(directory.data??[])].reverse();
+  const hidden=new Set((d?.hiddenVaults??[]).map(a=>a.toLowerCase()));
+  const addresses=[...(directory.data??[])].reverse().filter(a=>!hidden.has(a.toLowerCase()));
   const snapshots=useQueries({queries:addresses.map(address=>({
     queryKey:['vaults',d?.factory??'unavailable','snapshot',address,holder??'public'],
     enabled:!!d&&!!client,queryFn:()=>vaultSnapshot(client!,d!,address,holder),refetchInterval:10000,
@@ -99,7 +109,10 @@ export function useVaultTransaction(d?:Deployment) {
       }
       const cash=deployment.settlementToken, router=deployment.router;
       if(action.kind==='create'){
-        if(!deployment.fixture)throw Error('Public launch authorization is not configured. Creation is disabled on this deployment.');
+        if(!deployment.fixture){
+          const launcher=await launchSigner(publicClient,deployment);
+          if(!launcher||launcher.toLowerCase()!==holder.toLowerCase()) throw Error('Only the OpenFour launch signer (the IndexFi operator wallet) can launch on this network.');
+        }
         await approve(cash,deployment.factory,action.seed+action.liquidity,'USDT');
       }else if(action.kind==='deposit')await approve(cash,action.vault,action.amount,'USDT');
       else if(action.kind==='redeem'||action.kind==='redeemInKind')await approve(action.token,action.vault,action.amount,'portfolio token');
@@ -119,11 +132,22 @@ export function useVaultTransaction(d?:Deployment) {
         let request;
         setPending('Fetching latest signed prices');
         const prices=await signedPrices(deployment,feedIdsFor(deployment,action.basket.constituents.map(c=>c.token)));
+        const minCreator=minimum(action.creatorShares),minimums=action.outputs.map(minimum);
         for(let attempt=0;;attempt++){
-          const auth=await authorizeLaunch(deployment);
+          let auth;
+          if(deployment.fixture) auth=await authorizeLaunch(deployment);
+          else {
+            // Public chain: the connected wallet is Core.signer (checked above) and signs the OpenFour launch digest.
+            const requestId=newRequestId();
+            const createArgs=await publicClient.readContract({address:factory,abi:factoryAbi,functionName:'buildCreateArgs',args:[requestId,holder,action.basket,action.seed,action.liquidity,minCreator,minimums,deadline,0n]});
+            setPending('Sign the OpenFour launch authorization in your wallet');
+            await checkWallet();
+            auth={requestId,authorization:await signer.signMessage({account:holder,message:{raw:launchDigest(deployment.chainId,factory,createArgs)}})};
+            setPending('Confirm transaction');
+          }
           if(await publicClient.readContract({address:factory,abi:factoryAbi,functionName:'usedRequestIds',args:[auth.requestId]})){if(attempt<2)continue;throw Error('Launch request ID already used. Try again.');}
           try{
-            request=(await publicClient.simulateContract({address:factory,abi:factoryAbi,account:holder,functionName:'createVaultWithPrices',args:[prices.payloads,prices.signatures,auth.requestId,action.basket,action.seed,action.liquidity,minimum(action.creatorShares),action.outputs.map(minimum),deadline,auth.authorization]})).request;
+            request=(await publicClient.simulateContract({address:factory,abi:factoryAbi,account:holder,functionName:'createVaultWithPrices',args:[prices.payloads,prices.signatures,auth.requestId,action.basket,action.seed,action.liquidity,minCreator,minimums,deadline,auth.authorization]})).request;
             break;
           }catch(err){if(attempt<2&&err instanceof Error&&/request id/i.test(err.message))continue;throw err;}
         }

@@ -174,3 +174,10 @@ th{font-family:var(--font-label);color:var(--subtle-foreground);font-weight:500;
 td{font-variant-numeric:tabular-nums}
 td a{color:var(--primary)}
 tbody tr:last-child td{border-bottom:0}
+
+/* Graduation progress (AUM toward the PancakeSwap threshold) */
+.graduation{display:flex;flex-direction:column;gap:6px;min-width:96px}
+.graduation__track{height:6px;background:var(--muted);overflow:hidden}
+.graduation__track>span{display:block;height:100%;background:var(--primary);transition:width .3s}
+.graduation[data-graduated="true"] .graduation__track>span{background:var(--good)}
+.graduation small{color:var(--muted-foreground);font-size:12px}

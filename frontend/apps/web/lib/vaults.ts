@@ -1,4 +1,4 @@
-import {decodeEventLog, encodeFunctionData, erc20Abi, formatUnits, getAddress, isAddress, parseAbi, parseUnits, type Address, type PublicClient, type TransactionReceipt} from 'viem';
+import {decodeEventLog, encodeFunctionData, encodePacked, erc20Abi, formatUnits, getAddress, isAddress, keccak256, parseAbi, parseUnits, type Address, type Hex, type PublicClient, type TransactionReceipt} from 'viem';
 import {bscTestnet, hardhat} from 'viem/chains';
 import {NO_PRICES, pricesByFeed, type SignedPrices} from './atlas-signed';
 import {z} from 'zod';
@@ -37,6 +37,10 @@ const deployment = z.object({
   schemaVersion:z.literal(5), fixture:z.boolean(), supplyModel:z.literal("standard-openfour-inventory"),
   /** Public test deployment whose assets are labelled test tokens standing in for mainnet assets (chain 97). */
   testAssets:z.boolean().default(false),
+  /** Superseded vaults the app does not list (they stay on chain and reachable by address). */
+  hiddenVaults:z.array(z.string().regex(/^0x[0-9a-fA-F]{40}$/)).default([]),
+  /** OpenFour Core the factory launches through; its signer() authorizes launches on public chains. */
+  openfour:z.object({core:address, registry:address, presetId:z.union([z.string(),z.number()])}).optional(),
   chainId:z.number().int(), factory:address, deploymentBlock:z.number().int().nonnegative(),
   settlementToken:address, settlementDecimals:decimals, adapter:address, oracle:address, router:address, assets:z.array(token).min(1),
 });
@@ -138,10 +142,22 @@ export function newRequestId():bigint {
   return id===0n?1n:id;
 }
 export type LaunchAuthorization={requestId:bigint;authorization:`0x${string}`};
-/** Fixture Core accepts an empty signature. Public chains need the OpenFour signer service, which is not integrated yet. */
+/** Fixture Core accepts an empty signature. Public chains need a signature from OpenFour Core's signer (see launchDigest). */
 export async function authorizeLaunch(d:Pick<Deployment,'fixture'>):Promise<LaunchAuthorization> {
   if(!d.fixture) throw Error('Public launch authorization is not configured. Creation is disabled on this deployment.');
   return {requestId:newRequestId(),authorization:'0x'};
+}
+export const coreAbi=parseAbi(['function signer() view returns (address)']);
+/**
+ * OpenFour launch digest, signed EIP-191 (personal_sign over the 32 raw bytes) by Core.signer. The caller Core sees is
+ * the IndexFi factory, and createArgs come from factory.buildCreateArgs with exactly the values the launch then uses.
+ */
+export const launchDigest=(chainId:number,factory:Address,createArgs:Hex)=>
+  keccak256(encodePacked(['string','uint256','address','bytes32'],['createOpenFourToken',BigInt(chainId),factory,keccak256(createArgs)]));
+/** OpenFour Core's launch signer, or null without a Core in the manifest (local fixture). */
+export async function launchSigner(client:PublicClient,d:Pick<Deployment,'openfour'>):Promise<Address|null>{
+  if(!d.openfour) return null;
+  return client.readContract({address:d.openfour.core as Address,abi:coreAbi,functionName:'signer'});
 }
 /** Wallet funds a launch needs: settlement-token balance and native gas. */
 export async function walletFunds(client:PublicClient,d:Deployment,holder:Address){

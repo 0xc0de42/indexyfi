@@ -18,10 +18,11 @@ import {AssetIcon} from './asset-icon';
 import {AllocationEditor, segmentColor} from './allocation-editor';
 import {apiStatusText} from './api-status';
 import {quoteCreate, exactAmount, units, walletFunds, fundFixtureWallet, MIN_GAS, FAUCET_USDT, vaultChain} from '@/lib/vaults';
-import {useDeployment, useVault, useVaultTransaction, type Basket} from '@/lib/use-vaults';
+import {useCanLaunch, useDeployment, useVault, useVaultTransaction, type Basket} from '@/lib/use-vaults';
+import {LAUNCH, launchTotalUSDT} from '@/lib/launch';
 
-const steps = ['Identity', 'Composition', 'Allocation', 'Funding', 'Review & launch'];
-const FUNDING_PRESETS = [100, 500, 1_000, 5_000];
+const steps = ['Identity', 'Composition', 'Allocation', 'Review & launch'];
+const REVIEW = steps.length - 1;
 
 /** Older drafts may not total 100%; the editor keeps the invariant from then on. */
 const repair = (draft: Draft): Draft =>
@@ -39,6 +40,7 @@ export function Create({prefill}: {prefill: Prefill}) {
   const router = useRouter();
   const deployment = useDeployment();
   const transaction = useVaultTransaction(deployment.data);
+  const {canLaunch} = useCanLaunch(deployment.data);
   // "Copy basket" links pass ?from=<vault address>; its composition is read from chain.
   const fromVault = useVault(deployment.data, prefill.from && isAddress(prefill.from) ? prefill.from : undefined);
   const template: Template | null = useMemo(() => fromVault.data ? {
@@ -63,7 +65,7 @@ export function Create({prefill}: {prefill: Prefill}) {
   const onChain = account.isConnected && account.chainId === vaultChain.id;
   const funds = useQuery({
     queryKey: ['launch-funds', deployment.data?.factory ?? 'none', account.address ?? 'none'],
-    enabled: step === 4 && onChain && !!account.address && !!deployment.data && !!deployment.client,
+    enabled: step === REVIEW && onChain && !!account.address && !!deployment.data && !!deployment.client,
     queryFn: () => walletFunds(deployment.client!, deployment.data!, account.address!),
     refetchInterval: 5000,
   });
@@ -72,6 +74,7 @@ export function Create({prefill}: {prefill: Prefill}) {
   const blocker: {message: string; action?: 'switch' | 'fund'} | null =
     !account.isConnected ? {message: 'Connect a wallet to launch (top right).'}
     : !onChain ? {message: `Your wallet is on another network. Switch it to ${vaultChain.name} (chain ${vaultChain.id}) to launch.`, action: 'switch'}
+    : !canLaunch ? {message: 'On BSC Testnet only the OpenFour launch signer (the IndexFi operator wallet) can launch. Connect it to launch; other wallets see a preview and can deposit into existing portfolios.'}
     : quoteError ? null
     : !quote ? {message: 'Waiting for the on-chain launch quote…'}
     : funds.data && needed !== null && (funds.data.usdt < needed || funds.data.gas < MIN_GAS)
@@ -168,9 +171,9 @@ export function Create({prefill}: {prefill: Prefill}) {
     let active = true;
     async function loadQuote() {
       setQuote(null); setQuoteError('');
-      if (step !== 4 || !deployment.data || !deployment.client || issues.length) return;
-      const seed = exactAmount(String(d.funding), deployment.data.settlementDecimals);
-      const liquidity = exactAmount(String(d.liquidity), deployment.data.settlementDecimals);
+      if (step !== REVIEW || !deployment.data || !deployment.client || issues.length) return;
+      const seed = exactAmount(String(LAUNCH.collateralUSDT), deployment.data.settlementDecimals);
+      const liquidity = exactAmount(String(LAUNCH.poolReserveUSDT), deployment.data.settlementDecimals);
       const legs = d.allocations.map(a => {
         const execution = deployment.data!.assets.find(x => x.referenceAssetId === a.asset.id);
         return execution ? {token: execution.address as Address, weightBps: Math.round(a.weight * 100)} : undefined;
@@ -201,7 +204,7 @@ export function Create({prefill}: {prefill: Prefill}) {
       <div className="page-heading">
         <div className="eyebrow">Creator / Launch</div>
         <h1>Create a portfolio.</h1>
-        <p>Choose supported assets, seed the basket with at least 100 {FUNDING_TOKEN}, and provide separate liquidity and open primary and secondary markets.</p>
+        <p>Choose supported assets and weights. Every portfolio launches with {LAUNCH.collateralUSDT.toLocaleString('en-US')} {FUNDING_TOKEN} of collateral at ${LAUNCH.startNav.toFixed(2)} NAV and graduates to PancakeSwap trading at {LAUNCH.graduationUSD.toLocaleString('en-US')} {FUNDING_TOKEN} AUM.</p>
         {deployment.isError && <div className="notice notice--bad">Contract deployment is unavailable on this network.</div>}
       </div>
       <div className="wizard-grid">
@@ -217,14 +220,14 @@ export function Create({prefill}: {prefill: Prefill}) {
           <Card>
             <div className="eyebrow">Launch rules</div>
             <h3>Public basket vault.</h3>
-            <p className="muted">Creator funds collateral and a separate trading pool. Public deposits release backed tokens and redemptions return them to inventory. Both charge a fixed 0.1% creator fee.</p>
+            <p className="muted">Fixed {LAUNCH.collateralUSDT.toLocaleString('en-US')} {FUNDING_TOKEN} collateral at ${LAUNCH.startNav.toFixed(2)} NAV. Anyone can deposit or redeem at NAV; PancakeSwap trading opens at {LAUNCH.graduationUSD.toLocaleString('en-US')} {FUNDING_TOKEN} AUM. Deposits and redemptions charge a fixed 0.1% creator fee.</p>
           </Card>
           <button type="button" className="text-button start-over" onClick={startOver}><RotateCcw size={13} /> Start over</button>
         </aside>
         <Card className="wizard-card">
-          <div className="card-heading"><h2>{steps[step]}</h2><Badge>{step + 1} / 5</Badge></div>
+          <div className="card-heading"><h2>{steps[step]}</h2><Badge>{step + 1} / {steps.length}</Badge></div>
           {notice && <div className="notice notice--good" role="status">{notice}</div>}
-          <form noValidate onSubmit={e => { e.preventDefault(); if (step < 4) next(); }}>
+          <form noValidate onSubmit={e => { e.preventDefault(); if (step < REVIEW) next(); }}>
             <div className="form-stack">
               {step === 0 && (
                 <>
@@ -293,7 +296,7 @@ export function Create({prefill}: {prefill: Prefill}) {
                 <AllocationEditor
                   allocations={d.allocations}
                   locked={locked}
-                  funding={d.funding}
+                  funding={LAUNCH.collateralUSDT}
                   onChange={allocations => update('allocations', allocations)}
                   onToggleLock={toggleLock}
                   onRemove={id => {
@@ -302,48 +305,7 @@ export function Create({prefill}: {prefill: Prefill}) {
                   }}
                 />
               )}
-              {step === 3 && (
-                <>
-                  <label className="field">
-                    Initial collateral funding ({FUNDING_TOKEN})
-                    <input type="number" step="0.01" min="0.01" required value={d.funding} aria-invalid={Boolean(fieldError('Funding'))} onChange={e => update('funding', Number(e.target.value))} />
-                    {fieldError('Funding') && <span className="field__error">{fieldError('Funding')}</span>}
-                  </label>
-                  <label className="field">Separate AMM liquidity (USDT)<input type="number" step="0.01" min="1" required value={d.liquidity} onChange={e=>update('liquidity',Number(e.target.value))}/></label>
-                  <div className="preset-row" role="group" aria-label="Funding presets">
-                    {FUNDING_PRESETS.map(amount => (
-                      <button type="button" key={amount} className="preset-chip" aria-pressed={d.funding === amount} onClick={() => update('funding', amount)}>
-                        {amount.toLocaleString('en-US')} {FUNDING_TOKEN}
-                      </button>
-                    ))}
-                  </div>
-                  <dl className="key-values">
-                    <div><dt>Minimum opening seed</dt><dd>100 {FUNDING_TOKEN}</dd></div>
-                    <div><dt>Primary fees</dt><dd>0.1% deposit and redemption; initial seed fee-free</dd></div>
-                  </dl>
-                  <div className="table-scroll">
-                    <table>
-                      <thead><tr><th>Asset</th><th>Allocation</th><th>Reference price</th><th>Indicative quantity</th></tr></thead>
-                      <tbody>
-                        {d.allocations.map(a => {
-                          const price = priceOf(a.asset);
-                          const value = price ? Number(price) : null;
-                          return (
-                            <tr key={a.asset.id}>
-                              <td>{a.asset.symbol}</td>
-                              <td>{usd((d.funding * a.weight) / 100)}</td>
-                              <td>{formatPrice(price)}</td>
-                              <td>{value ? ((d.funding * a.weight) / 100 / value).toPrecision(5) : 'Price unavailable'}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                  <p className="fine-print">Indicative only: latest USD reference prices assuming USD/USDT parity, not executable swap quotes. On-chain acquisition and activation must be atomic.</p>
-                </>
-              )}
-              {step === 4 && (
+              {step === REVIEW && (
                 <>
                   <div className="review-title">
                     <h3>{d.name} · {d.symbol}</h3>
@@ -367,7 +329,7 @@ export function Create({prefill}: {prefill: Prefill}) {
                             <tr key={a.asset.id}>
                               <td><span className="portfolio-name"><i className="alloc-row__swatch" style={{background: segmentColor(i)}} /><AssetIcon asset={a.asset} /><strong>{a.asset.symbol}</strong></span></td>
                               <td>{a.weight}%</td>
-                              <td>{usd((d.funding * a.weight) / 100)}</td>
+                              <td>{usd((LAUNCH.collateralUSDT * a.weight) / 100)}</td>
                               <td>{formatPrice(priceOf(a.asset))}</td>
                             </tr>
                           ))}
@@ -377,16 +339,20 @@ export function Create({prefill}: {prefill: Prefill}) {
                   </div>
                   <dl className="key-values">
                     <div><dt>Constituents</dt><dd>{d.allocations.length}</dd></div>
-                    <div><dt>{FUNDING_TOKEN} investment <button type="button" className="text-button" onClick={() => setStep(3)}><Pencil size={12} /> Edit</button></dt><dd>{usd(d.funding)}</dd></div>
-                    <div><dt>AMM USDT reserve</dt><dd>{usd(d.liquidity)}</dd></div>
-                    <div><dt>Total funding</dt><dd>{usd(d.funding+d.liquidity)}</dd></div>
+                    <div><dt>Initial investment (collateral)</dt><dd>{LAUNCH.collateralUSDT.toLocaleString('en-US')} {FUNDING_TOKEN}</dd></div>
+                    <div><dt>Starting NAV</dt><dd>{usd(LAUNCH.startNav, 2)}</dd></div>
+                    <div><dt>Graduation threshold</dt><dd>{LAUNCH.graduationUSD.toLocaleString('en-US')} {FUNDING_TOKEN} AUM</dd></div>
+                    <div><dt>Before graduation</dt><dd>Deposit and redeem at NAV (IndexFi primary market)</dd></div>
+                    <div><dt>After graduation</dt><dd>PancakeSwap trading opens</dd></div>
+                    <div><dt>Pool reserve (fixed)</dt><dd>{LAUNCH.poolReserveUSDT.toLocaleString('en-US')} {FUNDING_TOKEN}, paired with {LAUNCH.poolReserveUSDT.toLocaleString('en-US')} tokens for the PancakeSwap pool</dd></div>
+                    <div><dt>Total required funding</dt><dd>{launchTotalUSDT.toLocaleString('en-US')} {FUNDING_TOKEN}, excluding gas</dd></div>
                     <div><dt>Estimated creator tokens</dt><dd>{quote?units(quote.creatorShares,18):'—'}</dd></div>
                     <div><dt>Tokens allocated to AMM</dt><dd>{quote?units(quote.lpShares,18):'—'}</dd></div>
                     <div><dt>Creator fee</dt><dd>0.1% on each primary deposit and redemption</dd></div>
                     <div><dt>Execution quote</dt><dd>{quote ? `${quote.outputs.length} legs ready` : 'Loading contract quote'}</dd></div>
                     <div><dt>Public access</dt><dd>Immediate after confirmed launch</dd></div>
                   </dl>
-                  {deployment.data&&!deployment.data.fixture&&<div className="notice notice--neutral">On BSC Testnet, baskets are launched by the IndexFi operator, who signs OpenFour launches. This page previews the quote; existing baskets accept deposits from any wallet.</div>}
+                  {deployment.data&&!deployment.data.fixture&&canLaunch&&<div className="notice notice--neutral">Your wallet will ask for two approvals: a signature authorizing the OpenFour launch, then the launch transaction.</div>}
                   {blocker && <div role="status" data-testid="launch-blocker" className="notice notice--neutral">{blocker.message}{' '}
                     {blocker.action === 'switch' && <button type="button" className="text-button" disabled={switchChain.isPending} onClick={() => switchChain.switchChain({chainId: vaultChain.id})}>Switch network</button>}
                     {blocker.action === 'fund' && <button type="button" className="text-button" data-testid="get-test-funds" disabled={!!funding && funding.endsWith('…')} onClick={() => void getTestFunds()}>Get test funds ({FAUCET_USDT.toLocaleString('en-US')} USDT + gas)</button>}
@@ -401,7 +367,7 @@ export function Create({prefill}: {prefill: Prefill}) {
             {error && <div role="alert" className="notice notice--bad">{error}</div>}
             <div className="wizard-actions">
               <Button type="button" variant="secondary" disabled={step === 0} onClick={() => { setStep(s => s - 1); setError(''); }}><ArrowLeft size={16} /> Back</Button>
-              <Button type={step===4?'button':'submit'} disabled={step === 4 && (!quote||quote.draft!==d||!transaction.ready||!deployment.data?.fixture||!!transaction.pending||!!blocker)} onClick={step===4?()=>void launch():undefined}>{step === 4 ? 'Launch vault' : 'Continue'} <ArrowRight size={16} /></Button>
+              <Button type={step===REVIEW?'button':'submit'} disabled={step === REVIEW && (!quote||quote.draft!==d||!transaction.ready||!canLaunch||!!transaction.pending||!!blocker)} onClick={step===REVIEW?()=>void launch():undefined}>{step === REVIEW ? 'Launch portfolio' : 'Continue'} <ArrowRight size={16} /></Button>
             </div>
           </form>
         </Card>

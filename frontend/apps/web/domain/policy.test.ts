@@ -3,16 +3,15 @@ import {draftErrors, equalWeights} from './policy';
 import {referenceAssets} from '../lib/catalog';
 import {formatPrice, ageLabel} from './model';
 
-const draft = {name: 'Test', symbol: 'TEST', description: '', category: 'Crypto', allocations: [{asset: referenceAssets[0], weight: 50}, {asset: referenceAssets[1], weight: 50}], funding: 100, liquidity: 10};
+const draft = {name: 'Test', symbol: 'TEST', description: '', category: 'Crypto', allocations: [{asset: referenceAssets[0], weight: 50}, {asset: referenceAssets[1], weight: 50}]};
 
 describe('draft rules', () => {
   it('checks weights', () => {
     expect(draftErrors(draft)).toEqual([]);
     expect(draftErrors({...draft, allocations: draft.allocations.map(a => ({...a, weight: 40}))})).toContain('Weights must total 100%.');
   });
-  it('rejects duplicates and non-positive funding', () => {
+  it('rejects duplicates', () => {
     expect(draftErrors({...draft, allocations: [draft.allocations[0], draft.allocations[0]]})).toContain('Duplicate assets are not allowed.');
-    expect(draftErrors({...draft, funding: 0})).toContain('Funding must be at least 100 USDT.');
   });
   it('equal allocations total 100', () => {
     expect(equalWeights([0, 1, 2].map(() => ({weight: 0}))).reduce((s, a) => s + a.weight, 0)).toBeCloseTo(100);

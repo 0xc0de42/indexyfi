@@ -1,4 +1,5 @@
 import {describe,expect,it} from 'vitest';
+import {launchDigest} from './vaults';
 import {exactAmount,floorOutput,parseDeployment,marketPrice18,lpAmounts,legMinimums,newRequestId,authorizeLaunch,gasLimit,GAS_CAP} from './vaults';
 
 const manifest={
@@ -72,5 +73,8 @@ describe('vault boundary helpers',()=>{
     const auth=await authorizeLaunch({fixture:true});
     expect(auth.authorization).toBe('0x');expect(auth.requestId>0n).toBe(true);
     await expect(authorizeLaunch({fixture:false})).rejects.toThrow('Public launch authorization is not configured');
+  });
+  it('builds the OpenFour launch digest exactly like the operator script (ethers solidityPacked vector)', () => {
+    expect(launchDigest(97,'0x2E3e3Fb3d6b47c927F091380E175116D7cF5E658','0x1234abcd')).toBe('0x905e536508213834d4e44314ccbaf5cbbea9d0e41e905a0c3dbe8b5c74d71ede');
   });
 });

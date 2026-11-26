@@ -16,7 +16,7 @@ describe('draft storage', () => {
     const raw = JSON.stringify({name: 'X', allocations: [{id: a.id, weight: 50}, {id: a.id, weight: 50}, {id: '56:0xdead', weight: 1}], step: 99});
     const saved = parseDraft(raw);
     expect(saved?.draft.allocations.map(x => x.asset.id)).toEqual([a.id]);
-    expect(saved?.step).toBe(4);
+    expect(saved?.step).toBe(3); // clamped to the last of four wizard steps
     expect(parseDraft('{not json')).toBeNull();
     expect(parseDraft('null')).toBeNull();
     expect(parseDraft(null)).toBeNull();
@@ -50,8 +50,8 @@ describe('prefill', () => {
 
 describe('step validation', () => {
   it('assigns each issue to its wizard step', () => {
-    const steps = draftIssues({...EMPTY_DRAFT, funding: 0}).map(issue => issue.step);
-    expect(new Set(steps)).toEqual(new Set([0, 1, 2, 3]));
+    const steps = draftIssues(EMPTY_DRAFT).map(issue => issue.step);
+    expect(new Set(steps)).toEqual(new Set([0, 1, 2]));
   });
 });
 
