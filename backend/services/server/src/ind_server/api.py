@@ -7,7 +7,7 @@ from enum import StrEnum
 
 from aiohttp import web
 from ind_core.models import AssetId
-from ind_history.parquet import HistoryStore
+from ind_history.parquet import MAX_HISTORY_RANGE, HistoryStore
 from ind_snapshot.cache import LatestSnapshot
 from returns.maybe import Some
 from returns.result import Failure, Result, Success
@@ -53,10 +53,13 @@ def parse_history_query(
         )
         if start.tzinfo is None or end.tzinfo is None or start >= end:
             return Failure(error)
+        start, end = start.astimezone(UTC), end.astimezone(UTC)
+        if end - start > MAX_HISTORY_RANGE:
+            return Failure(error)
         return Success(
             HistoryQuery(
-                start.astimezone(UTC),
-                end.astimezone(UTC),
+                start,
+                end,
                 frozenset(AssetId(value) for value in asset_ids),
             )
         )

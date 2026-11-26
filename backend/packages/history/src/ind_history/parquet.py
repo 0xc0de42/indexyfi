@@ -12,6 +12,8 @@ from returns.result import Failure, Result, Success
 
 from ind_history.minute import minute_of
 
+MAX_HISTORY_RANGE = timedelta(hours=24)
+
 SCHEMA = pa.schema(
     [
         ("asset_id", pa.string()),
@@ -83,17 +85,46 @@ class HistoryStore:
 
         return atomic_write(self.path(minute_of(snapshot.snapshot_at)), write)
 
+    def _existing_paths(self, start: datetime, end: datetime) -> tuple[Path, ...]:
+        """Visit at most 25 UTC hour directories for a bounded history query."""
+        hour = start.replace(minute=0, second=0, microsecond=0)
+        first_minute = minute_of(start)
+        hours = (end - hour) // timedelta(hours=1) + 1
+        paths: list[Path] = []
+        for offset in range(hours):
+            current = hour + timedelta(hours=offset)
+            if current >= end:
+                break
+            directory = self.path(current).parent
+            try:
+                entries = sorted(directory.iterdir())
+            except FileNotFoundError:
+                continue
+            for path in entries:
+                if path.suffix != ".parquet" or len(path.stem) != 2:
+                    continue
+                if not path.stem.isascii() or not path.stem.isdecimal():
+                    continue
+                minute_number = int(path.stem)
+                if minute_number >= 60:
+                    continue
+                minute = current.replace(minute=minute_number)
+                if first_minute <= minute < end and path.is_file():
+                    paths.append(path)
+        return tuple(paths)
+
     def read(
         self, start: datetime, end: datetime, assets: frozenset[AssetId]
     ) -> Result[tuple[PriceSnapshot, ...], StorageError]:
+        invalid = StorageError(StorageErrorCode.INVALID_RANGE, "Invalid history range")
+        if start.tzinfo is None or end.tzinfo is None:
+            return Failure(invalid)
         result: list[PriceSnapshot] = []
-        minute = minute_of(start)
         try:
-            while minute < end:
-                path = self.path(minute)
-                minute += timedelta(minutes=1)
-                if not path.is_file():
-                    continue
+            start, end = start.astimezone(UTC), end.astimezone(UTC)
+            if not timedelta(0) < end - start <= MAX_HISTORY_RANGE:
+                return Failure(invalid)
+            for path in self._existing_paths(start, end):
                 raw: object = pq.ParquetFile(path).read(use_threads=False).to_pylist()
                 match decode_rows(raw):
                     case Failure(error):
@@ -116,11 +147,12 @@ class HistoryStore:
                         if prices:
                             result.append(PriceSnapshot(at, prices))
             return Success(tuple(result))
-        except (OSError, ValueError, TypeError, pa.ArrowException):
+        except (OSError, ValueError, TypeError, OverflowError, pa.ArrowException):
             return Failure(StorageError(StorageErrorCode.READ_FAILED, "Cannot read minute history"))
 
 
 __all__ = [
+    "MAX_HISTORY_RANGE",
     "HistoryStore",
     "HistoryRow",
     "decode_rows",

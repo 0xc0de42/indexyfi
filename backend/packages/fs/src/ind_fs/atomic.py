@@ -16,6 +16,7 @@ class StorageErrorCode(StrEnum):
     READ_FAILED = "read_failed"
     ENCODE_FAILED = "encode_failed"
     INVALID_SCHEMA = "invalid_schema"
+    INVALID_RANGE = "invalid_range"
 
 
 @dataclass(frozen=True, slots=True)
