@@ -41,6 +41,8 @@ const deployment = z.object({
   hiddenVaults:z.array(z.string().regex(/^0x[0-9a-fA-F]{40}$/)).default([]),
   /** OpenFour Core the factory launches through; its signer() authorizes launches on public chains. */
   openfour:z.object({core:address, registry:address, presetId:z.union([z.string(),z.number()])}).optional(),
+  /** Contract features of this deployment. rebalancing: factory/vault 5.2+ (docs/rebalancing/IMPLEMENTATION_PLAN.md). */
+  features:z.object({rebalancing:z.boolean().default(false)}).default({rebalancing:false}),
   chainId:z.number().int(), factory:address, deploymentBlock:z.number().int().nonnegative(),
   settlementToken:address, settlementDecimals:decimals, adapter:address, oracle:address, router:address, assets:z.array(token).min(1),
 });
@@ -74,6 +76,43 @@ export const factoryAbi = parseAbi([constituent, basket,
   'event PortfolioLaunched(address indexed vault,address indexed token,address indexed pair,uint256 collateralUSDT,uint256 liquidityUSDT,uint256 outstandingSupply)',
   'function buildCreateArgs(uint256 requestId,address creator,Basket basket,uint256 seedUSDT,uint256 liquidityUSDT,uint256 minCreatorShares,uint256[] minimums,uint256 deadline,uint256 createFee) view returns (bytes)',
 ]);
+/**
+ * Rebalancing interface of vault / factory 5.2 (docs/rebalancing/IMPLEMENTATION_PLAN.md §2.1). Used only when the manifest
+ * sets features.rebalancing (factory) or a vault answers rebalanceConfig(); older contracts keep the ABIs above.
+ */
+const rebalanceConfigStruct = 'struct RebalanceConfig { uint32 interval; uint16 thresholdBps; }' as const;
+export const rebalanceAbi = parseAbi([
+  'function rebalanceConfig() view returns (uint32 interval,uint16 thresholdBps,uint64 lastRebalanceAt)',
+  'function quoteRebalanceWithPrices(bytes[] payloads,bytes[] signatures) returns (uint256 driftBps,bool due,uint256[] expectedOut)',
+  'function rebalanceWithPrices(bytes[] payloads,bytes[] signatures,uint256[] minOut,uint256 deadline) returns (uint256 navBefore,uint256 navAfter)',
+  'event Rebalanced(address indexed caller,uint256 driftBps,uint256 navBefore,uint256 navAfter,uint64 at)',
+]);
+export const factoryRebalanceAbi = parseAbi([constituent, basket, rebalanceConfigStruct,
+  'function createVaultWithPrices(bytes[] payloads,bytes[] signatures,uint256 requestId,Basket basket,uint256 seedUSDT,uint256 liquidityUSDT,uint256 minCreatorShares,uint256[] minTokenOut,uint256 deadline,bytes launchAuthorization,RebalanceConfig rebalance) payable returns (address vault,uint256 seedShares)',
+  'function buildCreateArgs(uint256 requestId,address creator,Basket basket,uint256 seedUSDT,uint256 liquidityUSDT,uint256 minCreatorShares,uint256[] minimums,uint256 deadline,uint256 createFee,RebalanceConfig rebalance) view returns (bytes)',
+]);
+export interface OnchainRebalance {
+  readonly intervalSeconds: number;
+  readonly thresholdBps: number;
+  /** Unix seconds; the launch time until the first rebalance. */
+  readonly lastRebalanceAt: number;
+}
+/** The vault's rebalancing config, or null when the vault predates rebalancing (5.1) and the call reverts. */
+export async function readRebalance(client:PublicClient,vault:Address):Promise<OnchainRebalance|null>{
+  try{
+    const [interval,thresholdBps,last]=await client.readContract({address:vault,abi:rebalanceAbi,functionName:'rebalanceConfig'});
+    return {intervalSeconds:Number(interval),thresholdBps:Number(thresholdBps),lastRebalanceAt:Number(last)};
+  }catch{return null;}
+}
+export interface RebalanceEvent { readonly tx:`0x${string}`; readonly block:bigint; readonly at:number; readonly driftBps:number; readonly navBefore:bigint; readonly navAfter:bigint; readonly caller:Address }
+/** Past rebalances, newest first; null if the RPC refuses the log range. */
+export async function rebalanceHistory(client:PublicClient,vault:Address,fromBlock:bigint):Promise<RebalanceEvent[]|null>{
+  try{
+    const logs=await client.getContractEvents({address:vault,abi:rebalanceAbi,eventName:'Rebalanced',fromBlock,toBlock:'latest'});
+    return logs.map(l=>({tx:l.transactionHash,block:l.blockNumber,at:Number(l.args.at??0n),driftBps:Number(l.args.driftBps??0n),navBefore:l.args.navBefore??0n,navAfter:l.args.navAfter??0n,caller:l.args.caller!})).reverse();
+  }catch{return null;}
+}
+
 export const vaultAbi = parseAbi([constituent,
   'function name() view returns (string)', 'function symbol() view returns (string)', 'function creator() view returns (address)',
   'function totalSupply() view returns (uint256)', 'function closed() view returns (bool)',
@@ -114,7 +153,7 @@ export const legMinimums=(quotes:readonly bigint[],slipBps:number)=>quotes.map(q
 
 /** Ceiling for any one transaction: below the 16,777,216 per-transaction cap (EIP-7825) that Hardhat's Osaka rules enforce. */
 export const GAS_CAP=16_000_000n;
-export type GasKind='create'|'deposit'|'redeem'|'redeemInKind'|'swap'|'addLiquidity'|'removeLiquidity';
+export type GasKind='create'|'deposit'|'redeem'|'redeemInKind'|'swap'|'addLiquidity'|'removeLiquidity'|'rebalance';
 /**
  * Size-based limits (~25% over gas measured on the fixture, 2–32 assets): launch 4.03M→11.88M,
  * deposit 0.43M→4.66M, redeem 0.39M→4.56M, in-kind 0.23M→2.61M, plus ~0.15M + ~30k per feed for the signed
@@ -123,6 +162,8 @@ export type GasKind='create'|'deposit'|'redeem'|'redeemInKind'|'swap'|'addLiquid
 const FALLBACK:{[K in GasKind]:{base:bigint;perLeg:bigint}}={
   create:{base:4_650_000n,perLeg:340_000n}, deposit:{base:450_000n,perLeg:210_000n}, redeem:{base:450_000n,perLeg:210_000n},
   redeemInKind:{base:350_000n,perLeg:140_000n}, swap:{base:600_000n,perLeg:0n}, addLiquidity:{base:600_000n,perLeg:0n}, removeLiquidity:{base:600_000n,perLeg:0n},
+  // Planned (vault 5.2): one sell or buy per leg plus the signed price update.
+  rebalance:{base:600_000n,perLeg:260_000n},
 };
 /**
  * Explicit gas limit for a write. Every write sends one, so wallets never re-estimate: Hardhat's estimator overshoots

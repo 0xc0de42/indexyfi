@@ -25,13 +25,24 @@ describe('transport boundaries', () => {
     ['direct Atlas access', /atlasoracle|push\.atlas/i],
     ['WebSocket transport', /new WebSocket|\/ws\/prices|ws:\/\//],
     ['consensus status claims', /consensusStatus/],
-    ['versioned or invented backend paths', /\/backend\/(v1|health|assets|ws)\b|['"`]\/(v1|health)\//],
+    // The only versioned routes are the documented CMC endpoints (backend/docs/CMC_API.md), confined to lib/cmc-api.ts below.
+    ['versioned or invented backend paths', /\/backend\/(v1|health|assets|ws)\b|['"`]\/(v1(?!\/cmc\/(assets|quotes|history)['"`?])|health)\//],
     ['API keys', /ATLAS_API_KEY|api[_-]?key/i],
     ['demo mode', /NEXT_PUBLIC_DATA_MODE|demo-store|useDemo/],
   ])('has no %s in application code', (label, pattern) => {
     const offenders = files.filter(path => pattern.test(readFileSync(path, 'utf8'))).map(path => relative(web, path))
       .filter(path => !(SERVER_ONLY_PATTERNS.has(label) && SERVER_ATLAS_BOUNDARY.includes(path)));
     expect(offenders).toEqual([]);
+  });
+
+  it('requests the rebalance keeper status only from its client', () => {
+    const users = files.filter(path => /\/v1\/rebalancer\//.test(readFileSync(path, 'utf8'))).map(path => relative(web, path));
+    expect(users).toEqual([join('lib', 'keeper-api.ts')]);
+  });
+
+  it('requests CMC routes only from the typed CMC client', () => {
+    const users = files.filter(path => /\/v1\/cmc\//.test(readFileSync(path, 'utf8'))).map(path => relative(web, path));
+    expect(users).toEqual([join('lib', 'cmc-api.ts')]);
   });
 
   it('keeps the signed-price Atlas boundary server-only', () => {

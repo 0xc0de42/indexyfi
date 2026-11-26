@@ -15,11 +15,16 @@ import {applyPrefill, DRAFT_KEY, EMPTY_DRAFT, parseDraft, serializeDraft, type P
 import {replaceQuery} from '@/lib/routes';
 import {categories, formatPrice, usd, FUNDING_TOKEN, type Asset, type Draft} from '@/domain/model';
 import {AssetIcon} from './asset-icon';
+import {AssetFilters, INITIAL_FILTERS, sortMetricLabel, type AssetFilterState} from './asset-filters';
+import {queryAssets} from '@/lib/asset-query';
+import {useAssetData} from '@/lib/use-asset-data';
+import {cmcPct, cmcUsd, pctTone} from '@/lib/cmc-format';
 import {AllocationEditor, segmentColor} from './allocation-editor';
 import {apiStatusText} from './api-status';
 import {quoteCreate, exactAmount, units, walletFunds, fundFixtureWallet, MIN_GAS, FAUCET_USDT, vaultChain} from '@/lib/vaults';
 import {useCanLaunch, useDeployment, useVault, useVaultTransaction, type Basket} from '@/lib/use-vaults';
 import {LAUNCH, launchTotalUSDT} from '@/lib/launch';
+import {REBALANCE_INTERVALS, REBALANCE_THRESHOLDS_BPS, bpsLabel, settingsLabel} from '@/lib/rebalance';
 
 const steps = ['Identity', 'Composition', 'Allocation', 'Review & launch'];
 const REVIEW = steps.length - 1;
@@ -52,7 +57,7 @@ export function Create({prefill}: {prefill: Prefill}) {
   const [d, setD] = useState<Draft>(EMPTY_DRAFT);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState<AssetFilterState>(INITIAL_FILTERS);
   const [locked, setLocked] = useState<ReadonlySet<string>>(() => new Set());
   const [symbolEdited, setSymbolEdited] = useState(false);
   const [attempted, setAttempted] = useState<ReadonlySet<number>>(() => new Set());
@@ -163,9 +168,14 @@ export function Create({prefill}: {prefill: Prefill}) {
     setStep(s => s + 1);
   }
 
-  const term = search.toLowerCase();
   const supportedIds = useMemo(() => new Set(deployment.data?.assets.map(a => a.referenceAssetId) ?? []), [deployment.data]);
-  const options = referenceAssets.filter(a => supportedIds.has(a.id) && `${a.name} ${a.symbol}`.toLowerCase().includes(term));
+  // Only assets the active deployment can execute; filters and sorting (Atlas + CMC data) never grant eligibility.
+  const supported = useMemo(() => referenceAssets.filter(a => supportedIds.has(a.id)), [supportedIds]);
+  const dataOf = useAssetData(supported);
+  const options = useMemo(
+    () => queryAssets(supported, {term: filters.search, category: filters.category, sort: filters.sort, direction: filters.direction}, dataOf),
+    [supported, filters, dataOf],
+  );
 
   useEffect(() => {
     let active = true;
@@ -191,7 +201,7 @@ export function Create({prefill}: {prefill: Prefill}) {
 
   async function launch() {
     if(!quote || quote.draft!==d || !deployment.data || !deployment.client) return;
-    const result=await transaction.submit({kind:'create',basket:quote.basket,seed:quote.seed,liquidity:quote.liquidity,creatorShares:quote.creatorShares,outputs:quote.outputs},100);
+    const result=await transaction.submit({kind:'create',basket:quote.basket,seed:quote.seed,liquidity:quote.liquidity,creatorShares:quote.creatorShares,outputs:quote.outputs,rebalance:d.rebalance},100);
     if(!result) return;
     if(result.event?.eventName!=='VaultCreated') {setError('Launch confirmed but creation event not found. Check Explore.');return;}
     const vault=result.event.args.vault;
@@ -274,7 +284,7 @@ export function Create({prefill}: {prefill: Prefill}) {
                       ))}
                     </div>
                   )}
-                  <label className="field">Search assets<input placeholder="Name or symbol" value={search} onChange={e => setSearch(e.target.value)} /></label>
+                  <AssetFilters value={filters} onChange={setFilters} shown={options.length} total={supported.length} />
                   {!options.length ? (
                     <Empty>No matching assets.</Empty>
                   ) : (
@@ -283,7 +293,17 @@ export function Create({prefill}: {prefill: Prefill}) {
                         <button type="button" key={a.id} className="asset-option" aria-pressed={d.allocations.some(x => x.asset.id === a.id)} onClick={() => toggle(a)}>
                           <AssetIcon asset={a} />
                           <span><strong>{a.symbol}</strong><small>{a.name} · {a.category}</small></span>
-                          <span title={priceOf(a) ? `${priceOf(a)} USD` : undefined}>{formatPrice(priceOf(a))}<small>Chain 56 reference</small></span>
+                          {(() => {
+                            const data = dataOf(a), q = data.quote, metric = sortMetricLabel(filters.sort, data);
+                            return (
+                              <span className="asset-option__data" title={q?.marketCap ? `CMC market cap ${q.marketCap} USD · 24h ${q.change24h ?? '—'}%` : undefined}>
+                                <span title={priceOf(a) ? `${priceOf(a)} USD (Atlas)` : undefined}>{formatPrice(priceOf(a))}</span>
+                                {metric
+                                  ? <small className={metric.tone}>{metric.text}</small>
+                                  : <small>MC {cmcUsd(q?.marketCap)} · <span className={pctTone(q?.change24h)}>{cmcPct(q?.change24h)}</span></small>}
+                              </span>
+                            );
+                          })()}
                           {d.allocations.some(x => x.asset.id === a.id) && <Check size={17} />}
                         </button>
                       ))}
@@ -337,8 +357,44 @@ export function Create({prefill}: {prefill: Prefill}) {
                       </table>
                     </div>
                   </div>
+                  <div className="review-section" data-testid="rebalance-settings">
+                    <div className="card-heading">
+                      <strong>Rebalancing</strong>
+                      <span className="muted">{settingsLabel(d.rebalance)}</span>
+                    </div>
+                    <p className="fine-print">
+                      Prices move the actual weights away from the targets above. When the largest gap reaches the threshold and the interval has passed since
+                      the last rebalance, the vault sells overweight assets and buys underweight ones back to target, at signed Atlas prices, in one
+                      transaction. Settings are fixed at launch.
+                    </p>
+                    <div className="rebalance-pickers">
+                      <div>
+                        <span className="fine-print">Interval (minimum time between rebalances)</span>
+                        <div className="tabs" role="group" aria-label="Rebalance interval">
+                          {REBALANCE_INTERVALS.map(i => (
+                            <button type="button" key={i.seconds} aria-pressed={d.rebalance.intervalSeconds === i.seconds} onClick={() => update('rebalance', {...d.rebalance, intervalSeconds: i.seconds})}>{i.label}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="fine-print">Drift threshold (largest weight gap)</span>
+                        <div className="tabs" role="group" aria-label="Drift threshold">
+                          {REBALANCE_THRESHOLDS_BPS.map(bps => (
+                            <button type="button" key={bps} disabled={d.rebalance.intervalSeconds === 0} aria-pressed={d.rebalance.thresholdBps === bps} onClick={() => update('rebalance', {...d.rebalance, thresholdBps: bps})}>{bpsLabel(bps)}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    {d.rebalance.intervalSeconds !== 0 && d.rebalance.thresholdBps <= 10 && (
+                      <p className="fine-print">0.1% is reached almost every interval with many constituents, so expect a rebalance (and its swap fees) nearly every time.</p>
+                    )}
+                    {deployment.data && !deployment.data.features.rebalancing && (
+                      <div className="notice notice--neutral" role="status">This deployment runs vault 5.1, which has no rebalancing yet: a launch here stores no settings. Vault 5.2 stores and enforces them on chain.</div>
+                    )}
+                  </div>
                   <dl className="key-values">
                     <div><dt>Constituents</dt><dd>{d.allocations.length}</dd></div>
+                    <div><dt>Rebalancing</dt><dd>{settingsLabel(d.rebalance)}</dd></div>
                     <div><dt>Initial investment (collateral)</dt><dd>{LAUNCH.collateralUSDT.toLocaleString('en-US')} {FUNDING_TOKEN}</dd></div>
                     <div><dt>Starting NAV</dt><dd>{usd(LAUNCH.startNav, 2)}</dd></div>
                     <div><dt>Graduation threshold</dt><dd>{LAUNCH.graduationUSD.toLocaleString('en-US')} {FUNDING_TOKEN} AUM</dd></div>

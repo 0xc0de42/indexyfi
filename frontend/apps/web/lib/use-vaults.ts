@@ -3,6 +3,8 @@ import {useRef,useState} from 'react';
 import {useQueries, useQuery, useQueryClient} from '@tanstack/react-query';
 import {useAccount, usePublicClient, useWalletClient} from 'wagmi';
 import {erc20Abi, getAddress, type Address, type Hash} from 'viem';
+import {factoryRebalanceAbi, rebalanceAbi} from './vaults';
+import type {RebalanceSettings} from './rebalance';
 import {authorizeLaunch, launchDigest, launchSigner, newRequestId, factoryAbi, feedIdsFor, floorOutput, gasLimit, legMinimums, listVaults, loadDeployment, signedPrices, vaultAbi, vaultChain, vaultEvent, vaultSnapshot, routerAbi, type Deployment, type GasKind} from './vaults';
 
 export function useDeployment() {
@@ -48,7 +50,8 @@ export function useVaults(d?:Deployment) {
 }
 export type Basket = {name:string;symbol:string;metadataURI:string;constituents:{token:Address;weightBps:number}[]};
 export type VaultAction =
-  | {kind:'create';basket:Basket;seed:bigint;liquidity:bigint;creatorShares:bigint;outputs:readonly bigint[]}
+  | {kind:'create';basket:Basket;seed:bigint;liquidity:bigint;creatorShares:bigint;outputs:readonly bigint[];rebalance?:RebalanceSettings}
+  | {kind:'rebalance';vault:Address;expectedOut:readonly bigint[]}
   | {kind:'deposit';vault:Address;amount:bigint;shares:bigint;outputs:readonly bigint[]}
   | {kind:'redeem';vault:Address;token:Address;amount:bigint;net:bigint;legs:readonly bigint[]}
   | {kind:'redeemInKind';vault:Address;token:Address;amount:bigint;net:readonly bigint[]}
@@ -119,7 +122,8 @@ export function useVaultTransaction(d?:Deployment) {
       else if(action.kind==='swap')await approve(action.buy?cash:action.token,router,action.amount,action.buy?'USDT':'portfolio token');
       else if(action.kind==='addLiquidity'){
         await approve(cash,router,action.cash,'USDT');await approve(action.token,router,action.shares,'portfolio token');
-      }else await approve(action.pair,router,action.amount,'LP token');
+      }else if(action.kind==='rebalance'){/* no token approvals: the vault trades its own holdings */}
+      else await approve(action.pair,router,action.amount,'LP token');
       setPending('Confirm transaction');
       const deadline=(await publicClient.getBlock()).timestamp+600n;
       await checkWallet();
@@ -133,13 +137,18 @@ export function useVaultTransaction(d?:Deployment) {
         setPending('Fetching latest signed prices');
         const prices=await signedPrices(deployment,feedIdsFor(deployment,action.basket.constituents.map(c=>c.token)));
         const minCreator=minimum(action.creatorShares),minimums=action.outputs.map(minimum);
+        // Factory 5.2+ stores the rebalancing settings at launch (inside createArgs, so the OpenFour signature covers them).
+        const withRebalance=deployment.features.rebalancing&&!!action.rebalance;
+        const rebalanceArg={interval:action.rebalance?.intervalSeconds??0,thresholdBps:action.rebalance?.thresholdBps??0};
         for(let attempt=0;;attempt++){
           let auth;
           if(deployment.fixture) auth=await authorizeLaunch(deployment);
           else {
             // Public chain: the connected wallet is Core.signer (checked above) and signs the OpenFour launch digest.
             const requestId=newRequestId();
-            const createArgs=await publicClient.readContract({address:factory,abi:factoryAbi,functionName:'buildCreateArgs',args:[requestId,holder,action.basket,action.seed,action.liquidity,minCreator,minimums,deadline,0n]});
+            const createArgs=withRebalance
+              ? await publicClient.readContract({address:factory,abi:factoryRebalanceAbi,functionName:'buildCreateArgs',args:[requestId,holder,action.basket,action.seed,action.liquidity,minCreator,minimums,deadline,0n,rebalanceArg]})
+              : await publicClient.readContract({address:factory,abi:factoryAbi,functionName:'buildCreateArgs',args:[requestId,holder,action.basket,action.seed,action.liquidity,minCreator,minimums,deadline,0n]});
             setPending('Sign the OpenFour launch authorization in your wallet');
             await checkWallet();
             auth={requestId,authorization:await signer.signMessage({account:holder,message:{raw:launchDigest(deployment.chainId,factory,createArgs)}})};
@@ -147,11 +156,21 @@ export function useVaultTransaction(d?:Deployment) {
           }
           if(await publicClient.readContract({address:factory,abi:factoryAbi,functionName:'usedRequestIds',args:[auth.requestId]})){if(attempt<2)continue;throw Error('Launch request ID already used. Try again.');}
           try{
-            request=(await publicClient.simulateContract({address:factory,abi:factoryAbi,account:holder,functionName:'createVaultWithPrices',args:[prices.payloads,prices.signatures,auth.requestId,action.basket,action.seed,action.liquidity,minCreator,minimums,deadline,auth.authorization]})).request;
+            request=withRebalance
+              ? (await publicClient.simulateContract({address:factory,abi:factoryRebalanceAbi,account:holder,functionName:'createVaultWithPrices',args:[prices.payloads,prices.signatures,auth.requestId,action.basket,action.seed,action.liquidity,minCreator,minimums,deadline,auth.authorization,rebalanceArg]})).request
+              : (await publicClient.simulateContract({address:factory,abi:factoryAbi,account:holder,functionName:'createVaultWithPrices',args:[prices.payloads,prices.signatures,auth.requestId,action.basket,action.seed,action.liquidity,minCreator,minimums,deadline,auth.authorization]})).request;
             break;
           }catch(err){if(attempt<2&&err instanceof Error&&/request id/i.test(err.message))continue;throw err;}
         }
         const sized=await withGas(request,'create',action.basket.constituents.length);
+        // Either launch ABI (5.1 or 5.2 with rebalancing): a fully simulated request; viem cannot type the union.
+        await checkWallet();hash=await signer.writeContract(sized as Parameters<typeof signer.writeContract>[0]);
+      } else if(action.kind==='rebalance') {
+        // Vault 5.2+: permissionless; the contract enforces interval, threshold and the 1% NAV-loss cap.
+        eventSource=action.vault;
+        const prices=await pricesForVault(action.vault);
+        const simulation=await publicClient.simulateContract({address:action.vault,abi:rebalanceAbi,account:holder,functionName:'rebalanceWithPrices',args:[prices.payloads,prices.signatures,action.expectedOut.map(minimum),deadline]});
+        const sized=await withGas(simulation.request,'rebalance',action.expectedOut.length);
         await checkWallet();hash=await signer.writeContract(sized);
       } else if(action.kind==='deposit') {
         eventSource=action.vault;

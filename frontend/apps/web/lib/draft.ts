@@ -2,6 +2,7 @@ import type {Asset, Draft} from '@/domain/model';
 import {categories} from '@/domain/model';
 import {equalWeights} from '@/domain/policy';
 import {referenceAssetById} from './catalog';
+import {DEFAULT_REBALANCE, isValidRebalance} from './rebalance';
 
 /**
  * Create-wizard draft kept in this browser tab, so researching an asset or a
@@ -9,7 +10,7 @@ import {referenceAssetById} from './catalog';
  * no longer resolves against the registry is dropped on load.
  */
 export const DRAFT_KEY = 'indexfi-create-draft';
-export const EMPTY_DRAFT: Draft = {name: '', symbol: '', description: '', category: 'Crypto', allocations: []};
+export const EMPTY_DRAFT: Draft = {name: '', symbol: '', description: '', category: 'Crypto', allocations: [], rebalance: DEFAULT_REBALANCE};
 
 export interface SavedDraft {
   readonly draft: Draft;
@@ -22,6 +23,13 @@ export function serializeDraft(draft: Draft, step: number): string {
 
 const text = (value: unknown, max: number) => (typeof value === 'string' ? value.slice(0, max) : '');
 const finite = (value: unknown, fallback: number) => (typeof value === 'number' && Number.isFinite(value) ? value : fallback);
+
+function rebalanceOf(value: unknown): Draft['rebalance'] {
+  if (typeof value !== 'object' || value === null) return EMPTY_DRAFT.rebalance;
+  const r = value as Record<string, unknown>;
+  const parsed = {intervalSeconds: finite(r.intervalSeconds, -1), thresholdBps: finite(r.thresholdBps, -1)};
+  return isValidRebalance(parsed) ? parsed : EMPTY_DRAFT.rebalance;
+}
 
 export function parseDraft(raw: string | null): SavedDraft | null {
   if (!raw) return null;
@@ -51,6 +59,7 @@ export function parseDraft(raw: string | null): SavedDraft | null {
       description: text(record.description, 300),
       category: categories.includes(category) ? category : EMPTY_DRAFT.category,
       allocations,
+      rebalance: rebalanceOf(record.rebalance),
     },
     step: Math.min(3, Math.max(0, Math.trunc(finite(record.step, 0)))),
   };

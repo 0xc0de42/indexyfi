@@ -5,7 +5,9 @@ export type Asset = RegistryAsset & {readonly color: string};
 
 
 export type Side = 'buy' | 'sell';
-export type Draft = {name: string; symbol: string; description: string; category: string; allocations: {asset: Asset; weight: number}[]};
+export type Draft = {name: string; symbol: string; description: string; category: string; allocations: {asset: Asset; weight: number}[];
+  /** Rebalancing chosen at launch (stored on chain by vault 5.2+): minimum seconds between rebalances (0 = off) and drift threshold. */
+  rebalance: {intervalSeconds: number; thresholdBps: number}};
 
 /** Settlement and funding token. USD reference prices assume USD/USDT parity. */
 export const FUNDING_TOKEN = 'USDT';

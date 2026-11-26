@@ -5,6 +5,7 @@ import {WagmiProvider,createConfig,fallback,http} from "wagmi";
 import {injected} from "wagmi/connectors";
 import {getDefaultConfig,RainbowKitProvider} from "@rainbow-me/rainbowkit";
 import {PriceProvider} from "@/lib/prices";
+import {CmcProvider} from "@/lib/cmc";
 import {AppLoader} from "./app-loader";
 import {vaultChain,vaultRpcs} from "@/lib/vaults";
 const projectId=process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
@@ -19,4 +20,4 @@ const transports={97:transport,31337:transport} as const;
 // so a vault refresh is ~1-2 requests instead of ~36. The local Hardhat fixture has no Multicall3, so it stays unbatched.
 const batch=vaultChain.contracts?.multicall3?{multicall:{batchSize:8_192,wait:16}}:undefined;
 const config=projectId?getDefaultConfig({appName:"IndexFi",projectId,chains,transports,batch,ssr:true}):createConfig({chains,connectors:[injected()],transports,batch,ssr:true});
-export function Providers({children}:{children:ReactNode}){const [client]=useState(()=>new QueryClient({defaultOptions:{queries:{retry:1,staleTime:5000}}}));return <WagmiProvider config={config}><QueryClientProvider client={client}><RainbowKitProvider><PriceProvider><AppLoader>{children}</AppLoader></PriceProvider></RainbowKitProvider></QueryClientProvider></WagmiProvider>;}
+export function Providers({children}:{children:ReactNode}){const [client]=useState(()=>new QueryClient({defaultOptions:{queries:{retry:1,staleTime:5000}}}));return <WagmiProvider config={config}><QueryClientProvider client={client}><RainbowKitProvider><PriceProvider><CmcProvider><AppLoader>{children}</AppLoader></CmcProvider></PriceProvider></RainbowKitProvider></QueryClientProvider></WagmiProvider>;}
