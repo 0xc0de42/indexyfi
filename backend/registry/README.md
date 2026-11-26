@@ -9,3 +9,8 @@ module. Neither runtime reads these dumps or the JSON handoff. Observed feeds ar
 evidence of access in that test window, not a promise of immediate delivery on future
 connections. Unobserved feeds remain unknown. Review excluded assets and rerun with a
 longer window before using the result.
+
+`cmc.json` is a separate, operator-approved mapping from canonical `asset_id` to a CMC crypto or
+RWA identity. It intentionally starts empty. Never enable a candidate from ticker equality alone:
+record the relation (`exact_token`, `underlying_reference`, or `rwa_aggregate`) and nonempty
+evidence. Missing mappings are valid and remain visible as unavailable metadata.

@@ -54,8 +54,35 @@ def atomic_write(
                     value.unlink(missing_ok=True)
 
 
+def atomic_replace(
+    path: Path, writer: Callable[[Path], Result[None, StorageError]]
+) -> Result[None, StorageError]:
+    """Atomically create or replace a mutable snapshot file."""
+    temporary: Maybe[Path] = Nothing
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=path.parent, suffix=".tmp", delete=False) as file:
+            target = Path(file.name)
+            temporary = Some(target)
+        match writer(target):
+            case Failure(error):
+                return Failure(error)
+        with target.open("rb") as stream:
+            os.fsync(stream.fileno())
+        os.replace(target, path)
+        return Success(None)
+    except (OSError, ValueError, TypeError):
+        return Failure(StorageError(StorageErrorCode.WRITE_FAILED, "Atomic replace failed"))
+    finally:
+        match temporary:
+            case Some(value):
+                with contextlib.suppress(OSError):
+                    value.unlink(missing_ok=True)
+
+
 __all__ = [
     "StorageErrorCode",
     "StorageError",
     "atomic_write",
+    "atomic_replace",
 ]
