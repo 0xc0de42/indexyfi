@@ -1,6 +1,6 @@
 'use client';
 import {useRef,useState} from 'react';
-import {useQuery, useQueryClient} from '@tanstack/react-query';
+import {useQueries, useQuery, useQueryClient} from '@tanstack/react-query';
 import {useAccount, usePublicClient, useWalletClient} from 'wagmi';
 import {erc20Abi, getAddress, type Address, type Hash} from 'viem';
 import {authorizeLaunch, factoryAbi, feedIdsFor, floorOutput, gasLimit, legMinimums, listVaults, loadDeployment, signedPrices, vaultAbi, vaultChain, vaultEvent, vaultSnapshot, routerAbi, type Deployment, type GasKind} from './vaults';
@@ -19,6 +19,22 @@ export function useVault(d:Deployment|undefined,address:Address|undefined) {
   const client=usePublicClient({chainId:d?.chainId??vaultChain.id});
   const {address:holder}=useAccount();
   return useQuery({queryKey:['vaults',d?.factory??'unavailable','snapshot',address??'unavailable',holder??'public'],enabled:!!d&&!!address&&!!client,queryFn:()=>vaultSnapshot(client!,d!,address!,holder),refetchInterval:10000});
+}
+/** Every vault of the deployment with its on-chain snapshot, newest first. */
+export function useVaults(d?:Deployment) {
+  const client=usePublicClient({chainId:d?.chainId??vaultChain.id});
+  const {address:holder}=useAccount();
+  const directory=useDirectory(d);
+  const addresses=[...(directory.data??[])].reverse();
+  const snapshots=useQueries({queries:addresses.map(address=>({
+    queryKey:['vaults',d?.factory??'unavailable','snapshot',address,holder??'public'],
+    enabled:!!d&&!!client,queryFn:()=>vaultSnapshot(client!,d!,address,holder),refetchInterval:10000,
+  }))});
+  return {
+    isLoading:directory.isLoading||snapshots.some(s=>s.isLoading),
+    isError:directory.isError,
+    vaults:snapshots.flatMap(s=>s.data?[s.data]:[]),
+  };
 }
 export type Basket = {name:string;symbol:string;metadataURI:string;constituents:{token:Address;weightBps:number}[]};
 export type VaultAction =

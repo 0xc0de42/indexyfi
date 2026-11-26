@@ -8,5 +8,5 @@ import {Shell} from "@/components/shell";
 const display=Manrope({subsets:["latin"],variable:"--font-manrope",display:"swap"});
 const body=Instrument_Sans({subsets:["latin"],variable:"--font-instrument",display:"swap"});
 const mono=JetBrains_Mono({subsets:["latin"],variable:"--font-jetbrains",display:"swap",weight:["400","500"]});
-export const metadata:Metadata={title:"IndexFi",description:"A local prototype for programmable portfolio markets."};
+export const metadata:Metadata={title:"IndexFi",description:"Collateral-backed portfolio tokens on BNB Chain: deposit or redeem at Atlas NAV, trade on PancakeSwap."};
 export default function Layout({children}:{children:ReactNode}){return <html lang="en" data-theme="light" className={`${display.variable} ${body.variable} ${mono.variable}`} suppressHydrationWarning><body><a className="skip-link" href="#main">Skip to content</a><Providers><Shell>{children}</Shell></Providers></body></html>;}

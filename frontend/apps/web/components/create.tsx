@@ -1,24 +1,24 @@
 'use client';
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {useRouter} from 'next/navigation';
-import type {Address} from 'viem';
+import {isAddress, type Address} from 'viem';
 import {useAccount, useSwitchChain} from 'wagmi';
 import {useQuery} from '@tanstack/react-query';
 import {Check, ArrowRight, ArrowLeft, X, RotateCcw, Pencil} from 'lucide-react';
 import {Button, Card, Badge, Empty} from '@indexfi/ui';
-import {referenceAssets} from '@/lib/catalog';
+import {referenceAssetById, referenceAssets} from '@/lib/catalog';
 import {usePriceState} from '@/lib/prices';
 import {draftIssues, equalWeights} from '@/domain/policy';
 import {addItem, isEqualSplit, normalize, removeItem, totalOf} from '@/domain/allocation';
 import {suggestTicker} from '@/domain/ticker';
-import {applyPrefill, DRAFT_KEY, EMPTY_DRAFT, parseDraft, serializeDraft, type Prefill} from '@/lib/draft';
+import {applyPrefill, DRAFT_KEY, EMPTY_DRAFT, parseDraft, serializeDraft, type Prefill, type Template} from '@/lib/draft';
 import {replaceQuery} from '@/lib/routes';
 import {categories, formatPrice, usd, FUNDING_TOKEN, type Asset, type Draft} from '@/domain/model';
 import {AssetIcon} from './asset-icon';
 import {AllocationEditor, segmentColor} from './allocation-editor';
 import {apiStatusText} from './api-status';
 import {quoteCreate, exactAmount, units, walletFunds, fundFixtureWallet, MIN_GAS, FAUCET_USDT, vaultChain} from '@/lib/vaults';
-import {useDeployment, useVaultTransaction, type Basket} from '@/lib/use-vaults';
+import {useDeployment, useVault, useVaultTransaction, type Basket} from '@/lib/use-vaults';
 
 const steps = ['Identity', 'Composition', 'Allocation', 'Funding', 'Review & launch'];
 const FUNDING_PRESETS = [100, 500, 1_000, 5_000];
@@ -39,6 +39,13 @@ export function Create({prefill}: {prefill: Prefill}) {
   const router = useRouter();
   const deployment = useDeployment();
   const transaction = useVaultTransaction(deployment.data);
+  // "Copy basket" links pass ?from=<vault address>; its composition is read from chain.
+  const fromVault = useVault(deployment.data, prefill.from && isAddress(prefill.from) ? prefill.from : undefined);
+  const template: Template | null = useMemo(() => fromVault.data ? {
+    name: fromVault.data.name,
+    allocations: fromVault.data.holdings.flatMap(h => { const asset = referenceAssetById(h.referenceAssetId); return asset ? [{asset, weight: Number(h.weightBps) / 100}] : []; }),
+  } : null, [fromVault.data]);
+  const waitingForTemplate = !!prefill.from && isAddress(prefill.from) && !template && !fromVault.isError && !deployment.isError;
   const [step, setStep] = useState(0);
   const [d, setD] = useState<Draft>(EMPTY_DRAFT);
   const [error, setError] = useState('');
@@ -79,16 +86,17 @@ export function Create({prefill}: {prefill: Prefill}) {
 
   // Restore this tab's draft, then apply a link's prefill once and drop it from the URL.
   useEffect(() => {
+    if (loaded.current || waitingForTemplate) return;
     const saved = parseDraft(readStored());
-    const result = applyPrefill(saved?.draft ?? EMPTY_DRAFT, prefill);
+    const result = applyPrefill(saved?.draft ?? EMPTY_DRAFT, prefill, template);
     setD(repair(result.draft));
     setSymbolEdited(Boolean(result.draft.symbol));
     setStep(result.notice ? 0 : (saved?.step ?? 0));
     setNotice(result.notice ?? (saved && saved.draft.allocations.length ? 'Your draft from this session was restored.' : null));
     if (prefill.assets || prefill.from) replaceQuery({assets: undefined, from: undefined});
     loaded.current = true;
-    // Runs once per page load; later prefill changes come with a new navigation.
-  }, []);
+    // Runs once per page load (after a copied basket is read); later prefill changes come with a new navigation.
+  }, [waitingForTemplate]);
   useEffect(() => {
     if (!loaded.current) return;
     try {
@@ -378,7 +386,7 @@ export function Create({prefill}: {prefill: Prefill}) {
                     <div><dt>Execution quote</dt><dd>{quote ? `${quote.outputs.length} legs ready` : 'Loading contract quote'}</dd></div>
                     <div><dt>Public access</dt><dd>Immediate after confirmed launch</dd></div>
                   </dl>
-                  {deployment.data&&!deployment.data.fixture&&<div className="notice notice--neutral">Public launch disabled until an authorized OpenFour signer is configured.</div>}
+                  {deployment.data&&!deployment.data.fixture&&<div className="notice notice--neutral">On BSC Testnet, baskets are launched by the IndexFi operator, who signs OpenFour launches. This page previews the quote; existing baskets accept deposits from any wallet.</div>}
                   {blocker && <div role="status" data-testid="launch-blocker" className="notice notice--neutral">{blocker.message}{' '}
                     {blocker.action === 'switch' && <button type="button" className="text-button" disabled={switchChain.isPending} onClick={() => switchChain.switchChain({chainId: vaultChain.id})}>Switch network</button>}
                     {blocker.action === 'fund' && <button type="button" className="text-button" data-testid="get-test-funds" disabled={!!funding && funding.endsWith('…')} onClick={() => void getTestFunds()}>Get test funds ({FAUCET_USDT.toLocaleString('en-US')} USDT + gas)</button>}

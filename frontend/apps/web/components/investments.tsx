@@ -16,8 +16,8 @@ function Position({deployment,address}:{deployment:Deployment;address:Address}){
 }
 
 /**
- * Wallet-backed holdings arrive with contract integration (Phase III). No simulated
- * balances, positions or transactions are shown.
+ * Wallet positions read from the active deployment: portfolio tokens, LP tokens and portfolios this wallet created.
+ * No simulated balances, positions or transactions are shown.
  */
 export function Investments() {
   const account = useAccount();

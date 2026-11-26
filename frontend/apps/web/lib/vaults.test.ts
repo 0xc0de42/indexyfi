@@ -47,6 +47,10 @@ describe('vault boundary helpers',()=>{
   it('rejects legacy and mislabeled fixture manifests',()=>{
     expect(()=>parseDeployment({...manifest,schemaVersion:1},31337)).toThrow();
     expect(()=>parseDeployment({...manifest,fixture:false},31337)).toThrow('Fixture network mismatch');
+    const testnet={...manifest,fixture:false,chainId:97,assets:manifest.assets.map(a=>({...a,isMock:true}))};
+    expect(()=>parseDeployment(testnet,97)).toThrow('Fixture network mismatch'); // mock assets need the testAssets label
+    expect(parseDeployment({...testnet,testAssets:true},97).testAssets).toBe(true);
+    expect(()=>parseDeployment({...testnet,testAssets:true,assets:manifest.assets.map(a=>({...a,isMock:false}))},97)).toThrow('label every asset');
   });
   it('rejects the wrong chain, duplicate assets and invalid feed mappings',()=>{
     expect(parseDeployment(manifest,31337).assets[0].feedId).toBe(632);

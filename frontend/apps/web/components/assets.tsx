@@ -6,7 +6,7 @@ import {Card, Empty, Metric} from '@indexfi/ui';
 import {referenceAssetById, referenceAssets, referenceCategories} from '@/lib/catalog';
 import {useNow, usePriceState} from '@/lib/prices';
 import {createHref, portfolioHref, replaceQuery, type WindowLabel} from '@/lib/routes';
-import {portfoliosHolding} from '@/domain/fixtures';
+import {useDeployment, useVaults} from '@/lib/use-vaults';
 import {ageLabel, formatPrice, type Asset} from '@/domain/model';
 import type {AssetPrice} from '@/lib/api';
 import {AssetIcon} from './asset-icon';
@@ -32,7 +32,10 @@ function SortHeader({label, value, sort, onSort}: {label: string; value: Sort; s
 }
 
 function ChartActions({asset}: {asset: Asset}) {
-  const holders = portfoliosHolding(asset.id);
+  const deployment = useDeployment();
+  const holders = useVaults(deployment.data).vaults
+    .filter(v => v.holdings.some(h => h.referenceAssetId === asset.id))
+    .map(v => ({id: v.address, name: v.name}));
   return (
     <>
       <Link className="button button--secondary" href={createHref({assets: [asset.id]})}>

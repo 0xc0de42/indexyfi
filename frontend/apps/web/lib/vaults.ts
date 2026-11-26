@@ -35,6 +35,8 @@ const decimals = z.number().int().min(0).max(18);
 const token = z.object({address, symbol:z.string().min(1), decimals, referenceAssetId:z.string(), feedId:z.number().int().positive(), isMock:z.boolean().default(false)});
 const deployment = z.object({
   schemaVersion:z.literal(5), fixture:z.boolean(), supplyModel:z.literal("standard-openfour-inventory"),
+  /** Public test deployment whose assets are labelled test tokens standing in for mainnet assets (chain 97). */
+  testAssets:z.boolean().default(false),
   chainId:z.number().int(), factory:address, deploymentBlock:z.number().int().nonnegative(),
   settlementToken:address, settlementDecimals:decimals, adapter:address, oracle:address, router:address, assets:z.array(token).min(1),
 });
@@ -42,7 +44,8 @@ export type Deployment = z.infer<typeof deployment>;
 export function parseDeployment(input:unknown, chainId:number):Deployment {
   const d = deployment.parse(input);
   if(d.chainId !== chainId) throw Error('Deployment chain mismatch');
-  if(d.fixture !== (chainId===31337) || (!d.fixture && d.assets.some(a=>a.isMock))) throw Error('Fixture network mismatch');
+  if(d.fixture !== (chainId===31337) || (!d.fixture && !d.testAssets && d.assets.some(a=>a.isMock))) throw Error('Fixture network mismatch');
+  if(d.testAssets && (d.fixture || !d.assets.every(a=>a.isMock))) throw Error('Test-asset deployments must be public and label every asset');
   if([d.factory,d.settlementToken,d.adapter,d.oracle,d.router,...d.assets.map(a=>a.address)].some(a=>/^0x0{40}$/i.test(a))) throw Error('Zero deployment address');
   if(new Set(d.assets.map(a=>a.referenceAssetId)).size !== d.assets.length) throw Error('Duplicate execution asset reference');
   if(new Set(d.assets.map(a=>a.address)).size !== d.assets.length) throw Error('Duplicate execution asset');

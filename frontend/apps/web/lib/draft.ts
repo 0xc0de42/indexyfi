@@ -1,7 +1,6 @@
-import type {Draft} from '@/domain/model';
+import type {Asset, Draft} from '@/domain/model';
 import {categories} from '@/domain/model';
 import {equalWeights} from '@/domain/policy';
-import {portfolioById} from '@/domain/fixtures';
 import {referenceAssetById} from './catalog';
 
 /**
@@ -61,7 +60,14 @@ export function parseDraft(raw: string | null): SavedDraft | null {
 
 export interface Prefill {
   readonly assets?: readonly string[];
+  /** On-chain vault address whose composition to copy (resolved by the caller into a Template). */
   readonly from?: string;
+}
+
+/** Composition of an existing basket, read from chain by the caller. */
+export interface Template {
+  readonly name: string;
+  readonly allocations: readonly {readonly asset: Asset; readonly weight: number}[];
 }
 
 export interface PrefillResult {
@@ -71,15 +77,14 @@ export interface PrefillResult {
 }
 
 /**
- * Apply a link's prefill to the current draft. `from` copies a portfolio's
- * composition and weights (identity stays the creator's); `assets` adds assets
- * that are not already selected and re-spreads weights equally.
+ * Apply a link's prefill to the current draft. A `template` (the on-chain basket named by `from`) copies its
+ * composition and weights (identity stays the creator's); `assets` adds assets that are not already selected and
+ * re-spreads weights equally.
  */
-export function applyPrefill(draft: Draft, prefill: Prefill): PrefillResult {
-  const template = prefill.from ? portfolioById(prefill.from) : null;
-  if (template) {
+export function applyPrefill(draft: Draft, prefill: Prefill, template?: Template | null): PrefillResult {
+  if (prefill.from && template && template.allocations.length) {
     return {
-      draft: {...draft, category: template.category, allocations: template.allocations.map(a => ({asset: a.asset, weight: a.weight}))},
+      draft: {...draft, allocations: template.allocations.map(a => ({asset: a.asset, weight: a.weight}))},
       notice: `Composition copied from ${template.name}. Give your portfolio its own name and ticker.`,
     };
   }

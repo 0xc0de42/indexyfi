@@ -1,5 +1,6 @@
 import type {Asset} from '@/domain/model';
 import {REGISTRY_ASSETS} from '../data/registry.generated';
+import {CATEGORY_OVERRIDES} from '../data/categories';
 
 /**
  * Verified reference-asset registry (BNB Chain, chain 56), generated from the
@@ -11,6 +12,8 @@ const palette = ['#d96c32', '#647b94', '#ac8a48', '#52857c', '#8c7baf', '#b66a7e
 
 export const referenceAssets: readonly Asset[] = REGISTRY_ASSETS.map((asset, index) => ({
   ...asset,
+  // OIK (a game token) and VAI (a stablecoin) are generated as "LST"; overrides correct those too.
+  category: CATEGORY_OVERRIDES[asset.id] ?? (asset.category === 'LST' ? 'Crypto' : asset.category),
   color: palette[index % palette.length],
 }));
 
