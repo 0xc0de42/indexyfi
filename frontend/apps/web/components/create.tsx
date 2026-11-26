@@ -2,6 +2,8 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {useRouter} from 'next/navigation';
 import type {Address} from 'viem';
+import {useAccount, useSwitchChain} from 'wagmi';
+import {useQuery} from '@tanstack/react-query';
 import {Check, ArrowRight, ArrowLeft, X, RotateCcw, Pencil} from 'lucide-react';
 import {Button, Card, Badge, Empty} from '@indexfi/ui';
 import {referenceAssets} from '@/lib/catalog';
@@ -15,7 +17,7 @@ import {categories, formatPrice, usd, FUNDING_TOKEN, type Asset, type Draft} fro
 import {AssetIcon} from './asset-icon';
 import {AllocationEditor, segmentColor} from './allocation-editor';
 import {apiStatusText} from './api-status';
-import {quoteCreate, exactAmount, units} from '@/lib/vaults';
+import {quoteCreate, exactAmount, units, walletFunds, fundFixtureWallet, MIN_GAS, FAUCET_USDT, vaultChain} from '@/lib/vaults';
 import {useDeployment, useVaultTransaction, type Basket} from '@/lib/use-vaults';
 
 const steps = ['Identity', 'Composition', 'Allocation', 'Funding', 'Review & launch'];
@@ -48,6 +50,32 @@ export function Create({prefill}: {prefill: Prefill}) {
   const [quote, setQuote] = useState<{seed: bigint; liquidity: bigint; creatorShares: bigint; lpShares: bigint; draft: Draft; outputs: readonly bigint[]; basket: Basket}|null>(null);
   const [quoteError, setQuoteError] = useState('');
   const loaded = useRef(false);
+  const account = useAccount();
+  const switchChain = useSwitchChain();
+  const [funding, setFunding] = useState('');
+  const onChain = account.isConnected && account.chainId === vaultChain.id;
+  const funds = useQuery({
+    queryKey: ['launch-funds', deployment.data?.factory ?? 'none', account.address ?? 'none'],
+    enabled: step === 4 && onChain && !!account.address && !!deployment.data && !!deployment.client,
+    queryFn: () => walletFunds(deployment.client!, deployment.data!, account.address!),
+    refetchInterval: 5000,
+  });
+  const needed = quote ? quote.seed + quote.liquidity : null;
+  /** First thing blocking a launch, in the order the user can fix it; null when ready. */
+  const blocker: {message: string; action?: 'switch' | 'fund'} | null =
+    !account.isConnected ? {message: 'Connect a wallet to launch (top right).'}
+    : !onChain ? {message: `Your wallet is on another network. Switch it to ${vaultChain.name} (chain ${vaultChain.id}) to launch.`, action: 'switch'}
+    : quoteError ? null
+    : !quote ? {message: 'Waiting for the on-chain launch quote…'}
+    : funds.data && needed !== null && (funds.data.usdt < needed || funds.data.gas < MIN_GAS)
+      ? {message: `This wallet has ${units(funds.data.usdt, deployment.data!.settlementDecimals)} USDT and ${Number(units(funds.data.gas, 18)).toFixed(4)} ${vaultChain.nativeCurrency.symbol} for gas; launch needs ${units(needed, deployment.data!.settlementDecimals)} USDT plus gas.`, action: deployment.data?.fixture ? 'fund' : undefined}
+    : null;
+  async function getTestFunds() {
+    if (!deployment.client || !deployment.data || !account.address) return;
+    setFunding('Adding test funds…');
+    try { await fundFixtureWallet(deployment.client, deployment.data, account.address); await funds.refetch(); setFunding(''); }
+    catch (err) { setFunding(err instanceof Error ? err.message.split('\n')[0] : 'Test funds failed'); }
+  }
 
   // Restore this tab's draft, then apply a link's prefill once and drop it from the URL.
   useEffect(() => {
@@ -351,6 +379,12 @@ export function Create({prefill}: {prefill: Prefill}) {
                     <div><dt>Public access</dt><dd>Immediate after confirmed launch</dd></div>
                   </dl>
                   {deployment.data&&!deployment.data.fixture&&<div className="notice notice--neutral">Public launch disabled until an authorized OpenFour signer is configured.</div>}
+                  {blocker && <div role="status" data-testid="launch-blocker" className="notice notice--neutral">{blocker.message}{' '}
+                    {blocker.action === 'switch' && <button type="button" className="text-button" disabled={switchChain.isPending} onClick={() => switchChain.switchChain({chainId: vaultChain.id})}>Switch network</button>}
+                    {blocker.action === 'fund' && <button type="button" className="text-button" data-testid="get-test-funds" disabled={!!funding && funding.endsWith('…')} onClick={() => void getTestFunds()}>Get test funds ({FAUCET_USDT.toLocaleString('en-US')} USDT + gas)</button>}
+                  </div>}
+                  {switchChain.error && <div role="alert" className="notice notice--bad">Network switch failed: {switchChain.error.message.split('\n')[0]}. Add or select {vaultChain.name} (chain {vaultChain.id}) in your wallet.</div>}
+                  {funding && <div role="status" className="notice notice--neutral">{funding}</div>}
                   {(quoteError||transaction.error) && <div role="alert" className="notice notice--bad">{quoteError||transaction.error}</div>}
                   {transaction.pending && <div role="status" className="notice notice--neutral">{transaction.pending}</div>}
                 </>
@@ -359,7 +393,7 @@ export function Create({prefill}: {prefill: Prefill}) {
             {error && <div role="alert" className="notice notice--bad">{error}</div>}
             <div className="wizard-actions">
               <Button type="button" variant="secondary" disabled={step === 0} onClick={() => { setStep(s => s - 1); setError(''); }}><ArrowLeft size={16} /> Back</Button>
-              <Button type={step===4?'button':'submit'} disabled={step === 4 && (!quote||quote.draft!==d||!transaction.ready||!deployment.data?.fixture||!!transaction.pending)} onClick={step===4?()=>void launch():undefined}>{step === 4 ? 'Launch vault' : 'Continue'} <ArrowRight size={16} /></Button>
+              <Button type={step===4?'button':'submit'} disabled={step === 4 && (!quote||quote.draft!==d||!transaction.ready||!deployment.data?.fixture||!!transaction.pending||!!blocker)} onClick={step===4?()=>void launch():undefined}>{step === 4 ? 'Launch vault' : 'Continue'} <ArrowRight size={16} /></Button>
             </div>
           </form>
         </Card>

@@ -1,4 +1,4 @@
-import {decodeEventLog, erc20Abi, formatUnits, getAddress, isAddress, parseAbi, parseUnits, type Address, type PublicClient, type TransactionReceipt} from 'viem';
+import {decodeEventLog, encodeFunctionData, erc20Abi, formatUnits, getAddress, isAddress, parseAbi, parseUnits, type Address, type PublicClient, type TransactionReceipt} from 'viem';
 import {bscTestnet, hardhat} from 'viem/chains';
 import {z} from 'zod';
 import {referenceAssetById} from './catalog';
@@ -90,6 +90,31 @@ export type LaunchAuthorization={requestId:bigint;authorization:`0x${string}`};
 export async function authorizeLaunch(d:Pick<Deployment,'fixture'>):Promise<LaunchAuthorization> {
   if(!d.fixture) throw Error('Public launch authorization is not configured. Creation is disabled on this deployment.');
   return {requestId:newRequestId(),authorization:'0x'};
+}
+/** Wallet funds a launch needs: settlement-token balance and native gas. */
+export async function walletFunds(client:PublicClient,d:Deployment,holder:Address){
+  const [usdt,gas]=await Promise.all([
+    client.readContract({address:d.settlementToken,abi:erc20Abi,functionName:'balanceOf',args:[holder]}),
+    client.getBalance({address:holder})]);
+  return {usdt,gas};
+}
+export const MIN_GAS=10n**16n; // 0.01 native token
+export const FAUCET_USDT=10_000n;
+/**
+ * Local-fixture faucet: sets native gas on the Hardhat node and mints test USDT from the node's
+ * unlocked deployer. Refuses anything except chain 31337 on a loopback RPC.
+ */
+export async function fundFixtureWallet(client:PublicClient,d:Deployment,holder:Address){
+  const url=new URL(vaultRpc??'http://invalid');
+  if(!d.fixture||d.chainId!==31337||!['127.0.0.1','localhost','[::1]'].includes(url.hostname))throw Error('Test funds are only available on the local fixture chain.');
+  const request=client.request as unknown as (args:{method:string;params:unknown[]})=>Promise<unknown>;
+  await request({method:'hardhat_setBalance',params:[holder,`0x${(10n*10n**18n).toString(16)}`]});
+  const [deployer]=await request({method:'eth_accounts',params:[]}) as Address[];
+  if(!deployer)throw Error('Local node has no unlocked deployer account.');
+  const data=encodeFunctionData({abi:parseAbi(['function mint(address to,uint256 amount)']),functionName:'mint',args:[holder,FAUCET_USDT*10n**BigInt(d.settlementDecimals)]});
+  const hash=await request({method:'eth_sendTransaction',params:[{from:deployer,to:d.settlementToken,data}]}) as `0x${string}`;
+  const receipt=await client.waitForTransactionReceipt({hash});
+  if(receipt.status!=='success')throw Error('Test USDT mint failed.');
 }
 export async function loadDeployment(client:PublicClient, signal?:AbortSignal) {
   const response=await fetch(manifestUrl,{signal,cache:'no-store'});
