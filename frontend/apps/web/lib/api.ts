@@ -16,7 +16,7 @@ import {z} from 'zod';
  */
 
 export const API_BASE_URL = (process.env.NEXT_PUBLIC_INDEXFI_API_URL || '/backend').replace(/\/+$/, '');
-/** Backend does not enforce it (see integration report); the client does. */
+/** Shared server/client limit: at most 24 hours per request. */
 export const MAX_HISTORY_MS = 24 * 60 * 60 * 1000;
 export const DEFAULT_HISTORY_MS = 5 * 60 * 1000;
 

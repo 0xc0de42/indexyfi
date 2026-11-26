@@ -3,7 +3,7 @@ import {draftErrors, equalWeights} from './policy';
 import {referenceAssets} from '../lib/catalog';
 import {formatPrice, ageLabel} from './model';
 
-const draft = {name: 'Test', symbol: 'TEST', description: '', category: 'Crypto', allocations: [{asset: referenceAssets[0], weight: 50}, {asset: referenceAssets[1], weight: 50}], funding: 100};
+const draft = {name: 'Test', symbol: 'TEST', description: '', category: 'Crypto', allocations: [{asset: referenceAssets[0], weight: 50}, {asset: referenceAssets[1], weight: 50}], funding: 100, liquidity: 10};
 
 describe('draft rules', () => {
   it('checks weights', () => {

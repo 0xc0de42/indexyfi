@@ -11,11 +11,13 @@ export function draftIssues(d: Draft): DraftIssue[] {
   const e: DraftIssue[] = [];
   if (d.name.trim().length < 3) e.push({step: 0, message: 'Enter a name of at least 3 characters.'});
   if (!/^[A-Z0-9]{2,10}$/.test(d.symbol)) e.push({step: 0, message: 'Use a 2–10 character uppercase ticker.'});
+  if (d.allocations.length > 32) e.push({step: 1, message: 'Select at most 32 assets.'});
   if (d.allocations.length < 2) e.push({step: 1, message: 'Select at least two assets.'});
   if (new Set(d.allocations.map(a => a.asset.id)).size !== d.allocations.length) e.push({step: 1, message: 'Duplicate assets are not allowed.'});
   if (d.allocations.some(a => !Number.isFinite(a.weight) || a.weight <= 0 || a.weight > 100)) e.push({step: 2, message: 'Every asset needs a positive weight.'});
   if (Math.abs(d.allocations.reduce((s, a) => s + a.weight, 0) - 100) > 1e-5) e.push({step: 2, message: 'Weights must total 100%.'});
   if (!Number.isFinite(d.funding) || d.funding < 100) e.push({step: 3, message: 'Funding must be at least 100 USDT.'});
+  if (!Number.isFinite(d.liquidity) || d.liquidity < 1 || d.liquidity >= d.funding) e.push({step: 3, message: 'Liquidity must be at least 1 USDT and less than collateral funding.'});
   return e;
 }
 

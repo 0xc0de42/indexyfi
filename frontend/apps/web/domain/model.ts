@@ -35,7 +35,7 @@ export interface Portfolio {
 }
 
 export type Side = 'buy' | 'sell';
-export type Draft = {name: string; symbol: string; description: string; category: string; allocations: {asset: Asset; weight: number}[]; funding: number};
+export type Draft = {name: string; symbol: string; description: string; category: string; allocations: {asset: Asset; weight: number}[]; funding: number; liquidity: number};
 
 /** Settlement and funding token. USD reference prices assume USD/USDT parity. */
 export const FUNDING_TOKEN = 'USDT';

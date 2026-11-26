@@ -70,12 +70,12 @@ describe.skipIf(!live).each(targets)('live backend (%s)', (_name, baseUrl) => {
     }
   });
 
-  it('documents backend handling of ranges over 24 hours (client blocks them)', async () => {
+  it('rejects ranges over 24 hours at the server boundary', async () => {
     const end = new Date();
     const start = new Date(end.getTime() - MAX_HISTORY_MS - 60_000);
     const response = await fetch(`${baseUrl}/history?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}&asset_id=${BTCB}`);
-    console.info(`backend /history over 24h -> HTTP ${response.status} (plan expects 400)`);
-    expect([200, 400]).toContain(response.status);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({error: "invalid_time_range"});
   });
 });
 

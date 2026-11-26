@@ -72,7 +72,7 @@ one-second sample runs. Otherwise it returns `snapshot_at` (UTC ISO 8601) and
 `prices` (`asset_id`, `feed_id`, exact decimal string `price`, Unix seconds
 `source_timestamp`). `/history` returns `{"snapshots": [...]}` with identical
 snapshot objects, sorted by minute. `start` inclusive, `end` exclusive; omit
-for the last five minutes. Repeat `asset_id` query parameters to filter.
+for the last five minutes. Requests longer than 24 hours return HTTP 400 `invalid_time_range`. Reads enumerate existing minute files in at most 25 UTC hour directories. Repeat `asset_id` query parameters to filter.
 Default CORS allows only `http://localhost:3000`. Set the actual frontend
 origin in TOML. No API version prefix, health endpoint or asset endpoint.
 

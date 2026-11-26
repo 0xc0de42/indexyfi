@@ -15,7 +15,7 @@ import {categories, formatPrice, usd, FUNDING_TOKEN, type Asset, type Draft} fro
 import {AssetIcon} from './asset-icon';
 import {AllocationEditor, segmentColor} from './allocation-editor';
 import {apiStatusText} from './api-status';
-import {factoryAbi, exactAmount} from '@/lib/vaults';
+import {quoteCreate, exactAmount, units} from '@/lib/vaults';
 import {useDeployment, useVaultTransaction, type Basket} from '@/lib/use-vaults';
 
 const steps = ['Identity', 'Composition', 'Allocation', 'Funding', 'Review & launch'];
@@ -45,7 +45,7 @@ export function Create({prefill}: {prefill: Prefill}) {
   const [locked, setLocked] = useState<ReadonlySet<string>>(() => new Set());
   const [symbolEdited, setSymbolEdited] = useState(false);
   const [attempted, setAttempted] = useState<ReadonlySet<number>>(() => new Set());
-  const [quote, setQuote] = useState<{seed: bigint; outputs: readonly bigint[]; basket: Basket}|null>(null);
+  const [quote, setQuote] = useState<{seed: bigint; liquidity: bigint; creatorShares: bigint; lpShares: bigint; draft: Draft; outputs: readonly bigint[]; basket: Basket}|null>(null);
   const [quoteError, setQuoteError] = useState('');
   const loaded = useRef(false);
 
@@ -134,15 +134,16 @@ export function Create({prefill}: {prefill: Prefill}) {
       setQuote(null); setQuoteError('');
       if (step !== 4 || !deployment.data || !deployment.client || issues.length) return;
       const seed = exactAmount(String(d.funding), deployment.data.settlementDecimals);
+      const liquidity = exactAmount(String(d.liquidity), deployment.data.settlementDecimals);
       const legs = d.allocations.map(a => {
         const execution = deployment.data!.assets.find(x => x.referenceAssetId === a.asset.id);
         return execution ? {token: execution.address as Address, weightBps: Math.round(a.weight * 100)} : undefined;
       });
-      if (!seed || legs.some(x => !x)) { setQuoteError('Every constituent needs a verified execution contract.'); return; }
+      if (!seed || !liquidity || legs.some(x => !x)) { setQuoteError('Every constituent needs a verified execution contract.'); return; }
       const basket: Basket = {name:d.name,symbol:d.symbol,metadataURI:`data:application/json,${encodeURIComponent(JSON.stringify({description:d.description,category:d.category}))}`,constituents:legs as Basket['constituents']};
       try {
-        const outputs=await deployment.client.readContract({address:deployment.data.factory,abi:factoryAbi,functionName:'previewCreate',args:[basket,seed]});
-        if(active) setQuote({seed,outputs,basket});
+        const result=await quoteCreate(deployment.client,deployment.data,basket,seed,liquidity);
+        if(active) setQuote({seed,liquidity,basket,draft:d,...result});
       } catch(err) { if(active) setQuoteError(err instanceof Error ? err.message.split('\n')[0] : 'Contract quote failed'); }
     }
     void loadQuote();
@@ -150,11 +151,11 @@ export function Create({prefill}: {prefill: Prefill}) {
   }, [step,d,deployment.data,deployment.client]);
 
   async function launch() {
-    if(!quote || !deployment.data || !deployment.client) return;
-    const result=await transaction.submit({kind:'create',basket:quote.basket,seed:quote.seed,outputs:quote.outputs},100);
+    if(!quote || quote.draft!==d || !deployment.data || !deployment.client) return;
+    const result=await transaction.submit({kind:'create',basket:quote.basket,seed:quote.seed,liquidity:quote.liquidity,creatorShares:quote.creatorShares,outputs:quote.outputs},100);
     if(!result) return;
-    const count=await deployment.client.readContract({address:deployment.data.factory,abi:factoryAbi,functionName:'vaultCount'});
-    const vault=await deployment.client.readContract({address:deployment.data.factory,abi:factoryAbi,functionName:'vaultAt',args:[count-1n]});
+    if(result.event?.eventName!=='VaultCreated') {setError('Launch confirmed but creation event not found. Check Explore.');return;}
+    const vault=result.event.args.vault;
     sessionStorage.removeItem(DRAFT_KEY);
     router.push(`/portfolio/${vault}`);
   }
@@ -164,7 +165,7 @@ export function Create({prefill}: {prefill: Prefill}) {
       <div className="page-heading">
         <div className="eyebrow">Creator / Launch</div>
         <h1>Create a portfolio.</h1>
-        <p>Choose supported assets, seed the basket with at least 100 {FUNDING_TOKEN}, and open it for public deposits and redemptions.</p>
+        <p>Choose supported assets, seed the basket with at least 100 {FUNDING_TOKEN}, and provide separate liquidity and open primary and secondary markets.</p>
         {deployment.isError && <div className="notice notice--bad">Contract deployment is unavailable on this network.</div>}
       </div>
       <div className="wizard-grid">
@@ -180,7 +181,7 @@ export function Create({prefill}: {prefill: Prefill}) {
           <Card>
             <div className="eyebrow">Launch rules</div>
             <h3>Public basket vault.</h3>
-            <p className="muted">The creator receives the first shares. Public deposits mint shares and redemptions burn them. Profitable exits pay the creator 10% of realized gains.</p>
+            <p className="muted">Creator funds collateral and a separate trading pool. Public deposits release backed tokens and redemptions return them to inventory. Both charge a fixed 0.1% creator fee.</p>
           </Card>
           <button type="button" className="text-button start-over" onClick={startOver}><RotateCcw size={13} /> Start over</button>
         </aside>
@@ -268,10 +269,11 @@ export function Create({prefill}: {prefill: Prefill}) {
               {step === 3 && (
                 <>
                   <label className="field">
-                    Initial funding ({FUNDING_TOKEN})
+                    Initial collateral funding ({FUNDING_TOKEN})
                     <input type="number" step="0.01" min="0.01" required value={d.funding} aria-invalid={Boolean(fieldError('Funding'))} onChange={e => update('funding', Number(e.target.value))} />
                     {fieldError('Funding') && <span className="field__error">{fieldError('Funding')}</span>}
                   </label>
+                  <label className="field">Separate AMM liquidity (USDT)<input type="number" step="0.01" min="1" required value={d.liquidity} onChange={e=>update('liquidity',Number(e.target.value))}/></label>
                   <div className="preset-row" role="group" aria-label="Funding presets">
                     {FUNDING_PRESETS.map(amount => (
                       <button type="button" key={amount} className="preset-chip" aria-pressed={d.funding === amount} onClick={() => update('funding', amount)}>
@@ -281,7 +283,7 @@ export function Create({prefill}: {prefill: Prefill}) {
                   </div>
                   <dl className="key-values">
                     <div><dt>Minimum opening seed</dt><dd>100 {FUNDING_TOKEN}</dd></div>
-                    <div><dt>Creator performance fee</dt><dd>10% of positive realized gains</dd></div>
+                    <div><dt>Primary fees</dt><dd>0.1% deposit and redemption; initial seed fee-free</dd></div>
                   </dl>
                   <div className="table-scroll">
                     <table>
@@ -340,11 +342,15 @@ export function Create({prefill}: {prefill: Prefill}) {
                   <dl className="key-values">
                     <div><dt>Constituents</dt><dd>{d.allocations.length}</dd></div>
                     <div><dt>{FUNDING_TOKEN} investment <button type="button" className="text-button" onClick={() => setStep(3)}><Pencil size={12} /> Edit</button></dt><dd>{usd(d.funding)}</dd></div>
-                    <div><dt>Opening seed</dt><dd>{usd(d.funding)}</dd></div>
-                    <div><dt>Creator fee</dt><dd>10% of positive realized gains on redemption</dd></div>
+                    <div><dt>AMM USDT reserve</dt><dd>{usd(d.liquidity)}</dd></div>
+                    <div><dt>Total funding</dt><dd>{usd(d.funding+d.liquidity)}</dd></div>
+                    <div><dt>Estimated creator tokens</dt><dd>{quote?units(quote.creatorShares,18):'—'}</dd></div>
+                    <div><dt>Tokens allocated to AMM</dt><dd>{quote?units(quote.lpShares,18):'—'}</dd></div>
+                    <div><dt>Creator fee</dt><dd>0.1% on each primary deposit and redemption</dd></div>
                     <div><dt>Execution quote</dt><dd>{quote ? `${quote.outputs.length} legs ready` : 'Loading contract quote'}</dd></div>
                     <div><dt>Public access</dt><dd>Immediate after confirmed launch</dd></div>
                   </dl>
+                  {deployment.data&&!deployment.data.fixture&&<div className="notice notice--neutral">Public launch disabled until an authorized OpenFour signer is configured.</div>}
                   {(quoteError||transaction.error) && <div role="alert" className="notice notice--bad">{quoteError||transaction.error}</div>}
                   {transaction.pending && <div role="status" className="notice notice--neutral">{transaction.pending}</div>}
                 </>
@@ -353,7 +359,7 @@ export function Create({prefill}: {prefill: Prefill}) {
             {error && <div role="alert" className="notice notice--bad">{error}</div>}
             <div className="wizard-actions">
               <Button type="button" variant="secondary" disabled={step === 0} onClick={() => { setStep(s => s - 1); setError(''); }}><ArrowLeft size={16} /> Back</Button>
-              <Button type={step===4?'button':'submit'} disabled={step === 4 && (!quote||!transaction.ready||!!transaction.pending)} onClick={step===4?()=>void launch():undefined}>{step === 4 ? 'Launch vault' : 'Continue'} <ArrowRight size={16} /></Button>
+              <Button type={step===4?'button':'submit'} disabled={step === 4 && (!quote||quote.draft!==d||!transaction.ready||!deployment.data?.fixture||!!transaction.pending)} onClick={step===4?()=>void launch():undefined}>{step === 4 ? 'Launch vault' : 'Continue'} <ArrowRight size={16} /></Button>
             </div>
           </form>
         </Card>

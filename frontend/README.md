@@ -1,4 +1,4 @@
-# IndexFi — frontend v2
+# IndexFi — frontend V5
 
 Local-first Basket A UI; temporary name. Next.js App Router, React, TypeScript, Tailwind CSS, shadcn-compatible CSS primitives, RainbowKit/Wagmi/Viem, TanStack Query. Institutional warm-neutral/orange visual direction inspired by the current Ostium Gateway site; independent original branding.
 
@@ -6,7 +6,7 @@ Local-first Basket A UI; temporary name. Next.js App Router, React, TypeScript, 
 
 ```sh
 corepack enable
-pnpm install
+pnpm install --frozen-lockfile
 cp apps/web/.env.example apps/web/.env.local
 pnpm dev
 ```
@@ -28,21 +28,21 @@ Open http://127.0.0.1:3000. `pnpm test`, `pnpm typecheck`, `pnpm build` are the 
   is needed. `NEXT_PUBLIC_INDEXFI_API_URL` can point at the server directly.
 - `lib/poller.ts` + `lib/prices.tsx`: one app-level poller (immediate, then 1 Hz,
   never overlapping); components select prices by asset ID.
-- `lib/history.ts` + `lib/use-history.ts`: charts load persisted minute closes
-  once per asset/window change and append live 1 s samples.
-- `components/app-loader.tsx` + `lib/history-cache.ts`: start-up loader that warms the
-  first snapshot, all logos and one 5-minute history request reused by the first charts.
-- Portfolios in `domain/fixtures.ts` are labelled fixtures built from registry
-  assets; NAV/AUM/volume/returns are illustrative until contracts are integrated.
+- `lib/history-store.ts`: preloads 24 hours in one-hour chunks, merges persisted minute closes with live one-second samples.
+- `components/app-loader.tsx`: start-up loader warms the first snapshot, logos and history.
+- Portfolios in `domain/fixtures.ts` are labelled examples; the on-chain directory is separate. Fixture deployment prices are not live execution prices.
 
 ## Checks
 
 `pnpm test`, `pnpm typecheck`, `pnpm build`, `pnpm registry:check`. With the
 backend running: `INDEXFI_PROXY_URL=http://127.0.0.1:3000/backend pnpm test:live`.
 
-## Product
+## V5 financial integration
 
-Explore (fixture portfolios, table/card, filters, sorting); Assets (66 reference assets, live USD reference prices, categories, search, sort, table/card, price chart); portfolio details (fixture metrics, live constituent prices and charts, composition, transparency; trading unavailable); five-step Create (identity, composition from the registry, allocation, USDT funding, review; launch unavailable until Phase III); My Investments (wallet only, no simulated balances). Funding and settlement token: USDT (USD/USDT parity assumed). No portfolio NAV history until on-chain holdings and supply exist.
+- `lib/vaults.ts`: manifest schema 5, source-derived ABIs, backed inventory, account balances, independent oracle NAV, AMM reserves, and creation quotes. Manifest must be synchronized from a compiled deployment using `node integration/sync-deployment.mjs 31337` from the repository root.
+- `lib/use-vaults.ts`: wallet approvals, simulations, slippage limits, receipt verification and query invalidation. Creation uses both collateral and AMM liquidity; redemption approves the actual portfolio ERC-20. Secondary swaps and LP management use the router, not the vault.
+- `components/onchain-vault.tsx`: primary deposit/redeem, secondary buy/sell, LP add/remove, authoritative vs indicative prices, premium/discount and backed supply. `components/investments.tsx`: portfolio/LP balances and creator portfolios. Cost basis and performance fees are removed.
+- Public creation is disabled on chain 97 until a valid signed OpenFour launch workflow is supplied. The empty signature is local-fixture-only. No generated manifest is bundled because compilation/deployment has not been run. See root `INTEGRATION.md` for the exact run order and smoke test.
 
 ## Replaceable design
 
@@ -52,4 +52,4 @@ Explore (fixture portfolios, table/card, filters, sorting); Assets (66 reference
 - `components/`: page skeleton; `domain/`: financial data structures and preview rules; `lib/`: data adapter and preview state.
 - `packages/ui`: reusable semantic primitives, shadcn-compatible variables (not a full generated shadcn component library).
 
-No deployment or public-chain transactions are performed by the frontend.
+The frontend requests wallet-signed transactions only on a verified configured deployment.
