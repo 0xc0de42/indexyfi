@@ -62,3 +62,17 @@ describe('keeper status client (optional backend)', () => {
     expect(await keeperStatus(vault, {fetcher: json(200, {vaults: 'x'})})).toEqual({kind: 'unavailable', reason: 'decode'});
   });
 });
+
+describe('rebalance preview (demo)', async () => {
+  const {rebalancePlan} = await import('./rebalance');
+  const h = (id: string, targetPct: number, value: number | null, valuePct: number | null) => ({referenceAssetId: id, symbol: id.toUpperCase(), targetPct, value, valuePct});
+  it('sells the overweight and buys the underweight back to target, sells first', () => {
+    const plan = rebalancePlan({holdings: [h('a', 50, 600, 60), h('b', 30, 250, 25), h('c', 20, 150, 15)]})!;
+    expect(plan.trades.map(t => `${t.side}:${t.symbol}:${t.usd}`)).toEqual(['sell:A:100', 'buy:B:50', 'buy:C:50']);
+    expect(plan.turnoverUsd).toBe(100);
+    expect(plan.feeUsd).toBeCloseTo(0.5);
+  });
+  it('needs a price for every holding', () => {
+    expect(rebalancePlan({holdings: [h('a', 50, null, null), h('b', 50, 10, 100)]})).toBeNull();
+  });
+});

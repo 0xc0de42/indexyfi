@@ -207,3 +207,4 @@ tbody tr:last-child td{border-bottom:0}
 .index-rule__grid .tabs{flex-wrap:wrap}
 .index-rule__apply{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .index-preview td,.index-preview th{padding-top:6px;padding-bottom:6px}
+.rebalance-demo{margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}

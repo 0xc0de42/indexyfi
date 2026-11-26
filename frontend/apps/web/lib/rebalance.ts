@@ -73,3 +73,38 @@ export function relativeTime(targetSeconds: number, nowSeconds: number): string 
   const text = a < 90 ? `${Math.round(a)} s` : a < 5_400 ? `${Math.round(a / 60)} min` : a < 129_600 ? `${(a / 3_600).toFixed(1)} h` : `${(a / 86_400).toFixed(1)} days`;
   return d >= 0 ? `in ${text}` : `${text} ago`;
 }
+
+export interface RebalanceTrade {
+  readonly referenceAssetId: string;
+  readonly symbol: string;
+  readonly side: 'sell' | 'buy';
+  /** USD value to sell or buy (at the latest Atlas price). */
+  readonly usd: number;
+  readonly fromPct: number;
+  readonly toPct: number;
+}
+export interface RebalancePlan {
+  readonly trades: readonly RebalanceTrade[];
+  /** Total USD sold (= bought), the turnover. */
+  readonly turnoverUsd: number;
+  /** PancakeSwap V2 fees on both legs (0.25% each), an estimate. */
+  readonly feeUsd: number;
+}
+/**
+ * The trades a rebalance would make to return every holding to its target weight, through USDT: sell the overweight
+ * assets, buy the underweight ones. Display only (the demo does not execute it); null without a price for every holding.
+ */
+export function rebalancePlan(val: Pick<Valuation, 'holdings'>, minUsd = 0.01): RebalancePlan | null {
+  if (!val.holdings.length || val.holdings.some(h => h.value === null)) return null;
+  const total = val.holdings.reduce((s, h) => s + (h.value ?? 0), 0);
+  if (!(total > 0)) return null;
+  const trades = val.holdings
+    .map(h => {
+      const delta = (total * h.targetPct) / 100 - (h.value ?? 0);
+      return {referenceAssetId: h.referenceAssetId, symbol: h.symbol, side: delta < 0 ? ('sell' as const) : ('buy' as const), usd: Math.abs(delta), fromPct: h.valuePct ?? 0, toPct: h.targetPct};
+    })
+    .filter(t => t.usd >= minUsd)
+    .sort((a, b) => (a.side === b.side ? b.usd - a.usd || a.referenceAssetId.localeCompare(b.referenceAssetId) : a.side === 'sell' ? -1 : 1));
+  const turnoverUsd = trades.filter(t => t.side === 'sell').reduce((s, t) => s + t.usd, 0);
+  return {trades, turnoverUsd, feeUsd: turnoverUsd * 2 * 0.0025};
+}

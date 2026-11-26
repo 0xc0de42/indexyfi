@@ -11,6 +11,7 @@ import {ageLabel, formatPrice, type Asset} from '@/domain/model';
 import type {AssetPrice} from '@/lib/api';
 import {AssetIcon} from './asset-icon';
 import {AssetChart, windowLabelOf, windowMsOf} from './asset-chart';
+import {utcOffsetLabel} from '@/lib/chart-scale';
 import {ApiStatusBadge, apiStatusText} from './api-status';
 import {CmcStats} from './cmc-stats';
 import {useCmcState} from '@/lib/cmc';
@@ -116,7 +117,7 @@ export function Assets({initialAssetId, initialWindow}: {initialAssetId?: string
           <Metric
             label="Last server sample"
             value={state.snapshot ? new Date(state.snapshot.snapshotAtMs).toLocaleTimeString([], {hour12: false}) : '—'}
-            detail="server sample time, not oracle update time"
+            detail={`your local time (${utcOffsetLabel()}) · server sample time, not oracle update time`}
           />
         </Card>
         <Card><Metric label="Price API" value={<ApiStatusBadge state={state} />} detail={status.detail ?? undefined} /></Card>

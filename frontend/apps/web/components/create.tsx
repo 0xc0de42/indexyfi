@@ -27,6 +27,7 @@ import {apiStatusText} from './api-status';
 import {quoteCreate, exactAmount, units, walletFunds, fundFixtureWallet, MIN_GAS, FAUCET_USDT, vaultChain} from '@/lib/vaults';
 import {useCanLaunch, useDeployment, useFlapDeployment, useVault, useVaultTransaction, type Basket} from '@/lib/use-vaults';
 import {taxSummary} from '@/lib/flap';
+import {savePortfolioSettings} from '@/lib/portfolio-settings';
 import {LAUNCH, launchTotalUSDT} from '@/lib/launch';
 import {REBALANCE_INTERVALS, REBALANCE_THRESHOLDS_BPS, bpsLabel, settingsLabel} from '@/lib/rebalance';
 
@@ -52,6 +53,7 @@ export function Create({prefill}: {prefill: Prefill}) {
   const openfourDeployment = useDeployment();
   const flapDeployment = useFlapDeployment();
   const flapAvailable = !!flapDeployment.data;
+  const settlementLabel = venue === 'flap' ? 'Flap USD' : FUNDING_TOKEN;
   const deployment = venue === 'flap' && flapDeployment.data ? {...flapDeployment, data: flapDeployment.data} : openfourDeployment;
   const transaction = useVaultTransaction(deployment.data);
   const {canLaunch} = useCanLaunch(deployment.data);
@@ -229,6 +231,8 @@ export function Create({prefill}: {prefill: Prefill}) {
     if(!result) return;
     if(result.event?.eventName!=='VaultCreated') {setError('Launch confirmed but creation event not found. Check Explore.');return;}
     const vault=result.event.args.vault;
+    // Demo: keep the chosen rebalancing / index settings with the portfolio so its page can preview them.
+    savePortfolioSettings(vault, {rebalance: d.rebalance, index: d.index});
     sessionStorage.removeItem(DRAFT_KEY);
     router.push(`/portfolio/${vault}`);
   }
@@ -433,9 +437,7 @@ export function Create({prefill}: {prefill: Prefill}) {
                       <p className="fine-print">0.1% is reached almost every interval with many constituents, so expect a rebalance (and its swap fees) nearly every time.</p>
                     )}
                     {deployment.data && !deployment.data.features.rebalancing && (
-                      <div className="notice notice--neutral" role="status">{deployment.data.provider === 'flap'
-                        ? 'Flap vaults have no rebalancing (no contract space left): a Flap launch stores no rebalancing or index settings.'
-                        : 'This deployment runs vault 5.1, which has no rebalancing yet: a launch here stores no settings. Vault 5.2 stores and enforces them on chain.'}</div>
+                      <div className="notice notice--neutral" role="status" data-testid="rebalance-demo-note">Demo: these settings are recorded with the portfolio in this app and previewed on its page (drift, the trades a rebalance would make, index changes). The contracts do not enforce them yet; on-chain rebalancing is the next contract release.</div>
                     )}
                   </div>
                   <dl className="key-values">
@@ -448,13 +450,13 @@ export function Create({prefill}: {prefill: Prefill}) {
                     </>}
                     <div><dt>Composition rule</dt><dd>{ruleLabel(d.index)}</dd></div>
                     <div><dt>Rebalancing</dt><dd>{settingsLabel(d.rebalance)}</dd></div>
-                    <div><dt>Initial investment (collateral)</dt><dd>{LAUNCH.collateralUSDT.toLocaleString('en-US')} {FUNDING_TOKEN}</dd></div>
+                    <div><dt>Initial investment (collateral)</dt><dd>{LAUNCH.collateralUSDT.toLocaleString('en-US')} {settlementLabel}</dd></div>
                     <div><dt>Starting NAV</dt><dd>{usd(LAUNCH.startNav, 2)}</dd></div>
                     <div><dt>Graduation threshold</dt><dd>{LAUNCH.graduationUSD.toLocaleString('en-US')} {FUNDING_TOKEN} AUM</dd></div>
                     <div><dt>Before graduation</dt><dd>Deposit and redeem at NAV (IndexFi primary market)</dd></div>
                     <div><dt>After graduation</dt><dd>PancakeSwap trading opens</dd></div>
-                    <div><dt>Pool reserve (fixed)</dt><dd>{LAUNCH.poolReserveUSDT.toLocaleString('en-US')} {FUNDING_TOKEN}, paired with {LAUNCH.poolReserveUSDT.toLocaleString('en-US')} tokens for the PancakeSwap pool</dd></div>
-                    <div><dt>Total required funding</dt><dd>{launchTotalUSDT.toLocaleString('en-US')} {FUNDING_TOKEN}, excluding gas</dd></div>
+                    <div><dt>Pool reserve (fixed)</dt><dd>{LAUNCH.poolReserveUSDT.toLocaleString('en-US')} {settlementLabel}, paired with {LAUNCH.poolReserveUSDT.toLocaleString('en-US')} tokens for the PancakeSwap pool</dd></div>
+                    <div><dt>Total required funding</dt><dd>{launchTotalUSDT.toLocaleString('en-US')} {settlementLabel}, excluding gas</dd></div>
                     <div><dt>Estimated creator tokens</dt><dd>{quote?units(quote.creatorShares,18):'—'}</dd></div>
                     <div><dt>Tokens allocated to AMM</dt><dd>{quote?units(quote.lpShares,18):'—'}</dd></div>
                     <div><dt>Creator fee</dt><dd>0.1% on each primary deposit and redemption</dd></div>
