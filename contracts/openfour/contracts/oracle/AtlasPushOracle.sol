@@ -61,4 +61,9 @@ contract AtlasPushOracle is IIndexFiOracle {
         if (block.timestamp - source > f.maxAge || block.timestamp - updated > f.maxAge) revert StalePrice(asset);
         return uint256(answer) * 10 ** uint256(18 - f.decimals);
     }
+
+    /// Push feeds are updated by Atlas reporters on chain; injected payloads are ignored.
+    function updatePrices(bytes calldata, bytes calldata) external pure override returns (uint256) {
+        return 0;
+    }
 }

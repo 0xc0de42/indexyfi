@@ -27,6 +27,11 @@ contract MockIndexFiOracle is IIndexFiOracle {
         return asset == settlementToken || prices[asset] != 0;
     }
 
+    /// Fixture prices are set by the owner; injected payloads are ignored.
+    function updatePrices(bytes calldata, bytes calldata) external pure returns (uint256) {
+        return 0;
+    }
+
     function price18(address asset) external view returns (uint256) {
         require(!unavailable, "Mock oracle unavailable");
         if (asset == settlementToken) return 1e18;

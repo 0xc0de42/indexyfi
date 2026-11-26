@@ -140,6 +140,41 @@ contract IndexFiFactory is IIndexFiFactory, ReentrancyGuard {
         return abi.encode(a);
     }
 
+    /// Same as createVault, after posting signed oracle prices in the same transaction, so the launch is priced
+    /// from the latest Atlas state. The oracle verifies signatures; empty arrays post nothing.
+    function createVaultWithPrices(
+        bytes[] calldata payloads,
+        bytes[] calldata signatures,
+        uint256 requestId,
+        Basket calldata basket,
+        uint256 seedUSDT,
+        uint256 liquidityUSDT,
+        uint256 minCreatorShares,
+        uint256[] calldata minimums,
+        uint256 deadline,
+        bytes calldata authorization
+    ) external payable returns (address, uint256) {
+        _postPrices(payloads, signatures);
+        return createVault(requestId, basket, seedUSDT, liquidityUSDT, minCreatorShares, minimums, deadline, authorization);
+    }
+
+    /// Quote for eth_call only: posts signed prices, then returns previewCreate, so a launch can be quoted before any
+    /// fresh price is stored on chain. Sending it as a transaction only updates the oracle.
+    function quoteCreateWithPrices(bytes[] calldata payloads, bytes[] calldata signatures, Basket calldata basket, uint256 seedUSDT)
+        external
+        returns (uint256[] memory)
+    {
+        _postPrices(payloads, signatures);
+        return previewCreate(basket, seedUSDT);
+    }
+
+    /// Posts each signed payload to the oracle, which verifies signatures. A basket (<= 32 assets) needs at most two
+    /// Atlas payloads (<= 20 feeds each); empty arrays post nothing.
+    function _postPrices(bytes[] calldata payloads, bytes[] calldata signatures) private {
+        require(payloads.length == signatures.length && payloads.length <= 4, "IndexFi: prices");
+        for (uint256 i; i < payloads.length; ++i) oracle.updatePrices(payloads[i], signatures[i]);
+    }
+
     function createVault(
         uint256 requestId,
         Basket calldata basket,
@@ -149,7 +184,7 @@ contract IndexFiFactory is IIndexFiFactory, ReentrancyGuard {
         uint256[] calldata minimums,
         uint256 deadline,
         bytes calldata authorization
-    ) external payable nonReentrant returns (address vault, uint256 seedShares) {
+    ) public payable nonReentrant returns (address vault, uint256 seedShares) {
         require(block.timestamp <= deadline, "IndexFi: expired");
         bytes memory args = buildCreateArgs(
             requestId, msg.sender, basket, seedUSDT, liquidityUSDT, minCreatorShares, minimums, deadline, msg.value

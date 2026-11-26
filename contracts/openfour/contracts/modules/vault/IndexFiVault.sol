@@ -26,6 +26,8 @@ contract IndexFiVault is Initializable, ReentrancyGuard, IIndexFiVault, IOpenFou
     error InsufficientInventory();
     error CoreTradeDisabled();
     uint256 public constant FEE_BPS = 10;
+    /// A basket has at most 32 assets and one Atlas payload carries at most 20 feeds, so two payloads always suffice.
+    uint256 public constant MAX_PRICE_PAYLOADS = 4;
     uint256 public constant BPS = 10_000;
     address public override token;
     address public override tokenAddress;
@@ -298,8 +300,18 @@ contract IndexFiVault is Initializable, ReentrancyGuard, IIndexFiVault, IOpenFou
         return Math.mulDiv(amount, FEE_BPS, BPS);
     }
 
-    function previewDeposit(uint256 input)
+    /// Quote for eth_call only: posts signed prices, then returns previewDeposit, so a quote works even before any
+    /// fresh price is stored on chain. Sending it as a transaction only updates the oracle.
+    function quoteDepositWithPrices(bytes[] calldata payloads, bytes[] calldata signatures, uint256 input)
         external
+        returns (uint256, uint256[] memory)
+    {
+        _postPrices(payloads, signatures);
+        return previewDeposit(input);
+    }
+
+    function previewDeposit(uint256 input)
+        public
         view
         override
         active
@@ -322,8 +334,21 @@ contract IndexFiVault is Initializable, ReentrancyGuard, IIndexFiVault, IOpenFou
         if (shares == 0 || shares > inventory) revert InsufficientInventory();
     }
 
+    /// Same as deposit, after posting signed oracle prices in the same transaction (see _postPrices).
+    function depositWithPrices(
+        bytes[] calldata payloads,
+        bytes[] calldata signatures,
+        uint256 input,
+        uint256 minShares,
+        uint256[] calldata minimums,
+        uint256 deadline
+    ) external returns (uint256) {
+        _postPrices(payloads, signatures);
+        return deposit(input, minShares, minimums, deadline);
+    }
+
     function deposit(uint256 input, uint256 minShares, uint256[] calldata minimums, uint256 deadline)
-        external
+        public
         override
         active
         nonReentrant
@@ -419,8 +444,21 @@ contract IndexFiVault is Initializable, ReentrancyGuard, IIndexFiVault, IOpenFou
         (assetAmounts, expectedUSDT,) = _previewRedeemAssets(holder, shares);
     }
 
+    /// Same as redeem, after posting signed oracle prices (redemption itself needs no price; this keeps NAV current).
+    function redeemWithPrices(
+        bytes[] calldata payloads,
+        bytes[] calldata signatures,
+        uint256 shares,
+        uint256 minNet,
+        uint256[] calldata minAssetOut,
+        uint256 deadline
+    ) external returns (uint256, uint256) {
+        _postPrices(payloads, signatures);
+        return redeem(shares, minNet, minAssetOut, deadline);
+    }
+
     function redeem(uint256 shares, uint256 minNet, uint256[] calldata minAssetOut, uint256 deadline)
-        external
+        public
         override
         active
         nonReentrant
@@ -479,8 +517,26 @@ contract IndexFiVault is Initializable, ReentrancyGuard, IIndexFiVault, IOpenFou
         }
     }
 
+    /// Same as redeemInKind, after posting signed oracle prices.
+    function redeemInKindWithPrices(
+        bytes[] calldata payloads,
+        bytes[] calldata signatures,
+        uint256 shares,
+        uint256[] calldata minAmountsOut,
+        uint256 deadline
+    ) external returns (uint256[] memory, uint256[] memory) {
+        _postPrices(payloads, signatures);
+        return redeemInKind(shares, minAmountsOut, deadline);
+    }
+
+    /// Posts each signed payload to the bound oracle. The oracle verifies signatures; empty arrays post nothing.
+    function _postPrices(bytes[] calldata payloads, bytes[] calldata signatures) private {
+        if (payloads.length != signatures.length || payloads.length > MAX_PRICE_PAYLOADS) revert InvalidAmount();
+        for (uint256 i; i < payloads.length; ++i) oracle.updatePrices(payloads[i], signatures[i]);
+    }
+
     function redeemInKind(uint256 shares, uint256[] calldata minAmountsOut, uint256 deadline)
-        external
+        public
         override
         active
         nonReentrant
