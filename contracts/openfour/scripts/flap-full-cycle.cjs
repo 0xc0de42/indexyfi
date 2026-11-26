@@ -18,6 +18,10 @@ const LOCAL = /127\.0\.0\.1|localhost/.test(RPC);
 const RECORD = path.join(ROOT, 'deployments', LOCAL ? 'flap-97.fork.json' : 'flap-97.json');
 const PULL = 'https://api.atlasoracle.io/report/v1/price/latest', ATLAS_SIGNER = '0x59ed4701224fd9e2a85ef2946c2ab828c1ddc600';
 const E18 = 10n ** 18n, SEED = 1_000n * E18, LIQ = 100n * E18, SLIP_BPS = 100n;
+// Parameters for prepared demo portfolios (docs/demo/RUNBOOK.md); defaults reproduce the original full cycle.
+const CREATOR_INDEX = Number(process.env.FLAP_CREATOR_INDEX || 1), TRADER_INDEX = Number(process.env.FLAP_TRADER_INDEX || 2);
+const RECORD_KEY = process.env.FLAP_RECORD_KEY || 'fullCycle';
+const STEPS = process.env.FLAP_STEPS ? new Set(process.env.FLAP_STEPS.split(',')) : null;
 const env = (file, name) => { const l = fs.readFileSync(file, 'utf8').split('\n').find(x => x.startsWith(`${name}=`)); return l ? l.slice(name.length + 1).trim().replace(/^['"]|['"]$/g, '') : undefined; };
 const abi = name => { const a = require(`../flap-abi/${name}.abi.json`); return Array.isArray(a) ? a : a.abi; };
 const floor = x => (x * (10_000n - SLIP_BPS)) / 10_000n;
@@ -47,16 +51,17 @@ async function main() {
   let creator, trader;
   if (LOCAL) {
     await provider.send('evm_mine', []);
-    const [a, b] = [derive(1).address, derive(2).address];
+    const [a, b] = [derive(CREATOR_INDEX).address, derive(TRADER_INDEX).address];
     for (const x of [a, b]) { await provider.send('hardhat_impersonateAccount', [x]); await provider.send('hardhat_setBalance', [x, '0x8AC7230489E80000']); }
     creator = new ethers.JsonRpcSigner(provider, a); trader = new ethers.JsonRpcSigner(provider, b);
-  } else { creator = derive(1).connect(provider); trader = derive(2).connect(provider); }
+  } else { creator = derive(CREATOR_INDEX).connect(provider); trader = derive(TRADER_INDEX).connect(provider); }
   const C = rec.contracts, O = rec.official;
   const factory = new ethers.Contract(C.IndexFiFlapFactory.address, abi('IndexFiFlapFactory'), creator);
   const usd = new ethers.Contract(O.usd, ['function mint(address,uint256)', 'function approve(address,uint256) returns (bool)', 'function balanceOf(address) view returns (uint256)'], creator);
-  const run = rec.fullCycle = {startedAt: new Date().toISOString(), creator: await creator.getAddress(), trader: await trader.getAddress(), steps: {}};
+  const run = rec[RECORD_KEY] = {startedAt: new Date().toISOString(), creator: await creator.getAddress(), trader: await trader.getAddress(), steps: {}};
   const save = () => fs.writeFileSync(RECORD, JSON.stringify(JSON.parse(JSON.stringify(rec, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))), null, 2) + '\n');
   const step = async (name, fn) => {
+    if (STEPS && !STEPS.has(name)) { console.log(`skip ${name}`); return run.steps[name] ?? null; }
     try { const out = await fn(); run.steps[name] = {ok: true, ...(out || {})}; console.log(`OK   ${name}`, out ? JSON.stringify(out, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)) : ''); return out; }
     catch (e) { run.steps[name] = {ok: false, error: reason(e)}; console.log(`FAIL ${name}: ${reason(e)}`); throw e; }
     finally { save(); }
@@ -70,14 +75,16 @@ async function main() {
   }
   const deadline = async () => BigInt((await provider.getBlock('latest')).timestamp + 900);
 
-  // Representative basket: the first two admitted assets, 50/50.
-  const legs = rec.assets.slice(0, 2);
-  const basket = {name: 'IndexFi Flap Demo', symbol: 'IFDEMO', metadataURI: 'ipfs://indexfi-flap-demo', constituents: legs.map(a => ({token: a.address, weightBps: 5000}))};
+  // Basket: FLAP_BASKET="ETH:3500,XRP:3500,SOL:3000" (symbol:bps), else the first two admitted assets 50/50.
+  const spec = process.env.FLAP_BASKET ? process.env.FLAP_BASKET.split(',').map(x => x.split(':')) : null;
+  const legs = spec ? spec.map(([sym]) => rec.assets.find(a => a.symbol === sym) ?? (() => { throw Error(`asset ${sym} not in the Flap deployment`); })()) : rec.assets.slice(0, 2);
+  const weights = spec ? spec.map(([, w]) => Number(w)) : [5000, 5000];
+  if (weights.reduce((x, y) => x + y, 0) !== 10_000) throw Error('FLAP_BASKET weights must total 10000');
+  const basket = {name: process.env.FLAP_NAME || 'IndexFi Flap Demo', symbol: process.env.FLAP_SYMBOL || 'IFDEMO', metadataURI: process.env.FLAP_META || 'ipfs://indexfi-flap-demo', constituents: legs.map((a, i) => ({token: a.address, weightBps: weights[i]}))};
   const feeds = legs.map(a => a.feedId);
 
   await step('fund', async () => {
     for (const s of [creator, trader]) await (await usd.connect(s).mint(await s.getAddress(), 5_000n * E18)).wait();
-    await (await usd.approve(factory.target, SEED + LIQ)).wait();
     return {basket: legs.map(a => a.symbol)};
   });
   const prep = await step('prepare', async () => {
@@ -86,6 +93,7 @@ async function main() {
     return p;
   });
   const launched = await step('launch', async () => {
+    await (await usd.approve(factory.target, SEED + LIQ)).wait();
     const [payloads, signatures] = await signed(feeds);
     const outs = await factory.quoteCreateWithPrices.staticCall(payloads, signatures, basket, SEED);
     const args = [payloads, signatures, prep.requestId, basket, SEED, LIQ, 0n, Array.from(outs).map(floor), await deadline(), prep.launchAuthorization];
@@ -104,7 +112,7 @@ async function main() {
   const router = new ethers.Contract(O.router, ['function swapExactTokensForTokensSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)', 'function getAmountsOut(uint256,address[]) view returns (uint256[])'], trader);
 
   await step('deposit', async () => {
-    const amount = 100n * E18, [payloads, signatures] = await signed(feeds);
+    const amount = BigInt(process.env.FLAP_DEPOSIT || '100') * E18, [payloads, signatures] = await signed(feeds);
     await (await usd.connect(trader).approve(vault.target, amount)).wait();
     const [shares, outs] = await vault.quoteDepositWithPrices.staticCall(payloads, signatures, amount);
     const r = await (await vault.depositWithPrices(payloads, signatures, amount, floor(shares), Array.from(outs).map(floor), await deadline(), {gasLimit: 6_000_000})).wait();

@@ -24,6 +24,9 @@ export const DEMO_SETTINGS: Readonly<Record<string, Omit<PortfolioSettings, 'sou
   YIELD13: {rebalance: {intervalSeconds: 604_800, thresholdBps: 300}, index: manual},
   TECH13: {rebalance: {intervalSeconds: 86_400, thresholdBps: 100}, index: {kind: 'topCap', universe: 'Tokenized equity', size: 10, weighting: 'cap', maxWeightBps: 2_500}},
   MKT13: {rebalance: {intervalSeconds: 259_200, thresholdBps: 500}, index: manual},
+  // Pitch flows (docs/demo/RUNBOOK.md): Crypto Blue Chip on OpenFour, Top 3 Market Cap index on Flap.
+  CBI: {rebalance: {intervalSeconds: 86_400, thresholdBps: 500}, index: manual},
+  T3MC: {rebalance: {intervalSeconds: 86_400, thresholdBps: 500}, index: {kind: 'topCap', universe: 'Crypto', size: 3, weighting: 'cap', maxWeightBps: 3_500}},
   // Flap demo portfolio (launched by contracts/openfour/scripts/flap-full-cycle.cjs).
   IFDEMO: {rebalance: {intervalSeconds: 3_600, thresholdBps: 10}, index: manual},
 };

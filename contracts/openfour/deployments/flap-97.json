@@ -1180,5 +1180,41 @@
       }
     },
     "finishedAt": "2026-11-26T18:28:25.217Z"
+  },
+  "demoT3MC": {
+    "startedAt": "2026-11-26T19:08:28.757Z",
+    "creator": "0x0cdf9fa9934aC2F8615d2ccD2b65A9968a275C1b",
+    "trader": "0xe716a4894a5558140c3E3FdE2772AE71A69aAB9e",
+    "steps": {
+      "prepare": {
+        "ok": true,
+        "requestId": "372955917949256261432921713986711976461531355925419995530975255903722647912",
+        "salt": "0x767fcb3d7fa79453e1706d0323ef609e6c1005f8cda9020ca2676825a2026093",
+        "predictedToken": "0x629De8b334E13dBC76ef14D3555e5dB96CB17777",
+        "tries": 80636,
+        "launchAuthorization": "0x767fcb3d7fa79453e1706d0323ef609e6c1005f8cda9020ca2676825a2026093"
+      },
+      "launch": {
+        "ok": true,
+        "tx": "0xe09a8cbc30f18d4725ac74837388f782db4fcf6e5fc26206837bf2d1bdd45e62",
+        "gas": "7957297",
+        "vault": "0x6991D544d3Cb4AAa2aBBd211eD8fe2D174bB96FA",
+        "token": "0x629De8b334E13dBC76ef14D3555e5dB96CB17777",
+        "pair": "0x0B469BbB9c586900CF87aD8f1424bA501E0c1097"
+      },
+      "deposit": {
+        "ok": true,
+        "tx": "0xf325ec4a759143d29c231d218d91be0e964ed9da7842b835ce3be3a901e01c0c",
+        "shares": "199.067941763573700287"
+      },
+      "reconcile": {
+        "ok": true,
+        "totalSupply": "1000000000.0",
+        "outstanding": "1195.804186142527840899",
+        "inventory": "999998804.195813857472159101",
+        "traderShares": "199.067941763573700287"
+      }
+    },
+    "finishedAt": "2026-11-26T19:09:00.065Z"
   }
 }
