@@ -2,7 +2,7 @@ import json
 from decimal import Decimal, localcontext
 
 import pytest
-from ind_atlas.wire import WireErrorCode, decode, subscription
+from ind_atlas.wire import MAX_SUBSCRIPTION_CHANNELS, WireErrorCode, decode, subscription
 from ind_core.models import AssetId, FeedChannel, FeedId, SelectedAsset
 from returns.result import Failure, Success
 
@@ -51,9 +51,21 @@ def test_subscription() -> None:
     )
     result = subscription(assets)
     assert isinstance(result, Success)
-    assert json.loads(result.unwrap()) == {
-        "method": "SUBSCRIPTION",
-        "params": ["modix@auth.price@12", "modix@private.price@14"],
-    }
+    assert [json.loads(m) for m in result.unwrap()] == [
+        {"method": "SUBSCRIPTION", "params": ["modix@auth.price@12", "modix@private.price@14"]}
+    ]
     assert isinstance(subscription((assets[0], assets[0])), Failure)
     assert isinstance(subscription(()), Failure)
+
+
+def test_subscription_batches_within_atlas_channel_limit() -> None:
+    assets = tuple(
+        SelectedAsset(AssetId(f"a{i}"), f"A{i}", FeedId(100 + i), FeedChannel.PUBLIC)
+        for i in range(66)
+    )
+    messages = [json.loads(m) for m in subscription(assets).unwrap()]
+    assert [len(m["params"]) for m in messages] == [20, 20, 20, 6]
+    assert all(len(m["params"]) <= MAX_SUBSCRIPTION_CHANNELS for m in messages)
+    assert [p for m in messages for p in m["params"]] == [
+        f"modix@auth.price@{100 + i}" for i in range(66)
+    ]

@@ -29,12 +29,15 @@ class CollectorError:
 
 
 async def _receive(
-    socket: WebSocketConnection, message: str, apply: Callable[[tuple[PriceObservation, ...]], None]
+    socket: WebSocketConnection,
+    messages: tuple[str, ...],
+    apply: Callable[[tuple[PriceObservation, ...]], None],
 ) -> Result[None, CollectorError]:
-    match await socket.send(message):
-        case Failure(error):
-            return Failure(CollectorError(CollectorErrorCode.SEND, error.message))
-    log.info("WebSocket connected; subscription sent")
+    for message in messages:
+        match await socket.send(message):
+            case Failure(error):
+                return Failure(CollectorError(CollectorErrorCode.SEND, error.message))
+    log.info("WebSocket connected; subscription sent in %d message(s)", len(messages))
     while True:
         match await socket.receive():
             case Failure(error) if error.code == WebSocketErrorCode.FRAME_TYPE:
@@ -64,7 +67,7 @@ async def collect(
     match subscription(assets):
         case Failure(error):
             return Failure(CollectorError(CollectorErrorCode.SUBSCRIPTION, error.message))
-        case Success(message):
+        case Success(messages):
             pass
         case _:
             raise AssertionError("Unexpected Result variant")
@@ -78,7 +81,7 @@ async def collect(
         case _:
             raise AssertionError("Unexpected Result variant")
     try:
-        result = await _receive(socket, message, apply)
+        result = await _receive(socket, messages, apply)
     finally:
         closed = await socket.close()
         log.info("Atlas receiver stopped; cached values retained")

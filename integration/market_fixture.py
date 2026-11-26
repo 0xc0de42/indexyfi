@@ -34,7 +34,10 @@ async def main(args: argparse.Namespace) -> None:
     async def feed(request: web.Request) -> web.WebSocketResponse:
         socket = web.WebSocketResponse()
         await socket.prepare(request)
-        await socket.receive_json()
+        # The collector batches channels; read until every selected feed is subscribed.
+        channels: set[str] = set()
+        while len(channels) < len(SELECTED_ASSETS):
+            channels.update((await socket.receive_json())["params"])
         now = int(datetime.now(UTC).timestamp())
         rows = b"".join(asset.feed_id.value.to_bytes(4) +
                         int(prices[asset.feed_id] * 10**18).to_bytes(10) +

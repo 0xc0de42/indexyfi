@@ -23,14 +23,28 @@ class WireError:
     message: str
 
 
-def subscription(assets: Sequence[SelectedAsset]) -> Result[str, WireError]:
+# Atlas acknowledges an oversized SUBSCRIPTION (66 channels) with code 0 and an empty
+# msg, then streams nothing. 50 per message was verified to work; batch well below it.
+MAX_SUBSCRIPTION_CHANNELS = 20
+
+
+def subscription(assets: Sequence[SelectedAsset]) -> Result[tuple[str, ...], WireError]:
+    """Subscription messages for one socket, each within the Atlas channel limit."""
     params = [
         f"modix@{'auth' if a.channel == FeedChannel.PUBLIC else 'private'}.price@{a.feed_id.value}"
         for a in assets
     ]
     if not params or len({a.feed_id for a in assets}) != len(assets):
         return Failure(WireError(WireErrorCode.SUBSCRIPTION, "Empty or duplicate subscription"))
-    return Success(json.dumps({"method": "SUBSCRIPTION", "params": params}, separators=(",", ":")))
+    return Success(
+        tuple(
+            json.dumps(
+                {"method": "SUBSCRIPTION", "params": params[i : i + MAX_SUBSCRIPTION_CHANNELS]},
+                separators=(",", ":"),
+            )
+            for i in range(0, len(params), MAX_SUBSCRIPTION_CHANNELS)
+        )
+    )
 
 
 def hex_field(value: object) -> Result[bytes, WireError]:
@@ -86,6 +100,7 @@ def decode(frame: str) -> Result[tuple[PriceObservation, ...], WireError]:
 __all__ = [
     "WireErrorCode",
     "WireError",
+    "MAX_SUBSCRIPTION_CHANNELS",
     "subscription",
     "decode",
 ]
