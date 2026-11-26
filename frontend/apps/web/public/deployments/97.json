@@ -1,0 +1,556 @@
+{
+  "schemaVersion": 5,
+  "fixture": false,
+  "testAssets": true,
+  "chainId": 97,
+  "factory": "0x2E3e3Fb3d6b47c927F091380E175116D7cF5E658",
+  "deploymentBlock": 144972453,
+  "settlementToken": "0x48FB3d62B16de656534A74fEa4BbBaEBC900EA2d",
+  "settlementDecimals": 18,
+  "adapter": "0x17d053834387B53f28c66C18C61Dac0755a7aE7f",
+  "oracle": "0x9f47ecDB9737FFf804F356Fc4e8f5D09BaF0a0C7",
+  "router": "0xD99D1c33F9fC3444f8101754aBC46c52416550D1",
+  "supplyModel": "standard-openfour-inventory",
+  "openfour": {
+    "core": "0x931a6354E2f76df5Bd5F35ad177EA9f215d3b57E",
+    "registry": "0x5eE05e2DfF97B60d6367e13BC141Bd306e6286F2",
+    "presetId": "202611260001"
+  },
+  "hiddenVaults": [
+    "0x8625Bd42bC90982ef344E5A740BBABFC21a81ACe",
+    "0x9E59465BDfc42d8e5Bd06b31A8BBB9E615B7619c",
+    "0xCDeCefC206E36A013Fd64B7B7138194bA2C637d8",
+    "0x9B5A6e55c518D11B882bdB9BF694dF45Cc57e484",
+    "0xeEc840538D8C31EC64423E8588ba97473FC7B489"
+  ],
+  "assets": [
+    {
+      "address": "0xdbc3657F4A58f81139B01Da5a99FDc7025D9C39B",
+      "symbol": "AAVE",
+      "decimals": 18,
+      "referenceAssetId": "56:0xfb6115445bff7b52feb98650c87f44907e58f802",
+      "feedId": 734,
+      "isMock": true
+    },
+    {
+      "address": "0xD378aaf3011df1159b7e76EABa7B018731B3fed7",
+      "symbol": "AB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x95034f653d5d161890836ad2b6b8cc49d14e029a",
+      "feedId": 724,
+      "isMock": true
+    },
+    {
+      "address": "0xb1581B7c082996dC48265Ca9D0ce979B6d629B6d",
+      "symbol": "ADA",
+      "decimals": 18,
+      "referenceAssetId": "56:0x3ee2200efb3400fabb9aacf31297cbdd1d435d47",
+      "feedId": 630,
+      "isMock": true
+    },
+    {
+      "address": "0x5B885E2F29F11785c732C244f8010d035ED91aE7",
+      "symbol": "AMDB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x75fd4cf6f8392e41e70391d60c90c0d5211603a1",
+      "feedId": 942,
+      "isMock": true
+    },
+    {
+      "address": "0x70261cAAC191BcD87Db1A083F9DDC2f01Bebfcd1",
+      "symbol": "ANKR",
+      "decimals": 18,
+      "referenceAssetId": "56:0xf307910a4c7bbc79691fd374889b36d8531b08e3",
+      "feedId": 731,
+      "isMock": true
+    },
+    {
+      "address": "0x95bba56169092585Ab39eEB6d99CA65d861fF68F",
+      "symbol": "ANTB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x38dd26788cf2d901e3abf04efe3007d459d0fc53",
+      "feedId": 1169,
+      "isMock": true
+    },
+    {
+      "address": "0xe448d27273ED0AAa73447D0a5f5A797126EABbd7",
+      "symbol": "ASTER",
+      "decimals": 18,
+      "referenceAssetId": "56:0x000ae314e2a2172a039b26378814c252734f556a",
+      "feedId": 723,
+      "isMock": true
+    },
+    {
+      "address": "0xbb8bf2B9Bd82eB1e1a05eAaF3dd0ff6A1F8200DF",
+      "symbol": "AT",
+      "decimals": 18,
+      "referenceAssetId": "56:0x9be61a38725b265bc3eb7bfdf17afdfc9d26c130",
+      "feedId": 729,
+      "isMock": true
+    },
+    {
+      "address": "0x57789C3e30d827516bE43E8da565fDBE92dD8C66",
+      "symbol": "AVAX",
+      "decimals": 18,
+      "referenceAssetId": "56:0x1ce0c2827e2ef14d5c4f29a091d735a204794041",
+      "feedId": 1056,
+      "isMock": true
+    },
+    {
+      "address": "0xFb8533c12341a858603C4d728139AcB49BF5cbb5",
+      "symbol": "B",
+      "decimals": 18,
+      "referenceAssetId": "56:0x6bdcce4a559076e37755a78ce0c06214e59e4444",
+      "feedId": 720,
+      "isMock": true
+    },
+    {
+      "address": "0xc1828fC525A7f9E9D61bfaa38137FcB7224c505E",
+      "symbol": "B2",
+      "decimals": 18,
+      "referenceAssetId": "56:0x783c3f003f172c6ac5ac700218a357d2d66ee2a2",
+      "feedId": 719,
+      "isMock": true
+    },
+    {
+      "address": "0x283392ECd2c49B120fFb2b047d66F14EbC04660D",
+      "symbol": "BCH",
+      "decimals": 18,
+      "referenceAssetId": "56:0x8ff795a6f4d97e7887c79bea79aba5cc76444adf",
+      "feedId": 631,
+      "isMock": true
+    },
+    {
+      "address": "0x658d0beE6976f93baA764eD479600b090775d963",
+      "symbol": "BTCB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c",
+      "feedId": 751,
+      "isMock": true
+    },
+    {
+      "address": "0x5ab1A2eeD8E574B2F0F3baDa6d0747c2E713F4aE",
+      "symbol": "BUSD",
+      "decimals": 18,
+      "referenceAssetId": "56:0xe9e7cea3dedca5984780bafc599bd69add087d56",
+      "feedId": 760,
+      "isMock": true
+    },
+    {
+      "address": "0x2b5b2d0b0250dD0CDAF70121159a36C6DE309b9f",
+      "symbol": "CAKE",
+      "decimals": 18,
+      "referenceAssetId": "56:0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82",
+      "feedId": 733,
+      "isMock": true
+    },
+    {
+      "address": "0x8d650e94Bc91B47eC381cB6E4f70a4eb2d77B633",
+      "symbol": "CBRSB",
+      "decimals": 18,
+      "referenceAssetId": "56:0xe81c6bb0266cd68b4f17278531dd03ea1f12da4e",
+      "feedId": 948,
+      "isMock": true
+    },
+    {
+      "address": "0xCC704c9143e8b64F8460eb2258621b237E0db270",
+      "symbol": "CC",
+      "decimals": 18,
+      "referenceAssetId": "56:0x7d73496d792fa2c8144788e88217fa4e9a7e18ea",
+      "feedId": 639,
+      "isMock": true
+    },
+    {
+      "address": "0x4025Eb4A0eD208970c9770662F9C3a10b40163e1",
+      "symbol": "CDL",
+      "decimals": 18,
+      "referenceAssetId": "56:0x84575b87395c970f1f48e87d87a8db36ed653716",
+      "feedId": 721,
+      "isMock": true
+    },
+    {
+      "address": "0xa7042c4B0B8505EEAa229249b7a302e10be0A7Ff",
+      "symbol": "COINB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x585bde7c54abb5ccd7791f923d6c2187635f3952",
+      "feedId": 949,
+      "isMock": true
+    },
+    {
+      "address": "0xCbc75223d76DAB1CbAa8EdaC4b21734d1099c6BD",
+      "symbol": "DAI",
+      "decimals": 18,
+      "referenceAssetId": "56:0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3",
+      "feedId": 640,
+      "isMock": true
+    },
+    {
+      "address": "0x0E2d88151305b73D367879C675A456A909517154",
+      "symbol": "DOGE",
+      "decimals": 8,
+      "referenceAssetId": "56:0xba2ae424d960c26247dd6c32edc70b295c744c43",
+      "feedId": 628,
+      "isMock": true
+    },
+    {
+      "address": "0x70d4f469D03Eb01FaAF525651c285804B113Aa6f",
+      "symbol": "DOT",
+      "decimals": 18,
+      "referenceAssetId": "56:0x7083609fce4d1d8dc0c979aab8c869ea2c873402",
+      "feedId": 735,
+      "isMock": true
+    },
+    {
+      "address": "0x38249d40aFB5cD5b5f5CBAE874988e4bCDDb49aC",
+      "symbol": "DRAMB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x93862d63fd9fd488b1328e9b47717d75e994a84b",
+      "feedId": 950,
+      "isMock": true
+    },
+    {
+      "address": "0x7DBfa76784d43eB4dF2D78AE509272b28Fc8F4FE",
+      "symbol": "EGL1",
+      "decimals": 18,
+      "referenceAssetId": "56:0xf4b385849f2e817e92bffbfb9aeb48f950ff4444",
+      "feedId": 730,
+      "isMock": true
+    },
+    {
+      "address": "0x71FAca52447053A9441908EF2f4f72A03cf90dEB",
+      "symbol": "ETH",
+      "decimals": 18,
+      "referenceAssetId": "56:0x2170ed0880ac9a755fd29b2688956bd959f933f8",
+      "feedId": 632,
+      "isMock": true
+    },
+    {
+      "address": "0xde59Bb0164BCcf2a79B62CDB51740680567bE778",
+      "symbol": "EWYB",
+      "decimals": 18,
+      "referenceAssetId": "56:0xbe82f76637dba2c114c41df856c2c51e522e2cb8",
+      "feedId": 941,
+      "isMock": true
+    },
+    {
+      "address": "0x510B30b5c46e00403f75Eb935080aBcfe0953d06",
+      "symbol": "FDUSD",
+      "decimals": 18,
+      "referenceAssetId": "56:0xc5f0f7b66764f6ec8c8dff7ba683102295e16409",
+      "feedId": 732,
+      "isMock": true
+    },
+    {
+      "address": "0x0E78c4aBD951aC9b2260B1eED09DdD94E5355556",
+      "symbol": "FIL",
+      "decimals": 18,
+      "referenceAssetId": "56:0x0d8ce2a99bb6e3b7db580ed848240e4a0f9ae153",
+      "feedId": 736,
+      "isMock": true
+    },
+    {
+      "address": "0x973A1017B1e00D1E30bF834f96DeD975A112Ff9C",
+      "symbol": "GLWB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x740e075cbbea22a082b9d6679e65e82767875b6a",
+      "feedId": 951,
+      "isMock": true
+    },
+    {
+      "address": "0x1D5C21F66bbcE6B0798764075500BFb3DBc5f1e2",
+      "symbol": "GOOGLB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x3f53de71c126bdabae20f9cd64848d317f6c3238",
+      "feedId": 952,
+      "isMock": true
+    },
+    {
+      "address": "0xecf27c019717AC98C38D3d769C69F798A99B33FC",
+      "symbol": "INTCB",
+      "decimals": 18,
+      "referenceAssetId": "56:0xe614e2fc6c787035ff51f452e8e826bfd32d5283",
+      "feedId": 940,
+      "isMock": true
+    },
+    {
+      "address": "0x4F9CE86525d07FD2CA4403F10774f77f26a5b120",
+      "symbol": "LINK",
+      "decimals": 18,
+      "referenceAssetId": "56:0xf8a0bf9cf54bb92f17374d9e9a321e6a111a51bd",
+      "feedId": 636,
+      "isMock": true
+    },
+    {
+      "address": "0x93a5aC6bb36d5bBd1149b4945e616113A0E40b25",
+      "symbol": "LITEB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x64748bea17b6d19e242adf20425de2440c656142",
+      "feedId": 946,
+      "isMock": true
+    },
+    {
+      "address": "0xbA7d084CA7aA548200C9A64132e5c5709a3993b3",
+      "symbol": "LTC",
+      "decimals": 18,
+      "referenceAssetId": "56:0x4338665cbb7b2485a8855a139b75d5e34ab0db94",
+      "feedId": 644,
+      "isMock": true
+    },
+    {
+      "address": "0x109faFFfD7976c0719eFD222c8693DC7921b0D30",
+      "symbol": "M",
+      "decimals": 18,
+      "referenceAssetId": "56:0x22b1458e780f8fa71e2f84502cee8b5a3cc731fa",
+      "feedId": 1060,
+      "isMock": true
+    },
+    {
+      "address": "0x9550d0A327410DcA4Cda4240B81ee19AE125C754",
+      "symbol": "METAB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x7425889fe94f9d693e8daefe88bcced6acfef4c0",
+      "feedId": 944,
+      "isMock": true
+    },
+    {
+      "address": "0x428e1CC700770dCd4A5eCF910326037F1e22E8e2",
+      "symbol": "MSFTB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x80106cb3ead06659a5ad19df39d9b4733863b9b0",
+      "feedId": 943,
+      "isMock": true
+    },
+    {
+      "address": "0x6D3799812ED28a5c20CA76880182A4Dae9147bAE",
+      "symbol": "MSTRB",
+      "decimals": 18,
+      "referenceAssetId": "56:0xe87afb3076aeb0f9b14e368de8145ae6a2826a14",
+      "feedId": 939,
+      "isMock": true
+    },
+    {
+      "address": "0x129CB96d195Bd473883315654b76EA2DEDE7249F",
+      "symbol": "NBISB",
+      "decimals": 18,
+      "referenceAssetId": "56:0xe256bc2a4f5297f8ba6f043f180a46300ecbcbb1",
+      "feedId": 953,
+      "isMock": true
+    },
+    {
+      "address": "0xf36469776131d5f3fe6C15Cb3EaDb35663E44470",
+      "symbol": "NEAR",
+      "decimals": 18,
+      "referenceAssetId": "56:0x1fa4a73a3f0133f0025378af00236f3abdee5d63",
+      "feedId": 1055,
+      "isMock": true
+    },
+    {
+      "address": "0xd1eEEee7101947f2Afb3930237F571F54330cB92",
+      "symbol": "OIK",
+      "decimals": 18,
+      "referenceAssetId": "56:0xb035723d62e0e2ea7499d76355c9d560f13ba404",
+      "feedId": 1051,
+      "isMock": true
+    },
+    {
+      "address": "0x7ad0581ffdAdafAed01e76647f796849b6913004",
+      "symbol": "PLTRB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x0ca5d51d0277bd006fd9607d3e560785ebad8222",
+      "feedId": 945,
+      "isMock": true
+    },
+    {
+      "address": "0xccB19Bf327C94A17eFE604d7BddA69fcC4Dd30f3",
+      "symbol": "PUFFER",
+      "decimals": 18,
+      "referenceAssetId": "56:0x87d00066cf131ff54b72b134a217d5401e5392b6",
+      "feedId": 726,
+      "isMock": true
+    },
+    {
+      "address": "0xd651645C4441F400267d4060d6c1Ec3B5fC393bb",
+      "symbol": "QCOMB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x5f7a56e877b9130608bf8be962621011182fefe1",
+      "feedId": 954,
+      "isMock": true
+    },
+    {
+      "address": "0x787b969281a4c1Ec67b137a6c503bac4dF375baD",
+      "symbol": "QQQB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x205812cdbed920aff76c6580abd681a46d11efc7",
+      "feedId": 947,
+      "isMock": true
+    },
+    {
+      "address": "0xd8DBF8A7e9B35111fb29F074FdB96A2E7265AEB8",
+      "symbol": "SHIB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x2859e4544c4bb03966803b044a93563bd2d0dd4d",
+      "feedId": 1062,
+      "isMock": true
+    },
+    {
+      "address": "0x03f4F1Adb088848648fe3eABEc4c3846FFE8b2CC",
+      "symbol": "slisBNB",
+      "decimals": 18,
+      "referenceAssetId": "56:0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b",
+      "feedId": 890,
+      "isMock": true
+    },
+    {
+      "address": "0x9f5e7bCbf9bEB13D9a470b20c689918678eED682",
+      "symbol": "SOL",
+      "decimals": 18,
+      "referenceAssetId": "56:0x570a5d26f7765ecb712c0924e4de545b89fd43df",
+      "feedId": 635,
+      "isMock": true
+    },
+    {
+      "address": "0xa49d2E6B8E11d7f3f6051e060982fc382C30cDB0",
+      "symbol": "SOXLB",
+      "decimals": 18,
+      "referenceAssetId": "56:0xd97d097a89113fa59b76c572e5b2eb647e8eefaf",
+      "feedId": 955,
+      "isMock": true
+    },
+    {
+      "address": "0xbe1e73360084053671308C745B5Ab7945EC4bd1b",
+      "symbol": "SPA",
+      "decimals": 18,
+      "referenceAssetId": "56:0x1a9fd6ec3144da3dd6ea13ec1c25c58423a379b1",
+      "feedId": 722,
+      "isMock": true
+    },
+    {
+      "address": "0x27fDFd8BC9129eb76b2b2b046373E00361bAAe09",
+      "symbol": "SPYB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x7138b48df7d98d7e3cc221bfe7192d0a178182d8",
+      "feedId": 956,
+      "isMock": true
+    },
+    {
+      "address": "0xdBA4dd3C5007f1118B1Fc65271a2F7e933C14b4F",
+      "symbol": "SQQQB",
+      "decimals": 18,
+      "referenceAssetId": "56:0x25e572b466d152604d9e6c3e53b432b978825342",
+      "feedId": 1041,
+      "isMock": true
+    },
+    {
+      "address": "0x3Bd8B33f4B4183bE66210740E2d6a4C1fA9dB802",
+      "symbol": "TAKE",
+      "decimals": 18,
+      "referenceAssetId": "56:0xe747e54783ba3f77a8e5251a3cba19ebe9c0e197",
+      "feedId": 725,
+      "isMock": true
+    },
+    {
+      "address": "0xf6c724c1B5A9e9d32717a6A558B53dCfA393b1Ab",
+      "symbol": "TUSD",
+      "decimals": 18,
+      "referenceAssetId": "56:0x40af3827f39d0eacbf4a168f8d4ee67c121d11c9",
+      "feedId": 740,
+      "isMock": true
+    },
+    {
+      "address": "0x89ffE77af9C81c24C655335638F3ef61306704B8",
+      "symbol": "TWT",
+      "decimals": 18,
+      "referenceAssetId": "56:0x4b0f1812e5df2a09796481ff14017e6005508003",
+      "feedId": 741,
+      "isMock": true
+    },
+    {
+      "address": "0x9F35D15787e7edf562CFA7e7783dc9eC98E9386E",
+      "symbol": "UNI",
+      "decimals": 18,
+      "referenceAssetId": "56:0xbf5140a22578168fd562dccf235e5d43a02ce9b1",
+      "feedId": 742,
+      "isMock": true
+    },
+    {
+      "address": "0x5A82630c0c485eCa159099bA34E98dC99C6964C8",
+      "symbol": "USD1",
+      "decimals": 18,
+      "referenceAssetId": "56:0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d",
+      "feedId": 643,
+      "isMock": true
+    },
+    {
+      "address": "0xf1d6182CaE2DEDdB45d3AC5e5E89512d2c4d347e",
+      "symbol": "USDe",
+      "decimals": 18,
+      "referenceAssetId": "56:0x5d3a1ff2b6bab83b63cd9ad0787074081a52ef34",
+      "feedId": 638,
+      "isMock": true
+    },
+    {
+      "address": "0xf587997669189E6F20b78E1A557e3fAD8E8A61D3",
+      "symbol": "USDT",
+      "decimals": 18,
+      "referenceAssetId": "56:0x55d398326f99059ff775485246999027b3197955",
+      "feedId": 647,
+      "isMock": true
+    },
+    {
+      "address": "0x4E9E7E716b9d7C099FA83691B295A3CF53ddd261",
+      "symbol": "VAI",
+      "decimals": 18,
+      "referenceAssetId": "56:0x4bd17003473389a42daf6a0a729f6fdb328bbbd7",
+      "feedId": 1049,
+      "isMock": true
+    },
+    {
+      "address": "0xE886265B03FA271E6fF75a96D6885Cd8682e5241",
+      "symbol": "wBETH",
+      "decimals": 18,
+      "referenceAssetId": "56:0xa2e3356610840701bdf5611a53974510ae27e2e1",
+      "feedId": 744,
+      "isMock": true
+    },
+    {
+      "address": "0x5413a16Fb103Df9390245A472Abd0DdcBBF684D7",
+      "symbol": "WDCB",
+      "decimals": 18,
+      "referenceAssetId": "56:0xebe29695f8047c13d36e7a790ca8c1b239ffad1c",
+      "feedId": 957,
+      "isMock": true
+    },
+    {
+      "address": "0x0C4b6Fb9f22fBDdcFf6d7Fa7C0006f5A36d0BD1d",
+      "symbol": "XRP",
+      "decimals": 18,
+      "referenceAssetId": "56:0x1d2f0da169ceb9fc7b3144628db156f3f6c60dbe",
+      "feedId": 634,
+      "isMock": true
+    },
+    {
+      "address": "0x0CE96B105C914Ea79C3DC31d1644046D1df460B6",
+      "symbol": "XUSD",
+      "decimals": 6,
+      "referenceAssetId": "56:0xf81ac2e1a0373dde1bce01e2fe694a9b7e3bfcb9",
+      "feedId": 648,
+      "isMock": true
+    },
+    {
+      "address": "0xFe69b14A64eECB31Cc5b032a4BC599AC1d145F79",
+      "symbol": "XVS",
+      "decimals": 18,
+      "referenceAssetId": "56:0xcf6bb5389c92bdda8a3747ddb454cb7a64626c63",
+      "feedId": 745,
+      "isMock": true
+    },
+    {
+      "address": "0x95d40912787762629d8bA6aec041eF2FB354B4fb",
+      "symbol": "ZEC",
+      "decimals": 18,
+      "referenceAssetId": "56:0x1ba42e5193dfa8b03d15dd1b86a3113bbbef8eeb",
+      "feedId": 642,
+      "isMock": true
+    }
+  ]
+}

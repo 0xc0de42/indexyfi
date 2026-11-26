@@ -7,9 +7,16 @@ from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 
-from aiohttp import web
+from aiohttp import ClientSession, ClientTimeout, web
 from ind_assets.selected import SELECTED_ASSETS
 from ind_atlas.collector import collect
+from ind_cmc.client import Client as CmcClient
+from ind_cmc.collector import Cache as CmcCache
+from ind_cmc.collector import Policy as CmcPolicy
+from ind_cmc.collector import collect as collect_cmc
+from ind_cmc.collector import hydrate as hydrate_cmc
+from ind_cmc.mapping import load as load_cmc_mapping
+from ind_cmc.storage import Store as CmcStore
 from ind_config.loader import RuntimeConfig, load_config
 from ind_core.models import PriceSnapshot, SelectedAsset
 from ind_history.minute import MinuteCloser, minute_of
@@ -18,6 +25,7 @@ from ind_logger.setup import configure
 from ind_snapshot.cache import LatestSnapshot, PriceCache
 from ind_snapshot.status import StatusReporter
 from ind_snapshot.timer import sample_every_second
+from returns.maybe import Some
 from returns.result import Failure, Result, Success
 
 from ind_server.api import make_app
@@ -47,6 +55,49 @@ async def receive_prices(
     # No reconnect, no invalidation, and no cancellation of the snapshot timer.
 
 
+async def receive_cmc(config: RuntimeConfig, cache: CmcCache) -> None:
+    timeout = ClientTimeout(total=config.cmc.timeout_seconds)
+    try:
+        async with ClientSession(timeout=timeout) as session:
+            client = CmcClient(session, config.secrets.cmc_api_key, config.cmc.retries)
+            await collect_cmc(
+                client,
+                cache,
+                CmcStore(config.cmc.directory),
+                CmcPolicy(
+                    config.cmc.quote_seconds,
+                    config.cmc.history_days,
+                    config.cmc.history_max_query_days,
+                    config.cmc.history_delay_seconds,
+                ),
+            )
+    except Exception as error:
+        logging.getLogger("cmc").error("CMC collector stopped: %s", type(error).__name__)
+
+
+def make_cmc_cache(config: RuntimeConfig, assets: tuple[SelectedAsset, ...]) -> CmcCache:
+    logger = logging.getLogger("cmc")
+    if not config.cmc.enabled:
+        return CmcCache()
+    match load_cmc_mapping(config.cmc.mapping, assets):
+        case Failure(error):
+            logger.error("CMC disabled: %s", error.code)
+            return CmcCache()
+        case Success(()):
+            logger.warning("CMC disabled: mapping is empty")
+            return CmcCache()
+        case Success(mappings):
+            logger.info("Loaded %d approved CMC mappings", len(mappings))
+            cache = CmcCache(mappings, enabled=True)
+            hydrate_cmc(cache, CmcStore(config.cmc.directory))
+            loaded = sum(bool(series.points) for series in cache.history.values())
+            logger.info("Loaded persisted CMC history for %d mappings", loaded)
+            if not config.secrets.cmc_api_key:
+                logger.warning("CMC refresh disabled: IND_CMC_API_KEY is missing")
+            return cache
+    raise AssertionError("Unexpected Result variant")
+
+
 async def serve(config: RuntimeConfig) -> Result[None, ServerError]:
     configure(config.logger.level, config.logger.colors)
     assets = SELECTED_ASSETS
@@ -65,6 +116,7 @@ async def serve(config: RuntimeConfig) -> Result[None, ServerError]:
             raise AssertionError("Unexpected Result variant")
     latest = LatestSnapshot()
     history = HistoryStore(config.history.directory)
+    cmc = make_cmc_cache(config, assets)
 
     def persist(snapshot: PriceSnapshot) -> None:
         minute = minute_of(snapshot.snapshot_at)
@@ -87,7 +139,15 @@ async def serve(config: RuntimeConfig) -> Result[None, ServerError]:
         status.tick(now)
 
     runner = web.AppRunner(
-        make_app(latest, history, config.server.frontend_origin), access_log=None
+        make_app(
+            latest,
+            history,
+            config.server.frontend_origin,
+            Some(cmc),
+            config.cmc.history_days,
+            config.cmc.history_max_query_days,
+        ),
+        access_log=None,
     )
     tasks: list[asyncio.Task[None]] = []
     try:
@@ -103,6 +163,8 @@ async def serve(config: RuntimeConfig) -> Result[None, ServerError]:
             asyncio.create_task(receive_prices(config, assets, cache)),
             asyncio.create_task(sample_every_second(cache, latest, closer.observe, on_clock)),
         ]
+        if cmc.enabled and config.secrets.cmc_api_key:
+            tasks.append(asyncio.create_task(receive_cmc(config, cmc)))
         await asyncio.gather(*tasks)
         return Success(None)
     except OSError as error:

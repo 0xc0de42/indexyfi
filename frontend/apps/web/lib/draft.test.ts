@@ -1,6 +1,5 @@
 import {describe, expect, it} from 'vitest';
 import {draftIssues} from '@/domain/policy';
-import {portfolios} from '@/domain/fixtures';
 import {referenceAssets} from './catalog';
 import {applyPrefill, EMPTY_DRAFT, parseDraft, serializeDraft} from './draft';
 import {assetHref, createHref, isWindowLabel} from './routes';
@@ -17,7 +16,7 @@ describe('draft storage', () => {
     const raw = JSON.stringify({name: 'X', allocations: [{id: a.id, weight: 50}, {id: a.id, weight: 50}, {id: '56:0xdead', weight: 1}], step: 99});
     const saved = parseDraft(raw);
     expect(saved?.draft.allocations.map(x => x.asset.id)).toEqual([a.id]);
-    expect(saved?.step).toBe(4);
+    expect(saved?.step).toBe(3); // clamped to the last of four wizard steps
     expect(parseDraft('{not json')).toBeNull();
     expect(parseDraft('null')).toBeNull();
     expect(parseDraft(null)).toBeNull();
@@ -38,9 +37,12 @@ describe('prefill', () => {
     expect(applyPrefill(start, {assets: [a.id, 'BTCB']})).toEqual({draft: start, notice: null});
   });
 
-  it('copies a template composition but not its identity', () => {
-    const template = portfolios[0];
-    const result = applyPrefill({...EMPTY_DRAFT, name: 'Mine'}, {from: template.id});
+  it('copies an on-chain basket composition but not its identity', () => {
+    const [x, y] = referenceAssets;
+    const template = {name: 'Core Crypto', allocations: [{asset: x, weight: 60}, {asset: y, weight: 40}]};
+    const vault = '0x8625Bd42bC90982ef344E5A740BBABFC21a81ACe';
+    expect(applyPrefill({...EMPTY_DRAFT, name: 'Mine'}, {from: vault}, null).notice).toBeNull(); // not read yet: no-op
+    const result = applyPrefill({...EMPTY_DRAFT, name: 'Mine'}, {from: vault}, template);
     expect(result.draft.name).toBe('Mine');
     expect(result.draft.allocations.map(x => [x.asset.id, x.weight])).toEqual(template.allocations.map(x => [x.asset.id, x.weight]));
   });
@@ -48,8 +50,8 @@ describe('prefill', () => {
 
 describe('step validation', () => {
   it('assigns each issue to its wizard step', () => {
-    const steps = draftIssues({...EMPTY_DRAFT, funding: 0}).map(issue => issue.step);
-    expect(new Set(steps)).toEqual(new Set([0, 1, 2, 3]));
+    const steps = draftIssues(EMPTY_DRAFT).map(issue => issue.step);
+    expect(new Set(steps)).toEqual(new Set([0, 1, 2]));
   });
 });
 

@@ -1,8 +1,8 @@
-import type {Draft} from '@/domain/model';
+import type {Asset, Draft} from '@/domain/model';
 import {categories} from '@/domain/model';
 import {equalWeights} from '@/domain/policy';
-import {portfolioById} from '@/domain/fixtures';
 import {referenceAssetById} from './catalog';
+import {DEFAULT_REBALANCE, isValidRebalance} from './rebalance';
 
 /**
  * Create-wizard draft kept in this browser tab, so researching an asset or a
@@ -10,7 +10,7 @@ import {referenceAssetById} from './catalog';
  * no longer resolves against the registry is dropped on load.
  */
 export const DRAFT_KEY = 'indexfi-create-draft';
-export const EMPTY_DRAFT: Draft = {name: '', symbol: '', description: '', category: 'Crypto', allocations: [], funding: 100, liquidity: 10};
+export const EMPTY_DRAFT: Draft = {name: '', symbol: '', description: '', category: 'Crypto', allocations: [], rebalance: DEFAULT_REBALANCE};
 
 export interface SavedDraft {
   readonly draft: Draft;
@@ -23,6 +23,13 @@ export function serializeDraft(draft: Draft, step: number): string {
 
 const text = (value: unknown, max: number) => (typeof value === 'string' ? value.slice(0, max) : '');
 const finite = (value: unknown, fallback: number) => (typeof value === 'number' && Number.isFinite(value) ? value : fallback);
+
+function rebalanceOf(value: unknown): Draft['rebalance'] {
+  if (typeof value !== 'object' || value === null) return EMPTY_DRAFT.rebalance;
+  const r = value as Record<string, unknown>;
+  const parsed = {intervalSeconds: finite(r.intervalSeconds, -1), thresholdBps: finite(r.thresholdBps, -1)};
+  return isValidRebalance(parsed) ? parsed : EMPTY_DRAFT.rebalance;
+}
 
 export function parseDraft(raw: string | null): SavedDraft | null {
   if (!raw) return null;
@@ -52,16 +59,22 @@ export function parseDraft(raw: string | null): SavedDraft | null {
       description: text(record.description, 300),
       category: categories.includes(category) ? category : EMPTY_DRAFT.category,
       allocations,
-      funding: finite(record.funding, EMPTY_DRAFT.funding),
-      liquidity: finite(record.liquidity, EMPTY_DRAFT.liquidity),
+      rebalance: rebalanceOf(record.rebalance),
     },
-    step: Math.min(4, Math.max(0, Math.trunc(finite(record.step, 0)))),
+    step: Math.min(3, Math.max(0, Math.trunc(finite(record.step, 0)))),
   };
 }
 
 export interface Prefill {
   readonly assets?: readonly string[];
+  /** On-chain vault address whose composition to copy (resolved by the caller into a Template). */
   readonly from?: string;
+}
+
+/** Composition of an existing basket, read from chain by the caller. */
+export interface Template {
+  readonly name: string;
+  readonly allocations: readonly {readonly asset: Asset; readonly weight: number}[];
 }
 
 export interface PrefillResult {
@@ -71,15 +84,14 @@ export interface PrefillResult {
 }
 
 /**
- * Apply a link's prefill to the current draft. `from` copies a portfolio's
- * composition and weights (identity stays the creator's); `assets` adds assets
- * that are not already selected and re-spreads weights equally.
+ * Apply a link's prefill to the current draft. A `template` (the on-chain basket named by `from`) copies its
+ * composition and weights (identity stays the creator's); `assets` adds assets that are not already selected and
+ * re-spreads weights equally.
  */
-export function applyPrefill(draft: Draft, prefill: Prefill): PrefillResult {
-  const template = prefill.from ? portfolioById(prefill.from) : null;
-  if (template) {
+export function applyPrefill(draft: Draft, prefill: Prefill, template?: Template | null): PrefillResult {
+  if (prefill.from && template && template.allocations.length) {
     return {
-      draft: {...draft, category: template.category, allocations: template.allocations.map(a => ({asset: a.asset, weight: a.weight}))},
+      draft: {...draft, allocations: template.allocations.map(a => ({asset: a.asset, weight: a.weight}))},
       notice: `Composition copied from ${template.name}. Give your portfolio its own name and ticker.`,
     };
   }

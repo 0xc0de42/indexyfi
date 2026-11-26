@@ -4,7 +4,7 @@ import {join} from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {REGISTRY_ASSETS} from '../data/registry.generated';
 import {referenceAssetById, referenceAssets} from './catalog';
-import {portfolios} from '../domain/fixtures';
+import {CATEGORY_OVERRIDES, ASSET_CATEGORIES} from '../data/categories';
 
 const web = join(__dirname, '..');
 const selectedPath = join(web, '../../../backend/registry/selected.json');
@@ -62,10 +62,15 @@ describe('verified registry', () => {
     expect(referenceAssetById('56:0x0000000000000000000000000000000000000000')).toBeUndefined();
   });
 
-  it('builds fixture portfolios only from registry assets', () => {
-    for (const p of portfolios) {
-      expect(p.source).toBe('fixture');
-      for (const a of p.allocations) expect(referenceAssetById(a.asset.id)).toBe(a.asset);
-    }
+  it('labels categories by canonical id: equities, ETFs, stablecoins and LSTs', () => {
+    for (const id of Object.keys(CATEGORY_OVERRIDES)) expect(referenceAssetById(id), id).toBeDefined();
+    const bySymbol = (s: string) => referenceAssets.find(a => a.symbol === s)!;
+    expect(bySymbol('SPYB').category).toBe('ETF');
+    expect(bySymbol('SQQQB').category).toBe('ETF');
+    expect(bySymbol('MSFTB').category).toBe('Tokenized equity');
+    expect(bySymbol('VAI').category).toBe('Stablecoin');
+    expect(bySymbol('wBETH').category).toBe('LST');
+    expect(bySymbol('OIK').category).toBe('Crypto');
+    for (const a of referenceAssets) expect(ASSET_CATEGORIES as readonly string[]).toContain(a.category);
   });
 });

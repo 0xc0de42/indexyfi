@@ -26,6 +26,7 @@ class ConfigError:
 @dataclass(frozen=True, slots=True)
 class Secrets:
     atlas_api_key: str = field(repr=False)
+    cmc_api_key: str = field(default="", repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +72,20 @@ class HistoryConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class CmcConfig:
+    enabled: bool = False
+    mapping: Path = Path("registry/cmc.json")
+    directory: Path = Path("data/cmc")
+    quote_seconds: int = 900
+    history_days: int = 30
+    history_max_query_days: int = 365
+    history_delay_seconds: int = 600
+    concurrency: int = 1
+    retries: int = 2
+    timeout_seconds: int = 30
+
+
+@dataclass(frozen=True, slots=True)
 class RuntimeConfig:
     secrets: Secrets = field(repr=False)
     logger: LoggerConfig
@@ -79,6 +94,7 @@ class RuntimeConfig:
     assets: AssetsConfig
     snapshot: SnapshotConfig
     history: HistoryConfig
+    cmc: CmcConfig = field(default_factory=CmcConfig)
 
 
 def load_config(path: Path) -> Result[RuntimeConfig, ConfigError]:
@@ -93,7 +109,8 @@ def load_config(path: Path) -> Result[RuntimeConfig, ConfigError]:
     key = os.environ.get("IND_ATLAS_API_KEY") or secrets.get("IND_ATLAS_API_KEY")
     if not key:
         return Failure(ConfigError(ConfigErrorCode.MISSING_SECRET, "IND_ATLAS_API_KEY is missing"))
-    return parse_config(raw, path.parent, Secrets(key))
+    cmc_key = os.environ.get("IND_CMC_API_KEY") or secrets.get("IND_CMC_API_KEY") or ""
+    return parse_config(raw, path.parent, Secrets(key, cmc_key))
 
 
 def parse_config(raw: object, base: Path, secrets: Secrets) -> Result[RuntimeConfig, ConfigError]:
@@ -156,6 +173,13 @@ def parse_config(raw: object, base: Path, secrets: Secrets) -> Result[RuntimeCon
     interval, persist = snapshot.get("interval_seconds"), history.get("persist_interval_seconds")
     if type(interval) is not int or interval != 1 or type(persist) is not int or persist != 60:
         return Failure(ConfigError(invalid, "Snapshot/history intervals must be 1/60 seconds"))
+    match parse_cmc(raw.get("cmc", {}), base):
+        case Failure(ConfigError() as error):
+            return Failure(error)
+        case Success(cmc):
+            pass
+        case _:
+            raise AssertionError("Unexpected Result variant")
     return Success(
         RuntimeConfig(
             secrets,
@@ -165,8 +189,42 @@ def parse_config(raw: object, base: Path, secrets: Secrets) -> Result[RuntimeCon
             AssetsConfig(base / registry, base / candidates, base / python_module),
             SnapshotConfig(interval),
             HistoryConfig(base / directory, persist),
+            cmc,
         )
     )
+
+
+def parse_cmc(raw: object, base: Path) -> Result[CmcConfig, ConfigError]:
+    error = ConfigError(ConfigErrorCode.INVALID_FIELD, "Invalid cmc configuration")
+    if not is_object(raw):
+        return Failure(error)
+    enabled = raw.get("enabled", False)
+    mapping = raw.get("mapping", "registry/cmc.json")
+    directory = raw.get("directory", "data/cmc")
+    if (
+        not isinstance(enabled, bool)
+        or not isinstance(mapping, str)
+        or not isinstance(directory, str)
+    ):
+        return Failure(error)
+    fields = (
+        ("quote_seconds", 900, 60, 86400),
+        ("history_days", 30, 1, 365),
+        ("history_max_query_days", 365, 30, 365),
+        ("history_delay_seconds", 600, 0, 86399),
+        ("concurrency", 1, 1, 1),
+        ("retries", 2, 0, 5),
+        ("timeout_seconds", 30, 1, 120),
+    )
+    values: list[int] = []
+    for name, default, low, high in fields:
+        value = raw.get(name, default)
+        if type(value) is not int or not low <= value <= high:
+            return Failure(error)
+        values.append(value)
+    if values[1] > values[2]:
+        return Failure(error)
+    return Success(CmcConfig(enabled, base / mapping, base / directory, *values))
 
 
 __all__ = [
@@ -180,7 +238,9 @@ __all__ = [
     "AssetsConfig",
     "SnapshotConfig",
     "HistoryConfig",
+    "CmcConfig",
     "RuntimeConfig",
+    "parse_cmc",
     "load_config",
     "parse_config",
 ]

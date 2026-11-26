@@ -1,0 +1,42 @@
+{
+  "source": "coinmarketcap",
+  "quotes": [
+    {
+      "asset_id": "56:0xf81ac2e1a0373dde1bce01e2fe694a9b7e3bfcb9",
+      "symbol": "XUSD",
+      "mapping": {
+        "asset_id": "56:0xf81ac2e1a0373dde1bce01e2fe694a9b7e3bfcb9",
+        "cmc_id": 32372,
+        "kind": "crypto",
+        "relation": "underlying_reference",
+        "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+      },
+      "status": "available",
+      "quote": {
+        "cmc_id": 32372,
+        "kind": "crypto",
+        "timestamp": "2026-11-26T13:58:03+00:00",
+        "price": "0.9999052153255558",
+        "market_cap": "41127905.676316235782677728",
+        "volume_24h": "14513416.773763902485370636",
+        "rank": 362,
+        "tags": ["binance-ecosystem", "binance-listing", "stablecoin"],
+        "percent_change_24h": "0.000949964021",
+        "percent_change_7d": "0.001087092398",
+        "percent_change_30d": "0.018038797266",
+        "percent_change_90d": "-0.032313989307",
+        "provenance": {
+          "endpoint": "/v3/cryptocurrency/quotes/latest",
+          "fetched_at": "2026-11-26T13:59:39.024100+00:00",
+          "response_sha256": "aba95b668a29da337c5f5d9c88e0a1297ff4a99dcbc1b81e6cadc5bfc06d569d",
+          "parameters": {
+            "convert": "USD",
+            "id": "2,52,74,825,1027,1437,1831,1975,2010,2280,2563,3783,3871,4023,4687,4943,5426,5805,5964,5994,6535,6636,6715,7083,7186,7278,7288,7824,24760,26081,27568,29470,32325,32372,35491,36011,36148,36341,36352,36532,36761,37263,38175,38274,38757,40536,40538,40539,40540,40589,40590,40591,40592,40593,40789,40790,40791,40792,40793,40794,40795,40796,40797,40798,41962,42860",
+            "skip_invalid": "true"
+          },
+          "credit_count": 1
+        }
+      }
+    }
+  ]
+}

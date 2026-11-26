@@ -1,4 +1,4 @@
-import {decodeEventLog, encodeFunctionData, erc20Abi, formatUnits, getAddress, isAddress, parseAbi, parseUnits, type Address, type PublicClient, type TransactionReceipt} from 'viem';
+import {decodeEventLog, encodeFunctionData, encodePacked, erc20Abi, formatUnits, getAddress, isAddress, keccak256, parseAbi, parseUnits, type Address, type Hex, type PublicClient, type TransactionReceipt} from 'viem';
 import {bscTestnet, hardhat} from 'viem/chains';
 import {NO_PRICES, pricesByFeed, type SignedPrices} from './atlas-signed';
 import {z} from 'zod';
@@ -35,6 +35,14 @@ const decimals = z.number().int().min(0).max(18);
 const token = z.object({address, symbol:z.string().min(1), decimals, referenceAssetId:z.string(), feedId:z.number().int().positive(), isMock:z.boolean().default(false)});
 const deployment = z.object({
   schemaVersion:z.literal(5), fixture:z.boolean(), supplyModel:z.literal("standard-openfour-inventory"),
+  /** Public test deployment whose assets are labelled test tokens standing in for mainnet assets (chain 97). */
+  testAssets:z.boolean().default(false),
+  /** Superseded vaults the app does not list (they stay on chain and reachable by address). */
+  hiddenVaults:z.array(z.string().regex(/^0x[0-9a-fA-F]{40}$/)).default([]),
+  /** OpenFour Core the factory launches through; its signer() authorizes launches on public chains. */
+  openfour:z.object({core:address, registry:address, presetId:z.union([z.string(),z.number()])}).optional(),
+  /** Contract features of this deployment. rebalancing: factory/vault 5.2+ (docs/rebalancing/IMPLEMENTATION_PLAN.md). */
+  features:z.object({rebalancing:z.boolean().default(false)}).default({rebalancing:false}),
   chainId:z.number().int(), factory:address, deploymentBlock:z.number().int().nonnegative(),
   settlementToken:address, settlementDecimals:decimals, adapter:address, oracle:address, router:address, assets:z.array(token).min(1),
 });
@@ -42,7 +50,8 @@ export type Deployment = z.infer<typeof deployment>;
 export function parseDeployment(input:unknown, chainId:number):Deployment {
   const d = deployment.parse(input);
   if(d.chainId !== chainId) throw Error('Deployment chain mismatch');
-  if(d.fixture !== (chainId===31337) || (!d.fixture && d.assets.some(a=>a.isMock))) throw Error('Fixture network mismatch');
+  if(d.fixture !== (chainId===31337) || (!d.fixture && !d.testAssets && d.assets.some(a=>a.isMock))) throw Error('Fixture network mismatch');
+  if(d.testAssets && (d.fixture || !d.assets.every(a=>a.isMock))) throw Error('Test-asset deployments must be public and label every asset');
   if([d.factory,d.settlementToken,d.adapter,d.oracle,d.router,...d.assets.map(a=>a.address)].some(a=>/^0x0{40}$/i.test(a))) throw Error('Zero deployment address');
   if(new Set(d.assets.map(a=>a.referenceAssetId)).size !== d.assets.length) throw Error('Duplicate execution asset reference');
   if(new Set(d.assets.map(a=>a.address)).size !== d.assets.length) throw Error('Duplicate execution asset');
@@ -67,6 +76,43 @@ export const factoryAbi = parseAbi([constituent, basket,
   'event PortfolioLaunched(address indexed vault,address indexed token,address indexed pair,uint256 collateralUSDT,uint256 liquidityUSDT,uint256 outstandingSupply)',
   'function buildCreateArgs(uint256 requestId,address creator,Basket basket,uint256 seedUSDT,uint256 liquidityUSDT,uint256 minCreatorShares,uint256[] minimums,uint256 deadline,uint256 createFee) view returns (bytes)',
 ]);
+/**
+ * Rebalancing interface of vault / factory 5.2 (docs/rebalancing/IMPLEMENTATION_PLAN.md §2.1). Used only when the manifest
+ * sets features.rebalancing (factory) or a vault answers rebalanceConfig(); older contracts keep the ABIs above.
+ */
+const rebalanceConfigStruct = 'struct RebalanceConfig { uint32 interval; uint16 thresholdBps; }' as const;
+export const rebalanceAbi = parseAbi([
+  'function rebalanceConfig() view returns (uint32 interval,uint16 thresholdBps,uint64 lastRebalanceAt)',
+  'function quoteRebalanceWithPrices(bytes[] payloads,bytes[] signatures) returns (uint256 driftBps,bool due,uint256[] expectedOut)',
+  'function rebalanceWithPrices(bytes[] payloads,bytes[] signatures,uint256[] minOut,uint256 deadline) returns (uint256 navBefore,uint256 navAfter)',
+  'event Rebalanced(address indexed caller,uint256 driftBps,uint256 navBefore,uint256 navAfter,uint64 at)',
+]);
+export const factoryRebalanceAbi = parseAbi([constituent, basket, rebalanceConfigStruct,
+  'function createVaultWithPrices(bytes[] payloads,bytes[] signatures,uint256 requestId,Basket basket,uint256 seedUSDT,uint256 liquidityUSDT,uint256 minCreatorShares,uint256[] minTokenOut,uint256 deadline,bytes launchAuthorization,RebalanceConfig rebalance) payable returns (address vault,uint256 seedShares)',
+  'function buildCreateArgs(uint256 requestId,address creator,Basket basket,uint256 seedUSDT,uint256 liquidityUSDT,uint256 minCreatorShares,uint256[] minimums,uint256 deadline,uint256 createFee,RebalanceConfig rebalance) view returns (bytes)',
+]);
+export interface OnchainRebalance {
+  readonly intervalSeconds: number;
+  readonly thresholdBps: number;
+  /** Unix seconds; the launch time until the first rebalance. */
+  readonly lastRebalanceAt: number;
+}
+/** The vault's rebalancing config, or null when the vault predates rebalancing (5.1) and the call reverts. */
+export async function readRebalance(client:PublicClient,vault:Address):Promise<OnchainRebalance|null>{
+  try{
+    const [interval,thresholdBps,last]=await client.readContract({address:vault,abi:rebalanceAbi,functionName:'rebalanceConfig'});
+    return {intervalSeconds:Number(interval),thresholdBps:Number(thresholdBps),lastRebalanceAt:Number(last)};
+  }catch{return null;}
+}
+export interface RebalanceEvent { readonly tx:`0x${string}`; readonly block:bigint; readonly at:number; readonly driftBps:number; readonly navBefore:bigint; readonly navAfter:bigint; readonly caller:Address }
+/** Past rebalances, newest first; null if the RPC refuses the log range. */
+export async function rebalanceHistory(client:PublicClient,vault:Address,fromBlock:bigint):Promise<RebalanceEvent[]|null>{
+  try{
+    const logs=await client.getContractEvents({address:vault,abi:rebalanceAbi,eventName:'Rebalanced',fromBlock,toBlock:'latest'});
+    return logs.map(l=>({tx:l.transactionHash,block:l.blockNumber,at:Number(l.args.at??0n),driftBps:Number(l.args.driftBps??0n),navBefore:l.args.navBefore??0n,navAfter:l.args.navAfter??0n,caller:l.args.caller!})).reverse();
+  }catch{return null;}
+}
+
 export const vaultAbi = parseAbi([constituent,
   'function name() view returns (string)', 'function symbol() view returns (string)', 'function creator() view returns (address)',
   'function totalSupply() view returns (uint256)', 'function closed() view returns (bool)',
@@ -107,7 +153,7 @@ export const legMinimums=(quotes:readonly bigint[],slipBps:number)=>quotes.map(q
 
 /** Ceiling for any one transaction: below the 16,777,216 per-transaction cap (EIP-7825) that Hardhat's Osaka rules enforce. */
 export const GAS_CAP=16_000_000n;
-export type GasKind='create'|'deposit'|'redeem'|'redeemInKind'|'swap'|'addLiquidity'|'removeLiquidity';
+export type GasKind='create'|'deposit'|'redeem'|'redeemInKind'|'swap'|'addLiquidity'|'removeLiquidity'|'rebalance';
 /**
  * Size-based limits (~25% over gas measured on the fixture, 2–32 assets): launch 4.03M→11.88M,
  * deposit 0.43M→4.66M, redeem 0.39M→4.56M, in-kind 0.23M→2.61M, plus ~0.15M + ~30k per feed for the signed
@@ -116,6 +162,8 @@ export type GasKind='create'|'deposit'|'redeem'|'redeemInKind'|'swap'|'addLiquid
 const FALLBACK:{[K in GasKind]:{base:bigint;perLeg:bigint}}={
   create:{base:4_650_000n,perLeg:340_000n}, deposit:{base:450_000n,perLeg:210_000n}, redeem:{base:450_000n,perLeg:210_000n},
   redeemInKind:{base:350_000n,perLeg:140_000n}, swap:{base:600_000n,perLeg:0n}, addLiquidity:{base:600_000n,perLeg:0n}, removeLiquidity:{base:600_000n,perLeg:0n},
+  // Planned (vault 5.2): one sell or buy per leg plus the signed price update.
+  rebalance:{base:600_000n,perLeg:260_000n},
 };
 /**
  * Explicit gas limit for a write. Every write sends one, so wallets never re-estimate: Hardhat's estimator overshoots
@@ -135,10 +183,22 @@ export function newRequestId():bigint {
   return id===0n?1n:id;
 }
 export type LaunchAuthorization={requestId:bigint;authorization:`0x${string}`};
-/** Fixture Core accepts an empty signature. Public chains need the OpenFour signer service, which is not integrated yet. */
+/** Fixture Core accepts an empty signature. Public chains need a signature from OpenFour Core's signer (see launchDigest). */
 export async function authorizeLaunch(d:Pick<Deployment,'fixture'>):Promise<LaunchAuthorization> {
   if(!d.fixture) throw Error('Public launch authorization is not configured. Creation is disabled on this deployment.');
   return {requestId:newRequestId(),authorization:'0x'};
+}
+export const coreAbi=parseAbi(['function signer() view returns (address)']);
+/**
+ * OpenFour launch digest, signed EIP-191 (personal_sign over the 32 raw bytes) by Core.signer. The caller Core sees is
+ * the IndexFi factory, and createArgs come from factory.buildCreateArgs with exactly the values the launch then uses.
+ */
+export const launchDigest=(chainId:number,factory:Address,createArgs:Hex)=>
+  keccak256(encodePacked(['string','uint256','address','bytes32'],['createOpenFourToken',BigInt(chainId),factory,keccak256(createArgs)]));
+/** OpenFour Core's launch signer, or null without a Core in the manifest (local fixture). */
+export async function launchSigner(client:PublicClient,d:Pick<Deployment,'openfour'>):Promise<Address|null>{
+  if(!d.openfour) return null;
+  return client.readContract({address:d.openfour.core as Address,abi:coreAbi,functionName:'signer'});
 }
 /** Wallet funds a launch needs: settlement-token balance and native gas. */
 export async function walletFunds(client:PublicClient,d:Deployment,holder:Address){

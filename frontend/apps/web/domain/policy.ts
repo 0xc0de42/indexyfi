@@ -1,7 +1,7 @@
 import type {Draft} from './model';
 
-/** Wizard step an issue belongs to: 0 identity, 1 composition, 2 allocation, 3 funding. */
-export type DraftStep = 0 | 1 | 2 | 3;
+/** Wizard step an issue belongs to: 0 identity, 1 composition, 2 allocation. Funding is fixed (lib/launch.ts). */
+export type DraftStep = 0 | 1 | 2;
 export interface DraftIssue {
   readonly step: DraftStep;
   readonly message: string;
@@ -16,8 +16,6 @@ export function draftIssues(d: Draft): DraftIssue[] {
   if (new Set(d.allocations.map(a => a.asset.id)).size !== d.allocations.length) e.push({step: 1, message: 'Duplicate assets are not allowed.'});
   if (d.allocations.some(a => !Number.isFinite(a.weight) || a.weight <= 0 || a.weight > 100)) e.push({step: 2, message: 'Every asset needs a positive weight.'});
   if (Math.abs(d.allocations.reduce((s, a) => s + a.weight, 0) - 100) > 1e-5) e.push({step: 2, message: 'Weights must total 100%.'});
-  if (!Number.isFinite(d.funding) || d.funding < 100) e.push({step: 3, message: 'Funding must be at least 100 USDT.'});
-  if (!Number.isFinite(d.liquidity) || d.liquidity < 1 || d.liquidity >= d.funding) e.push({step: 3, message: 'Liquidity must be at least 1 USDT and less than collateral funding.'});
   return e;
 }
 

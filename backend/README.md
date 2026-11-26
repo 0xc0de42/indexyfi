@@ -25,8 +25,8 @@ uv run python -m ind_server --help
 ```
 
 The complete quality gate was verified on 2026-11-25 with CPython 3.12.12:
-locked dependency sync, Ruff lint and formatting, strict mypy across all ten
-packages, 27 tests with no skips, and the server entrypoint all passed. Run
+locked dependency sync, Ruff lint and formatting, strict mypy across the workspace,
+40 tests with no skips, and the server entrypoint all passed. Run
 `./check.sh` to repeat the same gate. See `TEST_RESULTS.txt` for the recorded
 commands and live-integration evidence.
 
@@ -75,6 +75,35 @@ snapshot objects, sorted by minute. `start` inclusive, `end` exclusive; omit
 for the last five minutes. Requests longer than 24 hours return HTTP 400 `invalid_time_range`. Reads enumerate existing minute files in at most 25 UTC hour directories. Repeat `asset_id` query parameters to filter.
 Default CORS allows only `http://localhost:3000`. Set the actual frontend
 origin in TOML. No API version prefix, health endpoint or asset endpoint.
+
+## CoinMarketCap market data
+
+The approved registry contains all 66 assets. CMC is enabled by default, but provider access is
+optional: startup always hydrates and serves persisted history, while collection starts only when
+`IND_CMC_API_KEY` is present in the local environment or `.env`. The key is never returned to HTTP
+clients. CMC data never changes Atlas prices or contract execution.
+
+The collector polls latest statistics every 15 minutes and requests 30 completed UTC days when a
+provider ID has no history. It subsequently appends only observations after that ID's persisted
+watermark. It does not search for or repair gaps. Data is retained under `data/cmc/` using exact
+decimal strings and atomic Parquet replacement. Provider failures preserve the last valid data.
+
+```sh
+curl http://127.0.0.1:8000/v1/cmc/assets
+curl http://127.0.0.1:8000/v1/cmc/quotes
+curl -G http://127.0.0.1:8000/v1/cmc/history \
+  --data-urlencode 'asset_id=56:0x...' --data-urlencode 'asset_id=56:0x...' \
+  --data-urlencode 'start=2026-10-27' \
+  --data-urlencode 'end=2026-11-26'
+```
+
+All three endpoints are local reads and accept repeated `asset_id` filters. History is UTC,
+start-inclusive and end-exclusive, with a maximum 365-day request. See
+[`docs/CMC_API.md`](docs/CMC_API.md) and the sanitized live fixtures in `docs/fixtures/cmc/`.
+
+CMC mappings are identity/provenance records, not proof of a chain-97 token, DEX route, backing,
+or executable price. `exact_token`, `underlying_reference`, and `rwa_aggregate` relationships
+must remain distinct. The browser never calls CMC directly and never receives the key.
 
 History is latest-only in RAM plus one pending minute close. Completed UTC
 minutes are immutable Parquet files under `data/history/YYYY/MM/DD/HH/MM.parquet`.

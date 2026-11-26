@@ -8,6 +8,14 @@ import {useAccount} from 'wagmi';
 import {usePriceState} from '@/lib/prices';
 import {referenceAssetById} from '@/lib/catalog';
 import {exactAmount, units, vaultAbi, routerAbi, lpAmounts, floorOutput, quoteDeposit} from '@/lib/vaults';
+import {valuation} from '@/lib/valuation';
+import {graduation, LAUNCH} from '@/lib/launch';
+import {GraduationBar} from './graduation';
+import {Rebalancing} from './rebalancing';
+import {useCmcState} from '@/lib/cmc';
+import {cmcPct, cmcUsd, pctTone, relationLabel} from '@/lib/cmc-format';
+import {createHref} from '@/lib/routes';
+import {formatPrice, usd} from '@/domain/model';
 import {useDeployment, useVault, useVaultTransaction, type VaultAction} from '@/lib/use-vaults';
 
 type Mode='deposit'|'redeem'|'redeemInKind'|'buy'|'sell'|'addLiquidity'|'removeLiquidity';
@@ -21,6 +29,7 @@ export function OnchainVault({address}:{address:Address}) {
   const vault=useVault(deployment.data,address);
   const transaction=useVaultTransaction(deployment.data);
   const prices=usePriceState();
+  const cmc=useCmcState();
   const [mode,setMode]=useState<Mode>('deposit');
   const [amount,setAmount]=useState('100');
   const [slip,setSlip]=useState('100');
@@ -85,16 +94,12 @@ export function OnchainVault({address}:{address:Address}) {
     void preview();return()=>{active=false;};
   },[amount,mode,address,deployment.client,deployment.data,vault.data,account.address,key]);
 
-  const indicative=useMemo(()=>{
-    if(!vault.data)return null;
-    let aum=0;
-    for(const holding of vault.data.holdings){
-      const price=prices.byAsset.get(holding.referenceAssetId)?.price;
-      if(!price)return null;
-      aum+=Number(formatUnits(holding.balance,holding.decimals))*Number(price);
-    }
-    return vault.data.supply?aum/Number(formatUnits(vault.data.supply,18)):null;
-  },[vault.data,prices.byAsset]);
+  // Display valuation: on-chain holdings x latest Atlas prices (no staleness check); execution re-prices on chain.
+  const val=useMemo(()=>vault.data&&deployment.data?valuation(vault.data,prices.byAsset,deployment.data.settlementDecimals):null,[vault.data,prices.byAsset,deployment.data]);
+  // Option A graduation: a display state from AUM. Before it, only primary deposit/redeem at NAV is offered.
+  const grad=graduation(val?.aum??null);
+  const primaryOnly=!grad.graduated;
+  useEffect(()=>{if(primaryOnly&&!(['deposit','redeem','redeemInKind'] as Mode[]).includes(mode)){setMode('deposit');setQuote(null);}},[primaryOnly,mode]);
 
   async function submit(){
     if(!current||!validSlip)return;
@@ -105,26 +110,27 @@ export function OnchainVault({address}:{address:Address}) {
   if(deployment.error||vault.error||!deployment.data||!vault.data)return <Empty>Vault unavailable on the active deployment. <Link href="/">Return to Explore</Link></Empty>;
   const v=vault.data,d=deployment.data;
   const market=v.pool?.marketPrice??null;
-  const premium=market!==null&&v.nav!==null&&v.nav>0n?Number((market-v.nav)*10000n/v.nav)/100:null;
   const liquidity=v.pool&&market!==null?2n*v.pool.cash:null;
   const active=!v.closed&&v.phase===3;
   const minOut=current&&validSlip?(()=>{const a=current.action;switch(a.kind){case 'deposit':return `${units(floorOutput(a.shares,slippage),18)} ${v.symbol}`;case 'redeem':return `${units(floorOutput(a.net,slippage),d.settlementDecimals)} USDT`;case 'swap':return `${units(floorOutput(a.out,slippage),a.buy?18:d.settlementDecimals)} ${a.buy?v.symbol:'USDT'}`;default:return null;}})():null;
   return <>
     <Link className="back-link" href="/"><ArrowLeft size={15}/> All vaults</Link>
-    <div className="detail-heading"><div className="detail-title"><span className="token-mark token-mark--large">{v.symbol.slice(0,2)}</span><div><div className="eyebrow">OpenFour portfolio · {d.fixture?'Local fixture':'On-chain'}</div><h1>{v.name}</h1><p>{v.symbol} · {address}</p></div></div><Badge tone={active?'good':'warn'}>{active?'Migrated':v.closed?'Closed':'Not active'}</Badge></div>
+    <div className="detail-heading"><div className="detail-title"><span className="token-mark token-mark--large">{v.symbol.slice(0,2)}</span><div><div className="eyebrow">OpenFour portfolio · {d.fixture?'Local fixture':d.testAssets?'BSC Testnet · test assets':'On-chain'}</div><h1>{v.name}</h1><p>{v.symbol} · {address}</p></div></div><Badge tone={!active?'warn':grad.graduated?'good':'neutral'}>{v.closed?'Closed':!active?'Not active':grad.graduated?'Graduated · PancakeSwap':'Pre-graduation'}</Badge></div>
     <div className="detail-grid"><div className="stack">
-      <Card><div className="card-heading"><h2>Portfolio valuation</h2><Badge>Block {v.blockNumber.toString()}</Badge></div><div className="price-metrics"><Metric label="On-chain NAV / token" value={display(v.nav)} detail={d.fixture?'Fixture oracle':'Atlas oracle'}/><Metric label="Market price" value={display(market)} detail={d.fixture?'Fixture AMM':'PancakeSwap V2'}/><Metric label="Premium / discount" value={premium===null?'—':`${premium.toFixed(2)}%`}/><Metric label="Collateral AUM (USD)" value={display(v.aum,18,2)}/><Metric label="Backed supply" value={display(v.supply)} /><Metric label="Unissued inventory" value={display(v.inventory)}/><Metric label="AMM liquidity (USDT at spot)" value={display(liquidity,d.settlementDecimals,2)} /><Metric label="Indicative backend NAV" value={indicative===null?'—':`$${indicative.toFixed(4)}`} detail="Backend reference feed; not execution price"/></div></Card>
-      <Card><div className="card-heading"><h2>Actual collateral</h2><Badge>Accounted holdings</Badge></div><div className="table-scroll"><table><thead><tr><th>Asset</th><th>Initial weight</th><th>Balance</th><th>Backend reference price</th></tr></thead><tbody>{v.holdings.map(h=><tr key={h.address}><td>{referenceAssetById(h.referenceAssetId)?.name??h.symbol}</td><td>{Number(h.weightBps)/100}%</td><td>{units(h.balance,h.decimals)} {h.symbol}</td><td>{prices.byAsset.get(h.referenceAssetId)?.price??'Unavailable'}</td></tr>)}</tbody></table></div></Card>
-      <Card><h2>Transparency</h2><dl className="key-values"><div><dt>Creator</dt><dd className="address">{v.creator}</dd></div><div><dt>Portfolio ERC-20</dt><dd className="address">{v.token}</dd></div><div><dt>AMM pair</dt><dd className="address">{v.pair}</dd></div><div><dt>Your tokens</dt><dd data-testid="wallet-shares">{units(v.shares,18)}</dd></div><div><dt>Your LP tokens</dt><dd>{v.pool?units(v.pool.lpBalance,18):'Unavailable'}</dd></div><div><dt>Primary creator fees</dt><dd>0.1% per deposit and redemption</dd></div><div><dt>Liquidity ownership</dt><dd>LP token holders; unlocked</dd></div></dl></Card>
+      <Card><div className="card-heading"><h2>Graduation</h2><Badge tone={grad.graduated?'good':'neutral'}>{grad.graduated?'PancakeSwap':'IndexFi primary'}</Badge></div><GraduationBar g={grad} aum={val?.aum??null}/><p className="fine-print">{grad.graduated?'Trade on PancakeSwap or deposit and redeem at NAV.':`Deposit and redeem at NAV until AUM reaches ${LAUNCH.graduationUSD.toLocaleString('en-US')} USDT; PancakeSwap trading opens at graduation.`}</p></Card>
+      <Card><div className="card-heading"><h2>Portfolio valuation</h2><Badge>Block {v.blockNumber.toString()}</Badge></div><div className="price-metrics"><Metric label="NAV / token" value={usd(val?.nav??null,4)} detail="On-chain holdings × Atlas prices"/>{grad.graduated?<><Metric label="Market price" value={display(market)} detail={d.fixture?'Fixture AMM':'PancakeSwap V2'}/><Metric label="Premium / discount" value={val?.premiumPct==null?'—':`${val.premiumPct.toFixed(2)}%`}/></>:<Metric label="Primary price" value={usd(val?.nav??null,4)} detail="Deposit / redeem at NAV"/>}<Metric label="Collateral AUM (USD)" value={usd(val?.aum??null,2)}/><Metric label="Backed supply" value={display(v.supply)} /><Metric label="Unissued inventory" value={display(v.inventory)}/>{grad.graduated&&<Metric label="AMM liquidity (USDT at spot)" value={display(liquidity,d.settlementDecimals,2)} />}</div></Card>
+      <Rebalancing d={d} v={v} val={val}/>
+      <Card><div className="card-heading"><h2>Actual collateral</h2><Badge>Accounted holdings · CMC reference stats</Badge></div><div className="table-scroll"><table><thead><tr><th>Asset</th><th>Weight</th><th>Balance</th><th>Atlas price</th><th>CMC mkt cap</th><th>CMC 24h · 7d</th></tr></thead><tbody>{v.holdings.map(h=><tr key={h.address}><td>{referenceAssetById(h.referenceAssetId)?.name??h.symbol}</td><td>{Number(h.weightBps)/100}%</td><td title={`${units(h.balance,h.decimals)} ${h.symbol} (exact)`}>{Number(units(h.balance,h.decimals)).toLocaleString('en-US',{maximumSignificantDigits:6})} {h.symbol}</td><td title={prices.byAsset.get(h.referenceAssetId)?.price?`${prices.byAsset.get(h.referenceAssetId)!.price} USD (exact)`:undefined}>{prices.byAsset.get(h.referenceAssetId)?formatPrice(prices.byAsset.get(h.referenceAssetId)!.price):'Unavailable'}</td>{(()=>{const r=cmc.rows.get(h.referenceAssetId),q=r?.quote;return <><td title={relationLabel(r?.mapping).long}>{cmcUsd(q?.marketCap)}{r?.mapping?.relation==='underlying_reference'&&<small className="muted"> ref.</small>}</td><td className="price-cell"><span className={pctTone(q?.change24h)}>{cmcPct(q?.change24h)}</span><small className={pctTone(q?.change7d)}>7d {cmcPct(q?.change7d)}</small></td></>;})()}</tr>)}</tbody></table></div></Card>
+      <Card><h2>Transparency</h2><dl className="key-values"><div><dt>Creator</dt><dd className="address">{v.creator}</dd></div><div><dt>Portfolio ERC-20</dt><dd className="address">{v.token}</dd></div><div><dt>AMM pair</dt><dd className="address">{v.pair}</dd></div><div><dt>Your tokens</dt><dd data-testid="wallet-shares">{units(v.shares,18)}</dd></div><div><dt>Your LP tokens</dt><dd>{v.pool?units(v.pool.lpBalance,18):'Unavailable'}</dd></div><div><dt>Primary creator fees</dt><dd>0.1% per deposit and redemption</dd></div><div><dt>Liquidity ownership</dt><dd>LP token holders; unlocked</dd></div><div><dt>Composition</dt><dd><Link className="text-link" href={createHref({from:address})}>Copy basket composition</Link></dd></div></dl></Card>
     </div><aside className="stack trade-column"><Card className="trade-panel"><div className="card-heading"><h2>{labels[mode]}</h2><Badge tone={transaction.ready?'good':'warn'}>{transaction.ready?'Wallet ready':'Connect wallet'}</Badge></div>
-      {([['deposit','redeem','redeemInKind'],['buy','sell'],['addLiquidity','removeLiquidity']] as const).map((group,i)=><div key={i}><p className="fine-print">{['Primary market','Secondary market','Liquidity'][i]}</p><div className="segmented">{group.map(m=><button key={m} aria-pressed={mode===m} onClick={()=>{setMode(m);setQuote(null);}} disabled={!!transaction.pending}>{labels[m]}</button>)}</div></div>)}
+      {([['deposit','redeem','redeemInKind'],['buy','sell'],['addLiquidity','removeLiquidity']] as const).slice(0,primaryOnly?1:3).map((group,i)=><div key={i}><p className="fine-print">{['Primary market','Secondary market','Liquidity'][i]}</p><div className="segmented">{group.map(m=><button key={m} aria-pressed={mode===m} onClick={()=>{setMode(m);setQuote(null);}} disabled={!!transaction.pending}>{labels[m]}</button>)}</div></div>)}
+      {primaryOnly&&<p className="fine-print" data-testid="pre-graduation-note">PancakeSwap trading and liquidity open at {LAUNCH.graduationUSD.toLocaleString('en-US')} USDT AUM.</p>}
       <label className="field">{mode==='deposit'||mode==='buy'||mode==='addLiquidity'?'USDT amount':mode==='removeLiquidity'?'LP token amount':'Portfolio token amount'}<input data-testid="vault-amount" value={amount} onChange={e=>setAmount(e.target.value)} inputMode="decimal" disabled={!!transaction.pending}/></label>
       <label className="field">Slippage tolerance (bps; 100 = 1%)<input value={slip} onChange={e=>setSlip(e.target.value)} inputMode="numeric" disabled={!!transaction.pending}/></label>
       {current&&<dl className="key-values">{current.lines.map(([label,value])=><div key={label}><dt>{label}</dt><dd data-testid={label==='Net proceeds'?'net-quote':undefined}>{value}</dd></div>)}{minOut&&<div><dt>Minimum received</dt><dd>{minOut}</dd></div>}</dl>}
       {mode==='addLiquidity'&&<p className="fine-print">The second token amount follows the current reserve ratio. Both amounts have slippage protection.</p>}
       {mode==='redeem'&&(quoteError||transaction.error)&&<div className="notice notice--neutral">The USDT exit needs every swap route. You can still exit with the underlying tokens. <button type="button" className="text-button" data-testid="switch-in-kind" onClick={()=>{setMode('redeemInKind');setQuote(null);}}>Redeem in kind instead</button></div>}
       {mode==='redeemInKind'&&<p className="fine-print">Pays your share of each underlying token directly. No swaps and no oracle; 0.1% of each token goes to the creator.</p>}
-      {mode==='redeem'&&v.nav===null&&<p className="fine-print">Oracle valuation unavailable. Redemption can still proceed if swaps are executable.</p>}
       {(quoteError||transaction.error)&&<div role="alert" className="notice notice--bad">{quoteError||transaction.error}</div>}
       {transaction.pending&&<div role="status" className="notice notice--neutral">{transaction.pending}</div>}
       {transaction.lastHash&&!transaction.pending&&<p className="fine-print">Latest transaction: {transaction.lastHash}</p>}

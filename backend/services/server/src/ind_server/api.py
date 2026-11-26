@@ -6,12 +6,14 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 
 from aiohttp import web
+from ind_cmc.collector import Cache as CmcCache
 from ind_core.models import AssetId
 from ind_history.parquet import MAX_HISTORY_RANGE, HistoryStore
 from ind_snapshot.cache import LatestSnapshot
-from returns.maybe import Some
+from returns.maybe import Maybe, Nothing, Some
 from returns.result import Failure, Result, Success
 
+from ind_server.cmc_api import add_routes as add_cmc_routes
 from ind_server.serialization import HistoryJson, snapshot_json
 
 access = logging.getLogger("http")
@@ -67,7 +69,14 @@ def parse_history_query(
         return Failure(error)
 
 
-def make_app(latest: LatestSnapshot, history: HistoryStore, origin: str) -> web.Application:
+def make_app(
+    latest: LatestSnapshot,
+    history: HistoryStore,
+    origin: str,
+    cmc: Maybe[CmcCache] = Nothing,
+    cmc_history_days: int = 30,
+    cmc_history_max_query_days: int = 365,
+) -> web.Application:
     @web.middleware
     async def cors(
         request: web.Request, handler: Callable[[web.Request], Awaitable[web.StreamResponse]]
@@ -119,6 +128,9 @@ def make_app(latest: LatestSnapshot, history: HistoryStore, origin: str) -> web.
     app = web.Application(middlewares=[cors])
     app.router.add_get("/snapshot", snapshot)
     app.router.add_get("/history", historical)
+    match cmc:
+        case Some(cache):
+            add_cmc_routes(app, cache, cmc_history_days, cmc_history_max_query_days)
     return app
 
 

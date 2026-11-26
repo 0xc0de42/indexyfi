@@ -1,0 +1,42 @@
+{
+  "source": "coinmarketcap",
+  "start": "2026-11-24",
+  "end": "2026-11-25",
+  "series": [
+    {
+      "asset_id": "56:0xf81ac2e1a0373dde1bce01e2fe694a9b7e3bfcb9",
+      "symbol": "XUSD",
+      "mapping": {
+        "asset_id": "56:0xf81ac2e1a0373dde1bce01e2fe694a9b7e3bfcb9",
+        "cmc_id": 32372,
+        "kind": "crypto",
+        "relation": "underlying_reference",
+        "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+      },
+      "status": "available",
+      "points": [
+        {
+          "day": "2026-11-24",
+          "timestamp": "2026-11-24T00:00:00+00:00",
+          "price": "0.9999376028346333",
+          "market_cap": "41129237.832002766271248522",
+          "volume_24h": "17272607.11",
+          "provenance": {
+            "endpoint": "/v3/cryptocurrency/quotes/historical",
+            "fetched_at": "2026-11-26T13:59:24.721567+00:00",
+            "response_sha256": "dc663f889efe736f9c6bda1f72e5fdda2e89a2319ccb8bef7d4de241de51ad84",
+            "parameters": {
+              "convert": "USD",
+              "id": "2,52,74,825,1027,1437,1831,1975,2010,2280,2563,3783,3871,4023,4687,4943,5426,5805,5964,5994,6535,6636,6715,7083,7186,7278,7288,7824,24760,26081,27568,29470,32325,32372,35491,36011,36148,36341,36352,36532,36761,37263,38175,38274,38757,40536,40538,40539,40540,40589,40590,40591,40592,40593,40789,40790,40791,40792,40793,40794,40795,40796,40797,40798,41962,42860",
+              "interval": "daily",
+              "skip_invalid": "true",
+              "time_end": "2026-11-25",
+              "time_start": "2026-10-26"
+            },
+            "credit_count": 20
+          }
+        }
+      ]
+    }
+  ]
+}

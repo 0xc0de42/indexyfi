@@ -1,6 +1,5 @@
 'use client';
 import {useState, type PointerEvent} from 'react';
-import type {Portfolio} from '@/domain/model';
 import {formatPrice} from '@/domain/model';
 import {formatClock, formatTick, nearestIndex, priceScale, timeScale} from '@/lib/chart-scale';
 import {splitAtGaps, type SeriesPoint} from '@/lib/history';
@@ -125,25 +124,3 @@ function ConstituentPrice({assetId}: {assetId: string}) {
   return <span title={price ? `${price.price} USD` : undefined}>{formatPrice(price?.price)}</span>;
 }
 
-export function Allocation({portfolio: p}: {portfolio: Portfolio}) {
-  return (
-    <>
-      <div className="allocation-bar">{p.allocations.map(a => <span key={a.asset.id} style={{width: `${a.weight}%`, background: a.asset.color}} />)}</div>
-      <div className="table-scroll">
-        <table>
-          <thead><tr><th>Asset</th><th>Initial weight</th><th>Reference price</th><th>Current weight</th></tr></thead>
-          <tbody>
-            {p.allocations.map(a => (
-              <tr key={a.asset.id}>
-                <td><Link className="portfolio-name" href={assetHref(a.asset.id)} title={`Open ${a.asset.symbol} in Assets`}><AssetIcon asset={a.asset} /><span><strong>{a.asset.symbol}</strong><small>{a.asset.name}</small></span></Link></td>
-                <td>{a.weight}%</td>
-                <td><ConstituentPrice assetId={a.asset.id} /></td>
-                <td title="Requires on-chain holdings (Phase III)">—</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}

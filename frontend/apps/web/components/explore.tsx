@@ -4,59 +4,79 @@ import {useRouter} from 'next/navigation';
 import {useMemo, useState} from 'react';
 import {ArrowUpRight, Plus, Search, LayoutGrid, List} from 'lucide-react';
 import {Badge, Card, Metric, Empty} from '@indexfi/ui';
-import {portfolios} from '@/domain/fixtures';
-import {categories, compact, usd, percent, FUNDING_TOKEN, type Portfolio} from '@/domain/model';
+import {compact, usd, percent, FUNDING_TOKEN} from '@/domain/model';
+import {referenceAssetById} from '@/lib/catalog';
+import {usePriceState} from '@/lib/prices';
+import {useDeployment, useVaults} from '@/lib/use-vaults';
+import {total, valuation, type Valuation} from '@/lib/valuation';
+import {graduation, LAUNCH} from '@/lib/launch';
+import {GraduationBar} from './graduation';
+import type {Deployment, VaultSnapshot} from '@/lib/vaults';
 import {AssetIcon} from './asset-icon';
-import {OnchainDirectory} from './onchain-directory';
 
-function Tokens({p}: {p: Portfolio}) {
+type Row = {v: VaultSnapshot; val: Valuation};
+
+function Tokens({v}: {v: VaultSnapshot}) {
+  const assets = v.holdings.map(h => referenceAssetById(h.referenceAssetId)).filter(a => a !== undefined);
   return (
-    <div className="token-stack" title={p.allocations.map(a => `${a.asset.symbol} ${a.weight}%`).join(', ')}>
-      {p.allocations.slice(0, 4).map(a => <AssetIcon key={a.asset.id} asset={a.asset} />)}
-      {p.allocations.length > 4 && <small>+{p.allocations.length - 4}</small>}
+    <div className="token-stack" title={v.holdings.map(h => `${h.symbol} ${Number(h.weightBps) / 100}%`).join(', ')}>
+      {assets.slice(0, 4).map(a => <AssetIcon key={a.id} asset={a} />)}
+      {assets.length > 4 && <small>+{assets.length - 4}</small>}
     </div>
   );
 }
 
-function Featured({p}: {p?: Portfolio}) {
-  if (!p)
+function venue(d: Deployment) {
+  return d.fixture ? 'Local fixture' : d.testAssets ? 'BSC Testnet · test assets' : 'On-chain';
+}
+
+function Featured({row, d}: {row?: Row; d?: Deployment}) {
+  if (!row || !d)
     return (
       <div className="hero__aside">
         <div className="eyebrow">The portfolio standard</div>
         <h2>Transparent composition.<br />Open markets.</h2>
-        <p>Pre-funded collateral · Buy and hold · On-chain trading</p>
+        <p>Collateral-backed · Primary deposits and redemptions · PancakeSwap after graduation</p>
       </div>
     );
+  const {v, val} = row;
+  const byValue = [...val.holdings].sort((a, b) => (b.valuePct ?? b.targetPct) - (a.valuePct ?? a.targetPct));
   return (
     <div className="hero__aside">
       <div className="hero-preview__head">
-        <div className="eyebrow">Featured basket</div>
-        <Badge tone="warn">Fixture</Badge>
+        <div className="eyebrow">Latest basket</div>
+        <Badge tone="good">{venue(d)}</Badge>
       </div>
       <div className="hero-preview__title">
-        <span className="token-mark">{p.symbol.slice(0, 2)}</span>
-        <div><h2>{p.name}</h2><small>{p.symbol} · {p.category} · {p.allocations.length} assets</small></div>
+        <span className="token-mark">{v.symbol.slice(0, 2)}</span>
+        <div><h2>{v.name}</h2><small>{v.symbol} · {v.holdings.length} assets</small></div>
       </div>
       <div className="hero-preview__metrics">
-        <Metric label="NAV / share" value={usd(p.reference, 4)} />
-        <Metric label="30d" value={<span className={(p.return30d ?? 0) < 0 ? 'negative' : 'positive'}>{percent(p.return30d)}</span>} />
-        <Metric label="AUM" value={compact(p.aum)} />
+        <Metric label="NAV / share" value={usd(val.nav, 4)} />
+        <Metric label={graduation(val.aum).graduated ? 'Market price' : 'Primary price'} value={usd(graduation(val.aum).graduated ? val.market : val.nav, 4)} />
+        <Metric label="AUM" value={compact(val.aum)} />
       </div>
+      <GraduationBar g={graduation(val.aum)} aum={val.aum} />
       <div>
-        <div className="allocation-bar">{p.allocations.map(a => <span key={a.asset.id} style={{width: `${a.weight}%`, background: a.asset.color}} />)}</div>
+        <div className="allocation-bar">
+          {byValue.map(h => <span key={h.referenceAssetId} style={{width: `${h.valuePct ?? h.targetPct}%`, background: referenceAssetById(h.referenceAssetId)?.color}} />)}
+        </div>
         <div className="hero-preview__rows">
-          {p.allocations.slice(0, 4).map(a => (
-            <div className="hero-preview__row" key={a.asset.id}>
-              <AssetIcon asset={a.asset} />
-              <span>{a.asset.symbol} <span className="muted">· {a.asset.name}</span></span>
-              <span>{a.weight.toFixed(1)}%</span>
-            </div>
-          ))}
+          {byValue.slice(0, 4).map(h => {
+            const asset = referenceAssetById(h.referenceAssetId);
+            return (
+              <div className="hero-preview__row" key={h.referenceAssetId}>
+                {asset && <AssetIcon asset={asset} />}
+                <span>{h.symbol} <span className="muted">· {asset?.name ?? h.symbol}</span></span>
+                <span>{(h.valuePct ?? h.targetPct).toFixed(1)}%</span>
+              </div>
+            );
+          })}
         </div>
       </div>
       <div className="hero-preview__foot">
-        <span>Illustrative fixture values</span>
-        <Link className="text-link" href={`/portfolio/${p.id}`}>View portfolio <ArrowUpRight size={15} /></Link>
+        <span>On-chain holdings · Atlas prices</span>
+        <Link className="text-link" href={`/portfolio/${v.address}`}>View basket <ArrowUpRight size={15} /></Link>
       </div>
     </div>
   );
@@ -64,80 +84,64 @@ function Featured({p}: {p?: Portfolio}) {
 
 export function Explore() {
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('All');
-  const [sort, setSort] = useState('aum');
+  const [sort, setSort] = useState<'aum' | 'recent' | 'name' | 'premium'>('aum');
   const [view, setView] = useState<'table' | 'cards'>('table');
-  const [filter, setFilter] = useState('all');
   const router = useRouter();
-  const all = portfolios;
-  const visible = all
-    .filter(
-      p =>
-        (category === 'All' || p.category === category) &&
-        (filter === 'all' || p.phase === filter) &&
-        `${p.name} ${p.symbol} ${p.creator ?? ''} ${p.allocations.map(a => a.asset.symbol).join(' ')}`.toLowerCase().includes(search.toLowerCase()),
-    )
+  const deployment = useDeployment();
+  const {vaults, isLoading, isError} = useVaults(deployment.data);
+  const prices = usePriceState();
+  const rows: Row[] = useMemo(
+    () => (deployment.data ? vaults.map(v => ({v, val: valuation(v, prices.byAsset, deployment.data!.settlementDecimals)})) : []),
+    [vaults, prices.byAsset, deployment.data],
+  );
+  const visible = rows
+    .filter(({v}) => `${v.name} ${v.symbol} ${v.creator} ${v.holdings.map(h => h.symbol).join(' ')}`.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) =>
-      sort === 'recent'
-        ? Date.parse(b.createdAt) - Date.parse(a.createdAt)
-        : sort === 'volume'
-          ? (b.volume ?? -1) - (a.volume ?? -1)
-          : sort === 'return'
-            ? (b.return30d ?? -Infinity) - (a.return30d ?? -Infinity)
-            : (b.aum ?? -1) - (a.aum ?? -1),
-    );
-  const featured = useMemo(() => [...all].sort((a, b) => (b.aum ?? -1) - (a.aum ?? -1))[0], [all]);
-  const sum = (k: 'aum' | 'volume' | 'liquidity') => (all.length && all.every(p => p[k] != null) ? all.reduce((s, p) => s + (p[k] ?? 0), 0) : null);
+      sort === 'recent' ? 0 : sort === 'name' ? a.v.name.localeCompare(b.v.name)
+        : sort === 'premium' ? (b.val.premiumPct ?? -Infinity) - (a.val.premiumPct ?? -Infinity)
+          : (b.val.aum ?? -1) - (a.val.aum ?? -1));
+  const assetsHeld = new Set(rows.flatMap(r => r.v.holdings.map(h => h.referenceAssetId))).size;
+  const d = deployment.data;
   return (
     <>
       <section className="hero">
         <div>
           <div className="eyebrow">01 / Portfolio markets</div>
           <h1>Invest in ideas.<br /><span>Own the basket.</span></h1>
-          <p>Create and trade fixed-supply portfolios of existing assets. One portfolio, one token, {FUNDING_TOKEN} settlement.</p>
+          <p>Collateral-backed portfolio tokens: deposit or redeem {FUNDING_TOKEN} at NAV from day one; trading opens on PancakeSwap once a portfolio graduates at {compact(LAUNCH.graduationUSD)} AUM.</p>
           <div className="hero__actions">
             <Link className="button button--primary" href="/create"><Plus size={16} /> Create portfolio</Link>
             <a className="button button--secondary" href="#discover">Explore markets</a>
           </div>
         </div>
-        <Featured p={featured} />
+        <Featured row={rows[0]} d={d} />
       </section>
       <section className="summary-grid">
-        <Card><Metric label="Listed portfolios" value={all.length} detail="fixtures" /></Card>
-        <Card><Metric label="Assets under management" value={compact(sum('aum'))} detail="fixture" /></Card>
-        <Card><Metric label="24h trading volume" value={compact(sum('volume'))} detail="fixture" /></Card>
-        <Card><Metric label="Trading liquidity" value={compact(sum('liquidity'))} detail="fixture" /></Card>
+        <Card><Metric label="Listed portfolios" value={d ? rows.length : '—'} detail={d ? venue(d) : 'no deployment'} /></Card>
+        <Card><Metric label="Assets under management" value={compact(total(rows.map(r => r.val.aum)))} detail="on-chain holdings × Atlas prices" /></Card>
+        <Card><Metric label="Graduated" value={`${rows.filter(r => graduation(r.val.aum).graduated).length} / ${rows.length}`} detail={`PancakeSwap opens at ${compact(LAUNCH.graduationUSD)} AUM`} /></Card>
+        <Card><Metric label="Assets held" value={assetsHeld} detail="distinct constituents" /></Card>
       </section>
       <section className="section-heading" id="discover">
         <div>
           <div className="eyebrow">02 / Discover</div>
           <h2>Explore portfolios</h2>
-          <p>Fixture portfolios with real registry constituents. NAV, price, return, AUM, volume and liquidity are illustrative until contracts are integrated.</p>
+          <p>Every basket launched through the IndexFi preset, read from chain. NAV and AUM use on-chain holdings and the latest Atlas prices.</p>
         </div>
         <label className="search">
           <Search size={17} />
           <input aria-label="Search portfolios" placeholder="Search name, asset or creator" value={search} onChange={e => setSearch(e.target.value)} />
         </label>
       </section>
-      <OnchainDirectory />
       <div className="toolbar">
-        <div className="tabs category-tabs">
-          {['All', ...categories].map(c => <button key={c} aria-pressed={category === c} onClick={() => setCategory(c)}>{c}</button>)}
-        </div>
+        <div />
         <div className="toolbar-actions">
           <label className="sort">
-            <select aria-label="Launch status" value={filter} onChange={e => setFilter(e.target.value)}>
-              <option value="all">All phases</option>
-              <option value="launch">OpenFour</option>
-              <option value="graduated">Graduated</option>
-            </select>
-          </label>
-          <label className="sort">
-            <select aria-label="Sort portfolios" value={sort} onChange={e => setSort(e.target.value)}>
+            <select aria-label="Sort portfolios" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
               <option value="aum">AUM</option>
-              <option value="volume">Volume</option>
               <option value="recent">Recently launched</option>
-              <option value="return">30d return</option>
+              <option value="premium">Premium to NAV</option>
+              <option value="name">Name</option>
             </select>
           </label>
           <div className="view-toggle">
@@ -146,33 +150,38 @@ export function Explore() {
           </div>
         </div>
       </div>
-      {!visible.length ? (
+      {deployment.isError || isError ? (
+        <Card><Empty>Contract directory unavailable on the active network.</Empty></Card>
+      ) : !d || (isLoading && !rows.length) ? (
+        <Card><p className="muted">Loading portfolios…</p></Card>
+      ) : !rows.length ? (
+        <Card><Empty>No portfolios have launched yet. <Link href="/create">Create the first one</Link></Empty></Card>
+      ) : !visible.length ? (
         <Empty>No matching portfolios.</Empty>
       ) : view === 'table' ? (
         <Card className="market-table">
           <div className="table-scroll">
             <table>
               <thead>
-                <tr><th>Portfolio</th><th>Assets</th><th>NAV / share</th><th>Market price</th><th>30d</th><th>AUM</th><th>24h volume</th><th>Liquidity</th><th>Venue</th><th /></tr>
+                <tr><th>Portfolio</th><th>Assets</th><th>NAV / share</th><th>Market price</th><th>Premium</th><th>AUM</th><th>Graduation</th><th>Venue</th><th /></tr>
               </thead>
               <tbody>
-                {visible.map(p => (
-                  <tr key={p.id} className="row-link" onClick={event => { if (!(event.target as HTMLElement).closest('a')) router.push(`/portfolio/${p.id}`); }}>
+                {visible.map(({v, val}) => (
+                  <tr key={v.address} data-testid="onchain-vault-row" className="row-link" onClick={event => { if (!(event.target as HTMLElement).closest('a')) router.push(`/portfolio/${v.address}`); }}>
                     <td>
-                      <Link href={`/portfolio/${p.id}`} className="portfolio-name">
-                        <span className="token-mark">{p.symbol.slice(0, 2)}</span>
-                        <span><strong>{p.name}</strong><small>{p.symbol} · {p.category} · fixture</small></span>
+                      <Link href={`/portfolio/${v.address}`} className="portfolio-name">
+                        <span className="token-mark">{v.symbol.slice(0, 2)}</span>
+                        <span><strong>{v.name}</strong><small>{v.symbol} · {v.holdings.length} assets</small></span>
                       </Link>
                     </td>
-                    <td><Tokens p={p} /></td>
-                    <td>{usd(p.reference, 4)}</td>
-                    <td>{usd(p.marketPrice, 4)}</td>
-                    <td className={(p.return30d ?? 0) < 0 ? 'negative' : 'positive'}>{percent(p.return30d)}</td>
-                    <td>{compact(p.aum)}</td>
-                    <td>{compact(p.volume)}</td>
-                    <td>{compact(p.liquidity)}</td>
-                    <td><Badge tone={p.phase === 'graduated' ? 'good' : 'neutral'}>{p.venue}</Badge></td>
-                    <td><Link aria-label={`View ${p.name}`} href={`/portfolio/${p.id}`}><ArrowUpRight size={18} /></Link></td>
+                    <td><Tokens v={v} /></td>
+                    <td>{usd(val.nav, 4)}</td>
+                    <td>{graduation(val.aum).graduated ? usd(val.market, 4) : '—'}</td>
+                    <td className={(val.premiumPct ?? 0) < 0 ? 'negative' : 'positive'}>{graduation(val.aum).graduated ? percent(val.premiumPct) : '—'}</td>
+                    <td>{compact(val.aum)}</td>
+                    <td><GraduationBar g={graduation(val.aum)} aum={val.aum} detail={false} /><small className="muted">{graduation(val.aum).progressPct.toFixed(0)}%</small></td>
+                    <td><Badge tone={graduation(val.aum).graduated ? 'good' : 'neutral'}>{v.closed ? 'Closed' : graduation(val.aum).graduated ? 'PancakeSwap' : 'IndexFi primary'}</Badge></td>
+                    <td><Link aria-label={`View ${v.name}`} href={`/portfolio/${v.address}`}><ArrowUpRight size={18} /></Link></td>
                   </tr>
                 ))}
               </tbody>
@@ -181,16 +190,16 @@ export function Explore() {
         </Card>
       ) : (
         <div className="portfolio-grid">
-          {visible.map(p => (
-            <Card key={p.id} className="portfolio-card">
-              <div className="card-heading"><Tokens p={p} /><Badge tone="warn">Fixture</Badge></div>
-              <h3>{p.name}</h3>
-              <p>{p.description}</p>
+          {visible.map(({v, val}) => (
+            <Card key={v.address} className="portfolio-card">
+              <div className="card-heading"><Tokens v={v} /><Badge tone="good">{v.symbol}</Badge></div>
+              <h3>{v.name}</h3>
+              <p className="muted">{v.holdings.map(h => h.symbol).join(' · ')}</p>
               <div className="portfolio-card__metrics">
-                <Metric label="NAV" value={usd(p.reference, 4)} />
-                <Metric label="AUM" value={compact(p.aum)} />
+                <Metric label="NAV" value={usd(val.nav, 4)} />
+                <Metric label="AUM" value={compact(val.aum)} />
               </div>
-              <Link className="text-link" href={`/portfolio/${p.id}`}>View portfolio <ArrowUpRight size={16} /></Link>
+              <Link className="text-link" href={`/portfolio/${v.address}`}>View basket <ArrowUpRight size={16} /></Link>
             </Card>
           ))}
         </div>

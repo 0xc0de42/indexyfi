@@ -3,39 +3,11 @@ import type {RegistryAsset} from '../data/registry.generated';
 /** Chain-56 reference asset with its verified Atlas feed. Prices live in the price store, not here. */
 export type Asset = RegistryAsset & {readonly color: string};
 
-/**
- * Portfolio as displayed. Until contracts are integrated (Phase III) every portfolio
- * is a labelled fixture: its NAV, market, AUM, volume and progress values are
- * illustrative, never computed from live prices.
- */
-export interface Portfolio {
-  readonly id: string;
-  readonly name: string;
-  readonly symbol: string;
-  readonly description: string;
-  readonly category: string;
-  readonly allocations: readonly {readonly asset: Asset; readonly weight: number}[];
-  readonly source: 'fixture';
-  readonly reference: number | null;
-  readonly marketPrice: number | null;
-  readonly return30d: number | null;
-  readonly volume: number | null;
-  readonly liquidity: number | null;
-  readonly aum: number | null;
-  readonly supply: number | null;
-  readonly creator: string | null;
-  readonly createdAt: string;
-  readonly phase: 'launch' | 'graduated';
-  readonly progress: number | null;
-  readonly creatorFeeBps: number | null;
-  readonly tokenAddress?: string;
-  readonly vaultAddress?: string;
-  readonly venue: string;
-  readonly paused: boolean;
-}
 
 export type Side = 'buy' | 'sell';
-export type Draft = {name: string; symbol: string; description: string; category: string; allocations: {asset: Asset; weight: number}[]; funding: number; liquidity: number};
+export type Draft = {name: string; symbol: string; description: string; category: string; allocations: {asset: Asset; weight: number}[];
+  /** Rebalancing chosen at launch (stored on chain by vault 5.2+): minimum seconds between rebalances (0 = off) and drift threshold. */
+  rebalance: {intervalSeconds: number; thresholdBps: number}};
 
 /** Settlement and funding token. USD reference prices assume USD/USDT parity. */
 export const FUNDING_TOKEN = 'USDT';

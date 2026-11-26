@@ -1,29 +1,34 @@
 'use client';
 import Link from 'next/link';
 import {useMemo, useRef, useState} from 'react';
-import {ArrowUpDown, LayoutGrid, List, Plus, Search} from 'lucide-react';
+import {ArrowDown, ArrowUp, ArrowUpDown, LayoutGrid, List, Plus, Search} from 'lucide-react';
 import {Card, Empty, Metric} from '@indexfi/ui';
 import {referenceAssetById, referenceAssets, referenceCategories} from '@/lib/catalog';
 import {useNow, usePriceState} from '@/lib/prices';
 import {createHref, portfolioHref, replaceQuery, type WindowLabel} from '@/lib/routes';
-import {portfoliosHolding} from '@/domain/fixtures';
+import {useDeployment, useVaults} from '@/lib/use-vaults';
 import {ageLabel, formatPrice, type Asset} from '@/domain/model';
 import type {AssetPrice} from '@/lib/api';
 import {AssetIcon} from './asset-icon';
 import {AssetChart, windowLabelOf, windowMsOf} from './asset-chart';
 import {ApiStatusBadge, apiStatusText} from './api-status';
+import {CmcStats} from './cmc-stats';
+import {useCmcState} from '@/lib/cmc';
+import {ASSET_SORTS, defaultDirection, queryAssets, type AssetSort, type SortDirection} from '@/lib/asset-query';
+import {useAssetData} from '@/lib/use-asset-data';
+import {cmcPct, cmcUsd, pctTone} from '@/lib/cmc-format';
+import {describeCmcError} from '@/lib/cmc-api';
 
-const shortAddress = (address: string) => `${address.slice(0, 6)}…${address.slice(-4)}`;
-type Sort = 'symbol' | 'price';
+type Sort = AssetSort;
 const DEFAULT_ASSET = referenceAssets.find(a => a.symbol === 'BTCB')?.id ?? referenceAssets[0].id;
 
 function PriceCell({price}: {price?: AssetPrice}) {
   return <span title={price ? `${price.price} USD (exact)` : 'No price received yet'}>{formatPrice(price?.price)}</span>;
 }
 
-function SortHeader({label, value, sort, onSort}: {label: string; value: Sort; sort: Sort; onSort: (s: Sort) => void}) {
+function SortHeader({label, value, sort, direction, onSort}: {label: string; value: Sort; sort: Sort; direction: SortDirection; onSort: (s: Sort) => void}) {
   return (
-    <th aria-sort={sort === value ? (value === 'symbol' ? 'ascending' : 'descending') : undefined}>
+    <th aria-sort={sort === value ? (direction === 'asc' ? 'ascending' : 'descending') : undefined}>
       <button className="th-button" onClick={() => onSort(value)}>
         {label} <ArrowUpDown size={11} aria-hidden="true" />
       </button>
@@ -32,7 +37,10 @@ function SortHeader({label, value, sort, onSort}: {label: string; value: Sort; s
 }
 
 function ChartActions({asset}: {asset: Asset}) {
-  const holders = portfoliosHolding(asset.id);
+  const deployment = useDeployment();
+  const holders = useVaults(deployment.data).vaults
+    .filter(v => v.holdings.some(h => h.referenceAssetId === asset.id))
+    .map(v => ({id: v.address, name: v.name}));
   return (
     <>
       <Link className="button button--secondary" href={createHref({assets: [asset.id]})}>
@@ -56,10 +64,16 @@ function ChartActions({asset}: {asset: Asset}) {
 export function Assets({initialAssetId, initialWindow}: {initialAssetId?: string; initialWindow?: WindowLabel}) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
-  const [sort, setSort] = useState<Sort>('symbol');
+  const [sort, setSortKey] = useState<Sort>('symbol');
+  const [direction, setDirection] = useState<SortDirection>('asc');
+  // Choosing the active metric again flips the direction; a new metric starts at its natural direction.
+  const setSort = (next: Sort) => { if (next === sort) setDirection(dir => (dir === 'asc' ? 'desc' : 'asc')); else { setSortKey(next); setDirection(defaultDirection(next)); } };
   const [view, setView] = useState<'table' | 'cards'>('table');
   const [selectedId, setSelectedId] = useState(() => (initialAssetId && referenceAssetById(initialAssetId)?.id) || DEFAULT_ASSET);
   const [windowMs, setWindowMs] = useState<number>(() => windowMsOf(initialWindow));
+  const cmc = useCmcState();
+  const cmcQuote = (id: string) => cmc.rows.get(id)?.quote ?? null;
+  const quoted = referenceAssets.filter(a => cmcQuote(a.id)).length;
   const chartRef = useRef<HTMLDivElement>(null);
   const state = usePriceState();
   const now = useNow();
@@ -79,19 +93,9 @@ export function Assets({initialAssetId, initialWindow}: {initialAssetId?: string
     replaceQuery({window: windowLabelOf(ms)});
   }
 
-  const visible = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    const rows = referenceAssets.filter(
-      asset =>
-        (category === 'All' || asset.category === category) &&
-        (!term || `${asset.symbol} ${asset.name} ${asset.address} ${asset.feedId} ${asset.feedName}`.toLowerCase().includes(term)),
-    );
-    const price = (a: Asset) => {
-      const value = state.byAsset.get(a.id);
-      return value ? Number(value.price) : -Infinity;
-    };
-    return [...rows].sort((a, b) => (sort === 'price' ? price(b) - price(a) : a.symbol.localeCompare(b.symbol, 'en')));
-  }, [search, category, sort, state.byAsset]);
+  const dataOf = useAssetData(referenceAssets);
+  // Same filtering and sorting as the Create composition step (lib/asset-query): Atlas and CMC metrics, missing values last.
+  const visible = useMemo(() => queryAssets(referenceAssets, {term: search, category, sort, direction}, dataOf), [search, category, sort, direction, dataOf]);
 
   return (
     <>
@@ -99,8 +103,8 @@ export function Assets({initialAssetId, initialWindow}: {initialAssetId?: string
         <div className="eyebrow">Catalog / Reference assets</div>
         <h1>Assets</h1>
         <p>
-          BNB Chain (56) tokens with a verified Atlas feed. USD reference prices come from the IndexFi API once per second. They are price references, not
-          verified testnet collateral.
+          BNB Chain (56) tokens with a verified Atlas feed. USD reference prices come from the IndexFi API once per second; CoinMarketCap market cap, volume and
+          returns come from the same API every minute. Both are references, not verified testnet collateral or executable prices.
         </p>
       </div>
       <section className="summary-grid">
@@ -114,6 +118,7 @@ export function Assets({initialAssetId, initialWindow}: {initialAssetId?: string
           />
         </Card>
         <Card><Metric label="Price API" value={<ApiStatusBadge state={state} />} detail={status.detail ?? undefined} /></Card>
+        <Card><Metric label="CMC market data" value={`${quoted} / ${referenceAssets.length}`} detail={cmc.status === 'ok' ? 'quotes received · every 60 s' : cmc.error ? describeCmcError(cmc.error) : 'loading'} /></Card>
       </section>
 
       <div className="assets-layout">
@@ -130,6 +135,7 @@ export function Assets({initialAssetId, initialWindow}: {initialAssetId?: string
             }
             actions={<ChartActions asset={selected} />}
           />
+          <CmcStats asset={selected} />
         </div>
 
         <section className="assets-list" aria-label="Reference assets">
@@ -140,6 +146,15 @@ export function Assets({initialAssetId, initialWindow}: {initialAssetId?: string
               ))}
             </div>
             <div className="toolbar-actions">
+              <label className="sort">
+                <select aria-label="Sort assets" value={sort} onChange={e => { const next = e.target.value as Sort; setSortKey(next); setDirection(defaultDirection(next)); }}>
+                  {ASSET_SORTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </label>
+              <button type="button" className="button button--secondary asset-filters__direction" aria-label={direction === 'desc' ? 'Highest first' : 'Lowest first'} onClick={() => setDirection(d => (d === 'desc' ? 'asc' : 'desc'))}>
+                {direction === 'desc' ? <ArrowDown size={15} /> : <ArrowUp size={15} />}
+                {sort === 'symbol' ? (direction === 'asc' ? 'A–Z' : 'Z–A') : direction === 'desc' ? 'High first' : 'Low first'}
+              </button>
               <label className="search">
                 <Search size={17} />
                 <input aria-label="Search assets" placeholder="Symbol, name, address or feed" value={search} onChange={event => setSearch(event.target.value)} />
@@ -160,9 +175,10 @@ export function Assets({initialAssetId, initialWindow}: {initialAssetId?: string
                 <table>
                   <thead>
                     <tr>
-                      <SortHeader label="Asset" value="symbol" sort={sort} onSort={setSort} />
-                      <th>Atlas feed · contract</th>
-                      <SortHeader label="Reference price" value="price" sort={sort} onSort={setSort} />
+                      <SortHeader label="Asset" value="symbol" sort={sort} direction={direction} onSort={setSort} />
+                      <SortHeader label="Reference price" value="price" sort={sort} direction={direction} onSort={setSort} />
+                      <SortHeader label="Market cap · vol" value="cap" sort={sort} direction={direction} onSort={setSort} />
+                      <SortHeader label="24h · 7d" value="ch24" sort={sort} direction={direction} onSort={setSort} />
                     </tr>
                   </thead>
                   <tbody>
@@ -174,16 +190,26 @@ export function Assets({initialAssetId, initialWindow}: {initialAssetId?: string
                           <td>
                             <button className="portfolio-name row-button" onClick={event => { event.stopPropagation(); select(asset.id); }} aria-label={`Chart ${asset.symbol}`}>
                               <AssetIcon asset={asset} />
-                              <span><strong>{asset.symbol}</strong><small>{asset.name}</small></span>
+                              <span title={`Atlas feed #${asset.feedId} · ${asset.feedName} · ${asset.address}`}><strong>{asset.symbol}</strong><small>{asset.name} · #{asset.feedId}</small></span>
                             </button>
-                          </td>
-                          <td title={asset.address}>
-                            <span className="portfolio-name"><span><strong>#{asset.feedId} · {asset.feedName}</strong><small><code>{shortAddress(asset.address)}</code></small></span></span>
                           </td>
                           <td className="price-cell">
                             <PriceCell price={price} />
                             <small title={price ? `Source time ${new Date(price.sourceTimestamp * 1000).toISOString()}` : undefined}>{price ? ageLabel(price.sourceTimestamp, now) : 'no price yet'}</small>
                           </td>
+                          {(() => {
+                            const q = cmcQuote(asset.id);
+                            return (
+                              <>
+                                <td className="price-cell" title={q?.marketCap ? `Market cap ${q.marketCap} USD${q.rank ? ` · CMC rank #${q.rank}` : ''} · 24h volume ${q.volume24h ?? '—'} USD` : 'No CMC quote yet'}>
+                                  <span>{cmcUsd(q?.marketCap)}</span><small>vol {cmcUsd(q?.volume24h)}</small>
+                                </td>
+                                <td className="price-cell">
+                                  <span className={pctTone(q?.change24h)}>{cmcPct(q?.change24h)}</span><small className={pctTone(q?.change7d)}>7d {cmcPct(q?.change7d)}</small>
+                                </td>
+                              </>
+                            );
+                          })()}
                         </tr>
                       );
                     })}
@@ -203,7 +229,7 @@ export function Assets({initialAssetId, initialWindow}: {initialAssetId?: string
                     </div>
                     <div className="portfolio-card__metrics">
                       <Metric label="Reference price" value={<PriceCell price={price} />} />
-                      <Metric label="Source time" value={price ? ageLabel(price.sourceTimestamp, now) : '—'} />
+                      <Metric label="Market cap" value={cmcUsd(cmcQuote(asset.id)?.marketCap)} />
                     </div>
                     <button className="text-link text-button" onClick={() => select(asset.id)}>Chart {asset.symbol}</button>
                   </Card>
