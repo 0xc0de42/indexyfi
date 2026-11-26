@@ -103,6 +103,14 @@ async function main() {
   const ctx = await connectFork(hre);
   const { fork, forkPath, signer, registry, addresses, overrides } = ctx;
   const modules = config.modules || {};
+  if (config.id === "indexfi-v5") {
+    if (ctx.chainId !== 31337 && process.env.INDEXFI_ALLOW_PUBLIC_REGISTRATION !== "1") throw new Error("V5 public registration requires explicit operator approval after release gates");
+    if (!process.env.INDEXFI_FACTORY || !process.env.PRESET_ID) throw new Error("V5 requires deployed INDEXFI_FACTORY and PRESET_ID");
+    const factory = await hre.ethers.getContractAt("IndexFiFactory", process.env.INDEXFI_FACTORY);
+    if (await factory.presetId() !== BigInt(process.env.PRESET_ID) ||
+        (await factory.core()).toLowerCase() !== addresses.core.toLowerCase()) throw new Error("Factory preset/Core mismatch");
+    config.validator.args = [process.env.INDEXFI_FACTORY];
+  }
 
   for (const slot of REQUIRED_SLOTS) {
     if (!isConfiguredSlot(modules[slot])) {

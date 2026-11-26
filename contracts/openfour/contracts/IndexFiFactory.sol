@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
-
 import {IIndexFiFactory} from "./interfaces/IIndexFi.sol";
 import {IIndexFiAdapter} from "./interfaces/IIndexFiAdapter.sol";
+import {IIndexFiOracle} from "./interfaces/IIndexFiOracle.sol";
 import {IOpenFourCore} from "./interfaces/IOpenFourCore.sol";
 import {IOpenFourToken} from "./interfaces/IOpenFourToken.sol";
 import {OpenFourTypes} from "./libraries/OpenFourTypes.sol";
@@ -12,78 +12,167 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
+interface ICoreMigration {
+    function migrate(address token) external;
+}
+
 contract IndexFiFactory is IIndexFiFactory, ReentrancyGuard {
     using SafeERC20 for IERC20;
-    address public immutable settlementToken;
-    uint256 public immutable minimumSeed;
+    address public immutable override settlementToken;
+    uint256 public immutable override minimumSeed;
+    uint256 public immutable minimumLiquidity;
+    uint256 public immutable maxSupply;
     uint256 public immutable presetId;
     IOpenFourCore public immutable core;
     IIndexFiAdapter public immutable adapter;
+    IIndexFiOracle public immutable oracle;
+    address public immutable router;
     address[] private vaults;
+    mapping(address => bool) public override isVault;
+    mapping(uint256 => bool) public override usedRequestIds;
 
-    constructor(IOpenFourCore core_, uint256 preset_, IIndexFiAdapter adapter_) {
+    constructor(
+        IOpenFourCore core_,
+        uint256 preset_,
+        IIndexFiAdapter adapter_,
+        IIndexFiOracle oracle_,
+        address router_,
+        uint256 cap
+    ) {
+        require(
+            address(core_).code.length != 0 && address(adapter_).code.length != 0 && address(oracle_).code.length != 0
+                && router_.code.length != 0 && cap >= 100e18,
+            "IndexFi: deployment"
+        );
         core = core_;
         presetId = preset_;
         adapter = adapter_;
+        oracle = oracle_;
+        router = router_;
+        maxSupply = cap;
         settlementToken = adapter_.settlementToken();
-        uint8 decimals = IERC20Metadata(settlementToken).decimals();
-        require(decimals <= 18, "IndexFi: settlement decimals");
-        minimumSeed = 100 * 10 ** uint256(decimals);
+        require(oracle_.settlementToken() == settlementToken, "IndexFi: oracle settlement");
+        uint8 d = IERC20Metadata(settlementToken).decimals();
+        require(d <= 18, "IndexFi: decimals");
+        minimumLiquidity = 10 ** uint256(d);
+        minimumSeed = 100 * minimumLiquidity;
     }
 
-    function vaultCount() external view returns (uint256) { return vaults.length; }
-    function vaultAt(uint256 index) external view returns (address) { return vaults[index]; }
+    function vaultCount() external view returns (uint256) {
+        return vaults.length;
+    }
+
+    function vaultAt(uint256 index) external view returns (address) {
+        return vaults[index];
+    }
 
     function previewCreate(Basket calldata basket, uint256 seedUSDT) public view returns (uint256[] memory out) {
-        uint256 count = basket.constituents.length;
-        require(seedUSDT >= minimumSeed && count != 0 && count <= 32, "IndexFi: seed or count");
-        require(bytes(basket.name).length != 0 && bytes(basket.symbol).length != 0, "IndexFi: empty identity");
-        out = new uint256[](count);
+        uint256 n = basket.constituents.length;
+        require(seedUSDT >= minimumSeed && n != 0 && n <= 32, "IndexFi: seed or count");
+        require(bytes(basket.name).length != 0 && bytes(basket.symbol).length != 0, "IndexFi: identity");
+        out = new uint256[](n);
         uint256 weights;
         uint256 left = seedUSDT;
-        for (uint256 i; i < count; ++i) {
-            Constituent calldata asset = basket.constituents[i];
-            require(asset.weightBps != 0 && asset.token != address(0), "IndexFi: invalid constituent");
-            for (uint256 j; j < i; ++j) require(basket.constituents[j].token != asset.token, "IndexFi: duplicate");
-            weights += asset.weightBps;
+        for (uint256 i; i < n; ++i) {
+            Constituent calldata a = basket.constituents[i];
+            require(
+                a.weightBps != 0 && adapter.supportsAsset(a.token) && oracle.supportsAsset(a.token), "IndexFi: asset"
+            );
+            for (uint256 j; j < i; ++j) {
+                require(basket.constituents[j].token != a.token, "IndexFi: duplicate");
+            }
+            weights += a.weightBps;
             require(weights <= 10000, "IndexFi: weights");
-            uint256 input = i + 1 == count ? left : Math.mulDiv(seedUSDT, asset.weightBps, 10000);
+            uint256 input = i + 1 == n ? left : Math.mulDiv(seedUSDT, a.weightBps, 10000);
             left -= input;
-            out[i] = adapter.quoteBuy(asset.token, input);
+            out[i] = a.token == settlementToken ? input : adapter.quoteBuy(a.token, input);
             require(out[i] != 0, "IndexFi: zero leg");
         }
         require(weights == 10000, "IndexFi: weights");
     }
 
-    function createVault(Basket calldata basket, uint256 seedUSDT, uint256[] calldata minTokenOut,
-        uint256 deadline, bytes calldata launchAuthorization)
-        external payable nonReentrant returns (address vault, uint256 seedShares) {
-        require(block.timestamp <= deadline, "IndexFi: expired");
+    /// Exact signed Core payload, bound to a caller-selected unique request ID.
+    function buildCreateArgs(
+        uint256 requestId,
+        address creator,
+        Basket calldata basket,
+        uint256 seedUSDT,
+        uint256 liquidityUSDT,
+        uint256 minCreatorShares,
+        uint256[] calldata minimums,
+        uint256 deadline,
+        uint256 createFee
+    ) public view returns (bytes memory) {
+        require(requestId != 0 && !usedRequestIds[requestId], "IndexFi: request id");
+        require(
+            creator != address(0) && liquidityUSDT >= minimumLiquidity && minimums.length == basket.constituents.length,
+            "IndexFi: funding"
+        );
         previewCreate(basket, seedUSDT);
-        OpenFourTypes.CreateTokenArgs memory args;
-        args.requestId = vaults.length + 1;
-        args.presetId = presetId;
-        args.validTimestamp = deadline;
-        args.createFee = msg.value;
-        args.initParams.name = basket.name;
-        args.initParams.symbol = basket.symbol;
-        args.initParams.tokenUri = basket.metadataURI;
-        args.initParams.tokenSalt = keccak256(abi.encode(address(this), msg.sender, args.requestId));
-        args.initParams.quoteAsset = settlementToken;
-        args.initParams.maxSupply = 0;
-        args.initParams.saleAmount = 0;
-        args.initParams.raiseAmount = 0;
-        args.initParams.vaultParams = abi.encode(msg.sender, basket.constituents, address(adapter), address(this));
-        address share = core.createToken{value: msg.value}(abi.encode(args), launchAuthorization);
+        OpenFourTypes.CreateTokenArgs memory a;
+        a.requestId = requestId;
+        a.presetId = presetId;
+        a.validTimestamp = deadline;
+        a.createFee = createFee;
+        a.initParams.name = basket.name;
+        a.initParams.symbol = basket.symbol;
+        a.initParams.tokenUri = basket.metadataURI;
+        a.initParams.tokenSalt = keccak256(abi.encode(address(this), creator, a.requestId));
+        a.initParams.quoteAsset = settlementToken;
+        a.initParams.maxSupply = maxSupply;
+        // Nonzero launch metadata, not a public sale. Core buy/sell are disabled; migration is explicitly called after funding.
+        a.initParams.saleAmount = 1e18;
+        a.initParams.raiseAmount = liquidityUSDT;
+        a.initParams.vaultParams = abi.encode(
+            LaunchConfig(
+                creator,
+                basket.constituents,
+                address(adapter),
+                address(oracle),
+                router,
+                address(this),
+                seedUSDT,
+                liquidityUSDT,
+                minCreatorShares,
+                keccak256(abi.encode(minimums))
+            )
+        );
+        return abi.encode(a);
+    }
+
+    function createVault(
+        uint256 requestId,
+        Basket calldata basket,
+        uint256 seedUSDT,
+        uint256 liquidityUSDT,
+        uint256 minCreatorShares,
+        uint256[] calldata minimums,
+        uint256 deadline,
+        bytes calldata authorization
+    ) external payable nonReentrant returns (address vault, uint256 seedShares) {
+        require(block.timestamp <= deadline, "IndexFi: expired");
+        bytes memory args = buildCreateArgs(
+            requestId, msg.sender, basket, seedUSDT, liquidityUSDT, minCreatorShares, minimums, deadline, msg.value
+        );
+        usedRequestIds[requestId] = true;
+        address share = core.createToken{value: msg.value}(args, authorization);
         vault = IOpenFourToken(share).vault();
-        require(IndexFiVault(vault).creator() == msg.sender && IndexFiVault(vault).token() == share, "IndexFi: binding");
+        IndexFiVault v = IndexFiVault(vault);
+        require(v.creator() == msg.sender && v.token() == share && v.factory() == address(this), "IndexFi: binding");
         IERC20 cash = IERC20(settlementToken);
-        uint256 before = cash.balanceOf(address(this));
-        cash.safeTransferFrom(msg.sender, address(this), seedUSDT);
-        require(cash.balanceOf(address(this)) - before == seedUSDT, "IndexFi: seed transfer");
-        cash.forceApprove(vault, seedUSDT);
-        seedShares = IndexFiVault(vault).seed(seedUSDT, minTokenOut, deadline);
+        uint256 total = seedUSDT + liquidityUSDT;
+        uint256 beforeCash = cash.balanceOf(address(this));
+        cash.safeTransferFrom(msg.sender, address(this), total);
+        require(cash.balanceOf(address(this)) == beforeCash + total, "IndexFi: transfer");
+        cash.forceApprove(vault, total);
+        seedShares = v.seed(minimums, deadline);
+        cash.forceApprove(vault, 0);
+        require(cash.balanceOf(address(this)) == beforeCash, "IndexFi: funding mismatch");
+        ICoreMigration(address(core)).migrate(share);
+        require(v.phase() == OpenFourTypes.Phase.Migrated && v.pair() != address(0), "IndexFi: migration incomplete");
         vaults.push(vault);
-        emit VaultCreated(msg.sender, vault, seedUSDT);
+        isVault[vault] = true;
+        emit VaultCreated(msg.sender, vault, requestId, seedUSDT);
+        emit PortfolioLaunched(vault, share, v.pair(), seedUSDT, liquidityUSDT, v.outstandingSupply());
     }
 }

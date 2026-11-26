@@ -1,0 +1,13 @@
+{
+  "core": "<developer-owned OpenFour Core address>",
+  "settlementToken": "<verified chain-97 USDT address>",
+  "router": "<verified official PancakeSwap V2 router>",
+  "assets": [
+    {
+      "token": "<verified chain-97 constituent token>",
+      "aggregator": "<verified Atlas single-feed contract>",
+      "maxAge": 120,
+      "buyPath": ["<chain-97 USDT>", "<chain-97 constituent>"]
+    }
+  ]
+}

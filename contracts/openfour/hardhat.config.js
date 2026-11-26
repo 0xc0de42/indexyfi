@@ -1,5 +1,12 @@
 require("@nomicfoundation/hardhat-toolbox");
 const path = require("path");
+const { subtask } = require("hardhat/config");
+const { TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD } = require("hardhat/builtin-tasks/task-names");
+subtask(TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD).setAction(async (args, _hre, runSuper) => {
+  if (args.solcVersion !== "0.8.24") return runSuper(args);
+  return {compilerPath: require.resolve("solc/soljson.js"), isSolcJs: true,
+    version: "0.8.24", longVersion: require("solc").version()};
+});
 require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 
@@ -18,6 +25,7 @@ module.exports = {
     settings: {
       optimizer: { enabled: true, runs: 200 },
       viaIR: true,
+      evmVersion: "paris",
     },
   },
   networks: {

@@ -14,6 +14,9 @@ interface IPancakeV2FactoryLike {
 
 interface IPancakeV2PairLike {
     function totalSupply() external view returns (uint256);
+    function token0() external view returns (address);
+    function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
+    function skim(address to) external;
     function mint(address to) external returns (uint256 liquidity);
 }
 
