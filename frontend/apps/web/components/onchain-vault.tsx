@@ -9,7 +9,7 @@ import {usePriceState} from '@/lib/prices';
 import {referenceAssetById} from '@/lib/catalog';
 import {exactAmount, units, vaultAbi, routerAbi, lpAmounts, floorOutput, quoteDeposit} from '@/lib/vaults';
 import {valuation} from '@/lib/valuation';
-import {taxSummary} from '@/lib/flap';
+import {flapErrorMessage, taxSummary} from '@/lib/flap';
 import {useQuery} from '@tanstack/react-query';
 import {erc20Abi} from 'viem';
 import {graduation, LAUNCH} from '@/lib/launch';
@@ -102,7 +102,7 @@ export function OnchainVault({address}:{address:Address}) {
             publish({kind:'removeLiquidity',token:v.token,pair:v.pair,amount:value,...out},[['Expected USDT',cash(out.cash)],['Expected tokens',shares(out.shares)]]);
           }
         }
-      }catch(err){if(active)setQuoteError(err instanceof Error?err.message.split('\n')[0]:'Quote failed');}
+      }catch(err){if(active){const m=err instanceof Error?err.message:'Quote failed';setQuoteError(d.provider==='flap'?flapErrorMessage(m.split('\n').find(l=>/0x[0-9a-f]{8}|Flap:|Invalid|Slippage|Inactive|Insufficient/i.test(l))??m.split('\n')[0]):m.split('\n')[0]);}}
     }
     void preview();return()=>{active=false;};
   },[amount,mode,address,deployment.client,deployment.data,vault.data,account.address,key,launchTime.data]);
@@ -135,7 +135,7 @@ export function OnchainVault({address}:{address:Address}) {
   const minOut=current&&validSlip?(()=>{const a=current.action;switch(a.kind){case 'deposit':return `${units(floorOutput(a.shares,slippage),18)} ${v.symbol}`;case 'redeem':return `${units(floorOutput(a.net,slippage),d.settlementDecimals)} USDT`;case 'swap':return `${units(floorOutput(a.out,slippage),a.buy?18:d.settlementDecimals)} ${a.buy?v.symbol:'USDT'}`;default:return null;}})():null;
   return <>
     <Link className="back-link" href="/"><ArrowLeft size={15}/> All vaults</Link>
-    <div className="detail-heading"><div className="detail-title"><span className="token-mark token-mark--large">{v.symbol.slice(0,2)}</span><div><div className="eyebrow">OpenFour portfolio · {d.fixture?'Local fixture':d.testAssets?'BSC Testnet · test assets':'On-chain'}</div><h1>{v.name}</h1><p>{v.symbol} · {address}</p></div></div><Badge tone={!active?'warn':grad.graduated?'good':'neutral'}>{v.closed?'Closed':!active?'Not active':grad.graduated?'Graduated · PancakeSwap':'Pre-graduation'}</Badge></div>
+    <div className="detail-heading"><div className="detail-title"><span className="token-mark token-mark--large">{v.symbol.slice(0,2)}</span><div><div className="eyebrow">{d.provider==='flap'?'Flap portfolio':'OpenFour portfolio'} · {d.fixture?'Local fixture':d.testAssets?'BSC Testnet · test assets':'On-chain'}</div><h1>{v.name}</h1><p>{v.symbol} · {address}</p></div></div><Badge tone={!active?'warn':grad.graduated?'good':'neutral'}>{v.closed?'Closed':!active?'Not active':grad.graduated?'Graduated · PancakeSwap':'Pre-graduation'}</Badge></div>
     <div className="detail-grid"><div className="stack">
       <Card><div className="card-heading"><h2>Graduation</h2><Badge tone={grad.graduated?'good':'neutral'}>{grad.graduated?'PancakeSwap':'IndexFi primary'}</Badge></div><GraduationBar g={grad} aum={val?.aum??null}/><p className="fine-print">{grad.graduated?'Trade on PancakeSwap or deposit and redeem at NAV.':`Deposit and redeem at NAV until AUM reaches ${LAUNCH.graduationUSD.toLocaleString('en-US')} USDT; PancakeSwap trading opens at graduation.`}</p></Card>
       <Card><div className="card-heading"><h2>Portfolio valuation</h2><Badge>Block {v.blockNumber.toString()}</Badge></div><div className="price-metrics"><Metric label="NAV / token" value={usd(val?.nav??null,4)} detail="On-chain holdings × Atlas prices"/>{grad.graduated?<><Metric label="Market price" value={display(market)} detail={d.fixture?'Fixture AMM':'PancakeSwap V2'}/><Metric label="Premium / discount" value={val?.premiumPct==null?'—':`${val.premiumPct.toFixed(2)}%`}/></>:<Metric label="Primary price" value={usd(val?.nav??null,4)} detail="Deposit / redeem at NAV"/>}<Metric label="Collateral AUM (USD)" value={usd(val?.aum??null,2)}/><Metric label="Backed supply" value={display(v.supply)} /><Metric label="Unissued inventory" value={display(v.inventory)}/>{grad.graduated&&<Metric label="AMM liquidity (USDT at spot)" value={display(liquidity,d.settlementDecimals,2)} />}</div></Card>
@@ -145,7 +145,7 @@ export function OnchainVault({address}:{address:Address}) {
     </div><aside className="stack trade-column"><Card className="trade-panel"><div className="card-heading"><h2>{labels[mode]}</h2><Badge tone={transaction.ready?'good':'warn'}>{transaction.ready?'Wallet ready':'Connect wallet'}</Badge></div>
       {([['deposit','redeem','redeemInKind'],['buy','sell'],['addLiquidity','removeLiquidity']] as const).slice(0,primaryOnly?1:isFlap?2:3).map((group,i)=><div key={i}><p className="fine-print">{['Primary market','Secondary market','Liquidity'][i]}</p><div className="segmented">{group.map(m=><button key={m} aria-pressed={mode===m} onClick={()=>{setMode(m);setQuote(null);}} disabled={!!transaction.pending}>{labels[m]}</button>)}</div></div>)}
       {primaryOnly&&<p className="fine-print" data-testid="pre-graduation-note">PancakeSwap trading and liquidity open at {LAUNCH.graduationUSD.toLocaleString('en-US')} USDT AUM.</p>}
-      <label className="field">{mode==='deposit'||mode==='buy'||mode==='addLiquidity'?'USDT amount':mode==='removeLiquidity'?'LP token amount':'Portfolio token amount'}<input data-testid="vault-amount" value={amount} onChange={e=>setAmount(e.target.value)} inputMode="decimal" disabled={!!transaction.pending}/></label>
+      <label className="field">{mode==='deposit'||mode==='buy'||mode==='addLiquidity'?`${d.provider==='flap'?'Flap USD':'USDT'} amount`:mode==='removeLiquidity'?'LP token amount':'Portfolio token amount'}<input data-testid="vault-amount" value={amount} onChange={e=>setAmount(e.target.value)} inputMode="decimal" disabled={!!transaction.pending}/></label>
       <label className="field">Slippage tolerance (bps; 100 = 1%)<input value={slip} onChange={e=>setSlip(e.target.value)} inputMode="numeric" disabled={!!transaction.pending}/></label>
       {current&&<dl className="key-values">{current.lines.map(([label,value])=><div key={label}><dt>{label}</dt><dd data-testid={label==='Net proceeds'?'net-quote':undefined}>{value}</dd></div>)}{minOut&&<div><dt>Minimum received</dt><dd>{minOut}</dd></div>}</dl>}
       {mode==='addLiquidity'&&<p className="fine-print">The second token amount follows the current reserve ratio. Both amounts have slippage protection.</p>}

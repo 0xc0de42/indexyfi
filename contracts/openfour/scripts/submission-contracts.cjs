@@ -98,6 +98,19 @@ async function main() {
       ]), '');
       L.push('Lifecycle transactions: ' + ['deposit', 'buy', 'sell', 'redeemCash', 'redeemInKind', 'forwardTaxRevenue'].filter(k => s[k]?.tx).map(k => `${k} ${tx(s[k].tx)}`).join(' · '), '');
     }
+    // Flap portfolios launched from the IndexFi UI: the rest of the Flap factory directory.
+    const ff = new ethers.Contract(C.IndexFiFlapFactory.address, ['function vaultCount() view returns (uint256)', 'function vaultAt(uint256) view returns (address)'], provider);
+    const demoVault = fc?.steps?.launch?.vault?.toLowerCase();
+    const extra = [];
+    for (let i = 0, n = Number(await ff.vaultCount()); i < n; i++) {
+      const v = await ff.vaultAt(i);
+      if (v.toLowerCase() === demoVault) continue;
+      const vc = new ethers.Contract(v, ['function name() view returns (string)', 'function symbol() view returns (string)', 'function token() view returns (address)'], provider);
+      extra.push(await row(`${await vc.name().catch(() => 'Portfolio')} (${await vc.symbol().catch(() => '?')}) — vault`, v, 'launched from the IndexFi UI'));
+      const t = await vc.token().catch(() => null);
+      if (t) extra.push(await row(`${await vc.symbol().catch(() => '?')} — portfolio token (…7777)`, t));
+    }
+    if (extra.length) L.push('### 2.4 Flap portfolios launched from the UI', '', ...table(extra), '');
   }
 
   // ---- Shared assets ----

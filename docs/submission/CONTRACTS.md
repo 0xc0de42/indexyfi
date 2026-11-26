@@ -1,6 +1,6 @@
 # IndexFi — deployed contracts (BSC Testnet, chain 97)
 
-Generated 2026-11-26T18:28:29.839Z by `contracts/openfour/scripts/submission-contracts.cjs` from the deployment records; every address below was checked on chain to have code. Explorer: https://testnet.bscscan.com.
+Generated 2026-11-26T18:51:02.912Z by `contracts/openfour/scripts/submission-contracts.cjs` from the deployment records; every address below was checked on chain to have code. Explorer: https://testnet.bscscan.com.
 
 IndexFi turns a basket of tokens into one collateral-backed portfolio token: deposit or redeem at NAV (signed Atlas prices), trade on PancakeSwap. Two launch venues share one vault design: an OpenFour preset and a Flap direct launch.
 
@@ -89,6 +89,13 @@ Factory enabled through the Flap whitelist helper: [tx](https://testnet.bscscan.
 | Demo PancakeSwap pool | [`0x1c42FEF67DC9AeF66f5E5BEE728EF516C97096b9`](https://testnet.bscscan.com/address/0x1c42FEF67DC9AeF66f5E5BEE728EF516C97096b9) | initial LP burned |
 
 Lifecycle transactions: deposit [tx](https://testnet.bscscan.com/tx/0x81b25974ab2a60522595d9bfe4351947c0db5d57fab741627a9484f10959f232) · buy [tx](https://testnet.bscscan.com/tx/0x8b47dc2ee9f606a23879774e586d5bf5df4e9c367d9b870bc70c8fb7aac28c39) · sell [tx](https://testnet.bscscan.com/tx/0x6175f91a9e920fec9b9032ddef4d39bbbe2b2addd31e1184ef8b21f99bd16278) · redeemCash [tx](https://testnet.bscscan.com/tx/0xe2e7eca28cc5d837c13322b1aa39f06cfc1a67ce87b7c7bfa0e5953280cd894e) · redeemInKind [tx](https://testnet.bscscan.com/tx/0x0b880cd3831fe983234c4c66176d89c8fc5634849eb067bfa50ebd94db082b9f) · forwardTaxRevenue [tx](https://testnet.bscscan.com/tx/0xf14570a2365e9676b6cb62466761aa86f204d703f941f14bbb3649432c1735ee)
+
+### 2.4 Flap portfolios launched from the UI
+
+| Contract | Address | Notes |
+|---|---|---|
+| Flap UI Portfolio (FUP) — vault | [`0xe4f813a7D4d11710a02E7ED4dCEBe17Eabb724cc`](https://testnet.bscscan.com/address/0xe4f813a7D4d11710a02E7ED4dCEBe17Eabb724cc) | launched from the IndexFi UI |
+| FUP — portfolio token (…7777) | [`0x7D5c50dDa93528Ff3ef34beFB01aa219fF347777`](https://testnet.bscscan.com/address/0x7D5c50dDa93528Ff3ef34beFB01aa219fF347777) |  |
 
 ## 3. Test assets (66 tokens standing in for the Atlas-priced mainnet assets)
 
