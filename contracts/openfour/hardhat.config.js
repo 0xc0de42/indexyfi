@@ -32,6 +32,9 @@ module.exports = {
     hardhat: {
       chainId: 31337,
       initialBaseFeePerGas: 0,
+      // Tests replay Atlas payloads captured 2026-11-26 ~09:04Z, so the test chain starts before them. Only for `test`:
+      // a local `hardhat node` keeps the real clock, which live signed prices require.
+      ...(process.argv.includes("test") ? {initialDate: "2026-11-26T08:00:00Z"} : {}),
     },
     localhost: {
       url: process.env.LOCAL_RPC_URL || "http://127.0.0.1:8545",

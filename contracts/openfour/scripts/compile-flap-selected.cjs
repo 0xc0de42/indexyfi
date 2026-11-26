@@ -12,7 +12,10 @@ const selections={
  'contracts/helpers/MockV2.sol':['MockV2Factory','MockV2Router','MockV2Pair'],
  'contracts/interfaces/IIndexFi.sol':['IIndexFiFactory','IIndexFiVault'],
  'contracts/IndexFiFactory.sol':['IndexFiFactory'],
- 'contracts/modules/vault/IndexFiVault.sol':['IndexFiVault']
+ 'contracts/modules/vault/IndexFiVault.sol':['IndexFiVault'],
+ // Chain-97 Flap stack: new instances bound to Flap USD (deploy with scripts/flap-deploy-97.cjs).
+ 'contracts/oracle/AtlasSignedOracle.sol':['AtlasSignedOracle'],
+ 'contracts/adapters/PancakeV2BasketAdapter.sol':['PancakeV2BasketAdapter']
 };
 if(process.env.FLAP_ONLY){const wanted=new Set(process.env.FLAP_ONLY.split(','));for(const file of Object.keys(selections)){selections[file]=selections[file].filter(x=>wanted.has(x));if(!selections[file].length)delete selections[file];}}
 const sources=Object.fromEntries(Object.keys(selections).map(f=>[f,{content:fs.readFileSync(f,'utf8')}]));

@@ -1,0 +1,117 @@
+{
+  "source": "Atlas Pull API POST /report/v1/price/latest {feedIds:[751,632,956], signed:true}",
+  "signer": "0x59ed4701224fd9e2a85ef2946c2ab828c1ddc600",
+  "feeds": {
+    "632": "ETH",
+    "751": "BTCB",
+    "956": "SPYB"
+  },
+  "docExample": {
+    "payload": "0x0000027000000de01dedfc23734f00006a27cdd301",
+    "signature": "0x447d98f5648f0fd1571fd38558dfeb5ab9ee07e7546aaef8f0b45851bbee4a160eeedec974cf0b72a114b176f710e2ca8035520bafd89fb31e231059fd9056171b"
+  },
+  "first": {
+    "payload": "0x000002ef0cdf847887ad33fa040000006b07f60900000278005c0a14b804784ab7f800006b07f609000003bc002713f7fafc243576ec00006b07f60903",
+    "signature": "0xb191108d1fbe44e2557a17ffeb8efd6b2397c9c8c3859bbf829cc18914a9ab987c861981c670ae01fd23745a56f4ed6a0e53c8145387ee6b42e67c05d78373491c",
+    "magicMarker": "0x7096",
+    "parsedPayload": [
+      {
+        "feedId": "751",
+        "price": 6.079156725146116e+22,
+        "timestampSeconds": "1795683849"
+      },
+      {
+        "feedId": "632",
+        "price": 1.6978268625505299e+21,
+        "timestampSeconds": "1795683849"
+      },
+      {
+        "feedId": "956",
+        "price": 720861913441486900000,
+        "timestampSeconds": "1795683849"
+      }
+    ],
+    "consensusScores": [
+      {
+        "feedId": "751",
+        "consensusScore": 0.9409185109,
+        "consensusStatus": "HEALTHY",
+        "twapPrice": "60840.129532523024000000",
+        "medianPrice": "60848.039958888373010000",
+        "priceChangePct": -0.13153253351358127,
+        "priceVolatility": 0.0005792329652414359
+      },
+      {
+        "feedId": "632",
+        "consensusScore": 0.9406176485,
+        "consensusStatus": "HEALTHY",
+        "twapPrice": "1698.268855027175500000",
+        "medianPrice": "1697.828551103799024960",
+        "priceChangePct": 0.08749847874464266,
+        "priceVolatility": 0.0005758019884709688
+      },
+      {
+        "feedId": "956",
+        "consensusScore": 0.8141367615,
+        "consensusStatus": "DEGRADED",
+        "twapPrice": "721.541955241874000000",
+        "medianPrice": "720.861913441486862070",
+        "priceChangePct": -0.1172839319644043,
+        "priceVolatility": 0.0005774951874967082
+      }
+    ],
+    "capturedAt": "2026-11-26T09:04:10.008Z"
+  },
+  "second": {
+    "payload": "0x000002ef0cdf847887ad33fa040000006b07f60e00000278005c07ad7e444164994c00006b07f60d000003bc002713f7fafc243576ec00006b07f60e03",
+    "signature": "0x34f93e566474f399ac53ef4487d0019eef0b1a2f5369b09723853b889ba0c561086be864787da22750a1bce17c6b8f35607d6b9b6dac9b3345a848e07fc88fc51c",
+    "magicMarker": "0x7096",
+    "parsedPayload": [
+      {
+        "feedId": "751",
+        "price": 6.079156725146116e+22,
+        "timestampSeconds": "1795683854"
+      },
+      {
+        "feedId": "632",
+        "price": 1.6976536919421351e+21,
+        "timestampSeconds": "1795683853"
+      },
+      {
+        "feedId": "956",
+        "price": 720861913441486900000,
+        "timestampSeconds": "1795683854"
+      }
+    ],
+    "consensusScores": [
+      {
+        "feedId": "751",
+        "consensusScore": 0.9404193235,
+        "consensusStatus": "HEALTHY",
+        "twapPrice": "60839.427311630860000000",
+        "medianPrice": "60848.039958888373010000",
+        "priceChangePct": -0.13153253351358127,
+        "priceVolatility": 0.000581850434719904
+      },
+      {
+        "feedId": "632",
+        "consensusScore": 0.9379807941,
+        "consensusStatus": "HEALTHY",
+        "twapPrice": "1698.276861886322000000",
+        "medianPrice": "1697.718676743961271680",
+        "priceChangePct": 0.08823221058665295,
+        "priceVolatility": 0.0005687613830160931
+      },
+      {
+        "feedId": "956",
+        "consensusScore": 0.787273468,
+        "consensusStatus": "DEGRADED",
+        "twapPrice": "721.534597234848900000",
+        "medianPrice": "720.861913441486862070",
+        "priceChangePct": -0.11952942890636264,
+        "priceVolatility": 0.0005837221683386897
+      }
+    ],
+    "capturedAt": "2026-11-26T09:04:14.310Z"
+  }
+}
