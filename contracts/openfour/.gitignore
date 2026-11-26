@@ -1,0 +1,8 @@
+node_modules/
+cache/
+artifacts/
+typechain-types/
+out/
+.env
+deployments/31337.json
+deployments/*.abi.json

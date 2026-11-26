@@ -1,0 +1,23 @@
+{
+  "id": "indexfi",
+  "name": "IndexFi Public Basket",
+  "description": "Seeded public basket with deposits, proportional redemption and creator profit share",
+  "version": "1.0.0",
+  "validator": {"contract": "IndexFiPresetValidator", "args": ["0x0000000000000000000000000000000000000000"]},
+  "tokenImpl": {"contract": "IndexFiShare", "keySource": "token.indexfi"},
+  "modules": {
+    "token": {"contract": "StandardTokenModule", "keySource": "module.token.standard", "reuse": true},
+    "vault": {"contract": "IndexFiVault", "keySource": "module.vault.indexfi"},
+    "curve": {"contract": "IndexFiCurveModule", "keySource": "module.curve.indexfi"},
+    "trade": {"contract": "IndexFiTradeModule", "keySource": "module.trade.indexfi"},
+    "migrate": {"contract": "IndexFiMigrateModule", "keySource": "module.migrate.indexfi"}
+  },
+  "create": {
+    "name": "IndexFi Demo",
+    "symbol": "INDEX",
+    "tokenUri": "",
+    "maxSupply": "0",
+    "saleAmount": "0",
+    "raiseAmount": "0"
+  }
+}
