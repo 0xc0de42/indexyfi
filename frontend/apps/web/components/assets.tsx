@@ -6,7 +6,7 @@ import {Card, Empty, Metric} from '@indexfi/ui';
 import {referenceAssetById, referenceAssets, referenceCategories} from '@/lib/catalog';
 import {useNow, usePriceState} from '@/lib/prices';
 import {createHref, portfolioHref, replaceQuery, type WindowLabel} from '@/lib/routes';
-import {useDeployment, useVaults} from '@/lib/use-vaults';
+import {useDeployment, useFlapDeployment, useVaults} from '@/lib/use-vaults';
 import {ageLabel, formatPrice, type Asset} from '@/domain/model';
 import type {AssetPrice} from '@/lib/api';
 import {AssetIcon} from './asset-icon';
@@ -38,7 +38,9 @@ function SortHeader({label, value, sort, direction, onSort}: {label: string; val
 
 function ChartActions({asset}: {asset: Asset}) {
   const deployment = useDeployment();
-  const holders = useVaults(deployment.data).vaults
+  const flap = useFlapDeployment();
+  const flapVaults = useVaults(flap.data ?? undefined).vaults;
+  const holders = [...useVaults(deployment.data).vaults, ...flapVaults]
     .filter(v => v.holdings.some(h => h.referenceAssetId === asset.id))
     .map(v => ({id: v.address, name: v.name}));
   return (

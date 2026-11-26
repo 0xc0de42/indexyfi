@@ -54,3 +54,21 @@ export function taxSummary(t: {buyTaxBps: number; sellTaxBps: number; taxDuratio
   const duration = t.taxDurationSeconds < 120 ? `${t.taxDurationSeconds} s` : t.taxDurationSeconds < 7_200 ? `${Math.round(t.taxDurationSeconds / 60)} min` : `${(t.taxDurationSeconds / 86_400).toFixed(1)} days`;
   return `Buy ${taxLabel(t.buyTaxBps)} · sell ${taxLabel(t.sellTaxBps)} for ${duration} after launch, then 0%`;
 }
+
+/**
+ * Readable messages for Flap launch and vault failures (selectors of the custom errors in contracts/openfour/contracts/flap,
+ * plus the Portal's vanity-address check observed on the chain-97 fork). Unknown messages pass through unchanged.
+ */
+const FLAP_ERRORS: readonly [RegExp, string][] = [
+  [/0xca4c5b2d/i, 'The Flap Portal rejected the token address (it must end in 7777). Prepare the launch again.'],
+  [/Flap: factory configuration/, 'The Flap Portal has not enabled this IndexFi factory yet.'],
+  [/0x41abc801|InvalidRequest/, 'This launch request was already used. Prepare the launch again.'],
+  [/0x2084e5f6|InvalidPrices/, 'The signed Atlas prices were rejected (malformed or too many payloads). Try again.'],
+  [/0x7dd37f70|Slippage/, 'Prices moved beyond the slippage limit, or a pool is more than 5% away from the Atlas price. Try again with fresh prices.'],
+  [/0x8b2024a5|InsufficientInventory/, 'The vault has too little unissued inventory for this deposit.'],
+  [/0x2e8acb0d|Inactive/, 'This vault is not active.'],
+  [/0x6de3e846|InvalidLaunch/, 'The launch parameters were rejected by the Flap vault.'],
+];
+export function flapErrorMessage(message: string): string {
+  return FLAP_ERRORS.find(([pattern]) => pattern.test(message))?.[1] ?? message;
+}

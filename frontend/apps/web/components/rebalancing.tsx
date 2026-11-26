@@ -71,7 +71,7 @@ export function Rebalancing({d, v, val}: {d: Deployment; v: VaultSnapshot; val: 
       <div className="card-heading">
         <h2>Rebalancing</h2>
         {config.isLoading ? <Badge>Checking vault</Badge>
-          : !settings ? <Badge>Not enabled · vault 5.1</Badge>
+          : !settings ? <Badge>{d.provider === 'flap' ? 'Not available · Flap' : 'Not enabled · vault 5.1'}</Badge>
           : <Badge tone={status?.state === 'due' ? 'warn' : status?.state === 'off' ? 'neutral' : 'good'}>{STATE_TEXT[status!.state]}</Badge>}
       </div>
 
@@ -101,7 +101,9 @@ export function Rebalancing({d, v, val}: {d: Deployment; v: VaultSnapshot; val: 
       )}
 
       {!config.isLoading && !settings && (
-        <p className="fine-print">This vault was launched before rebalancing (vault 5.1), so its weights drift with prices and are not rebalanced. Portfolios launched on vault 5.2 store an interval and a drift threshold and are rebalanced automatically.</p>
+        <p className="fine-print">{d.provider === 'flap'
+          ? 'Flap vaults are not rebalanced (the vault has no contract space for it), so weights drift with prices.'
+          : 'This vault was launched before rebalancing (vault 5.1), so its weights drift with prices and are not rebalanced. Portfolios launched on vault 5.2 store an interval and a drift threshold and are rebalanced automatically.'}</p>
       )}
 
       {settings && config.data && (

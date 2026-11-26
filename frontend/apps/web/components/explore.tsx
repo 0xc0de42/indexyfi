@@ -7,14 +7,14 @@ import {Badge, Card, Metric, Empty} from '@indexfi/ui';
 import {compact, usd, percent, FUNDING_TOKEN} from '@/domain/model';
 import {referenceAssetById} from '@/lib/catalog';
 import {usePriceState} from '@/lib/prices';
-import {useDeployment, useVaults} from '@/lib/use-vaults';
+import {useDeployment, useFlapDeployment, useVaults} from '@/lib/use-vaults';
 import {total, valuation, type Valuation} from '@/lib/valuation';
 import {graduation, LAUNCH} from '@/lib/launch';
 import {GraduationBar} from './graduation';
 import type {Deployment, VaultSnapshot} from '@/lib/vaults';
 import {AssetIcon} from './asset-icon';
 
-type Row = {v: VaultSnapshot; val: Valuation};
+type Row = {v: VaultSnapshot; val: Valuation; d: Deployment};
 
 function Tokens({v}: {v: VaultSnapshot}) {
   const assets = v.holdings.map(h => referenceAssetById(h.referenceAssetId)).filter(a => a !== undefined);
@@ -29,6 +29,8 @@ function Tokens({v}: {v: VaultSnapshot}) {
 function venue(d: Deployment) {
   return d.fixture ? 'Local fixture' : d.testAssets ? 'BSC Testnet · test assets' : 'On-chain';
 }
+/** Launch provider of a vault's deployment: OpenFour or Flap (tax token). */
+const providerLabel = (d: Deployment) => (d.provider === 'flap' ? 'Flap' : 'OpenFour');
 
 function Featured({row, d}: {row?: Row; d?: Deployment}) {
   if (!row || !d)
@@ -89,11 +91,15 @@ export function Explore() {
   const router = useRouter();
   const deployment = useDeployment();
   const {vaults, isLoading, isError} = useVaults(deployment.data);
+  // Flap portfolios are listed beside OpenFour ones (separate factory and settlement token).
+  const flap = useFlapDeployment();
+  const flapVaults = useVaults(flap.data ?? undefined);
   const prices = usePriceState();
-  const rows: Row[] = useMemo(
-    () => (deployment.data ? vaults.map(v => ({v, val: valuation(v, prices.byAsset, deployment.data!.settlementDecimals)})) : []),
-    [vaults, prices.byAsset, deployment.data],
-  );
+  const rows: Row[] = useMemo(() => {
+    const of = deployment.data ? vaults.map(v => ({v, d: deployment.data!, val: valuation(v, prices.byAsset, deployment.data!.settlementDecimals)})) : [];
+    const fl = flap.data ? flapVaults.vaults.map(v => ({v, d: flap.data!, val: valuation(v, prices.byAsset, flap.data!.settlementDecimals)})) : [];
+    return [...of, ...fl];
+  }, [vaults, flapVaults.vaults, prices.byAsset, deployment.data, flap.data]);
   const visible = rows
     .filter(({v}) => `${v.name} ${v.symbol} ${v.creator} ${v.holdings.map(h => h.symbol).join(' ')}`.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) =>
@@ -166,7 +172,7 @@ export function Explore() {
                 <tr><th>Portfolio</th><th>Assets</th><th>NAV / share</th><th>Market price</th><th>Premium</th><th>AUM</th><th>Graduation</th><th>Venue</th><th /></tr>
               </thead>
               <tbody>
-                {visible.map(({v, val}) => (
+                {visible.map(({v, val, d}) => (
                   <tr key={v.address} data-testid="onchain-vault-row" className="row-link" onClick={event => { if (!(event.target as HTMLElement).closest('a')) router.push(`/portfolio/${v.address}`); }}>
                     <td>
                       <Link href={`/portfolio/${v.address}`} className="portfolio-name">
@@ -180,7 +186,7 @@ export function Explore() {
                     <td className={(val.premiumPct ?? 0) < 0 ? 'negative' : 'positive'}>{graduation(val.aum).graduated ? percent(val.premiumPct) : '—'}</td>
                     <td>{compact(val.aum)}</td>
                     <td><GraduationBar g={graduation(val.aum)} aum={val.aum} detail={false} /><small className="muted">{graduation(val.aum).progressPct.toFixed(0)}%</small></td>
-                    <td><Badge tone={graduation(val.aum).graduated ? 'good' : 'neutral'}>{v.closed ? 'Closed' : graduation(val.aum).graduated ? 'PancakeSwap' : 'IndexFi primary'}</Badge></td>
+                    <td><Badge tone={graduation(val.aum).graduated ? 'good' : 'neutral'}>{v.closed ? 'Closed' : graduation(val.aum).graduated ? 'PancakeSwap' : 'IndexFi primary'}</Badge> <small className="muted">{providerLabel(d)}</small></td>
                     <td><Link aria-label={`View ${v.name}`} href={`/portfolio/${v.address}`}><ArrowUpRight size={18} /></Link></td>
                   </tr>
                 ))}

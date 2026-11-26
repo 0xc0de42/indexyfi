@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {decodeAbiParameters} from 'viem';
-import {flapAuthorization, mineFlapSalt, predictFlapToken, taxSummary} from './flap';
+import {flapAuthorization, flapErrorMessage, mineFlapSalt, predictFlapToken, taxSummary} from './flap';
 
 const PORTAL = '0x000042108465206185A077Edc3F3fd2b49060000';
 const IMPL = '0x7777c57ff7dc441c1715b2e36fa581c48b782222';
@@ -25,5 +25,14 @@ describe('Flap token address and salt', () => {
   });
   it('describes the tax schedule', () => {
     expect(taxSummary({buyTaxBps: 0, sellTaxBps: 100, taxDurationSeconds: 1})).toBe('Buy 0% · sell 1% for 1 s after launch, then 0%');
+  });
+});
+
+describe('Flap error messages', () => {
+  it('maps known Flap failures and passes unknown ones through', () => {
+    expect(flapErrorMessage('reverted with custom error 0xca4c5b2d000000000000000000000000abc')).toMatch(/end in 7777/);
+    expect(flapErrorMessage('execution reverted: Flap: factory configuration')).toMatch(/not enabled/);
+    expect(flapErrorMessage('reverted with custom error 0x7dd37f70')).toMatch(/slippage/);
+    expect(flapErrorMessage('User rejected the request')).toBe('User rejected the request');
   });
 });

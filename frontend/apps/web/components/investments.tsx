@@ -6,7 +6,7 @@ import {FUNDING_TOKEN} from '@/domain/model';
 import {Wallet} from './wallet';
 import type {Address} from 'viem';
 import {units,type Deployment} from '@/lib/vaults';
-import {useDeployment,useDirectory,useVault} from '@/lib/use-vaults';
+import {useDeployment, useDirectory, useVault, useFlapDeployment} from '@/lib/use-vaults';
 
 function Position({deployment,address}:{deployment:Deployment;address:Address}){
   const vault=useVault(deployment,address);
@@ -23,6 +23,9 @@ export function Investments() {
   const account = useAccount();
   const deployment=useDeployment();
   const directory=useDirectory(deployment.data);
+  // Flap portfolios live in a second factory; positions list both.
+  const flap=useFlapDeployment();
+  const flapDirectory=useDirectory(flap.data??undefined);
   const connected = account.isConnected && account.address;
   if (!connected)
     return (
@@ -55,11 +58,11 @@ export function Investments() {
       <div className="summary-grid">
         <Card><Metric label="Wallet" value={`${account.address!.slice(0, 6)}…${account.address!.slice(-4)}`} detail={`chain ${account.chainId}`} /></Card>
         <Card><Metric label="Contract network" value={deployment.data?.chainId??'—'} detail={deployment.data?'manifest verified':'loading'} /></Card>
-        <Card><Metric label="Public vaults" value={directory.data?.length??'—'} detail="factory directory" /></Card>
+        <Card><Metric label="Public vaults" value={directory.data?(directory.data.length+(flapDirectory.data?.length??0)):'—'} detail={flap.data?'OpenFour + Flap factories':'factory directory'} /></Card>
       </div>
       <Card>
         <div className="card-heading"><h2>Positions</h2><Badge tone="good">On-chain</Badge></div>
-        {deployment.data&&directory.data?.length?<div className="table-scroll"><table><thead><tr><th>Vault</th><th>Token</th><th>Shares</th><th>LP tokens</th><th>Status</th></tr></thead><tbody>{directory.data.map(address=><Position key={address} deployment={deployment.data!} address={address}/>)}</tbody></table></div>:<Empty>No positions found. <Link href="/">Explore portfolios</Link></Empty>}
+        {deployment.data&&(directory.data?.length||flapDirectory.data?.length)?<div className="table-scroll"><table><thead><tr><th>Vault</th><th>Token</th><th>Shares</th><th>LP tokens</th><th>Status</th></tr></thead><tbody>{(directory.data??[]).map(address=><Position key={address} deployment={deployment.data!} address={address}/>)}{flap.data&&(flapDirectory.data??[]).map(address=><Position key={address} deployment={flap.data!} address={address}/>)}</tbody></table></div>:<Empty>No positions found. <Link href="/">Explore portfolios</Link></Empty>}
       </Card>
       <Card className="history-card">
         <div className="card-heading"><h2>Activity</h2><Badge>Receipt-backed</Badge></div>

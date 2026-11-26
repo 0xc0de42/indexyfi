@@ -9,6 +9,9 @@ import {usePriceState} from '@/lib/prices';
 import {referenceAssetById} from '@/lib/catalog';
 import {exactAmount, units, vaultAbi, routerAbi, lpAmounts, floorOutput, quoteDeposit} from '@/lib/vaults';
 import {valuation} from '@/lib/valuation';
+import {taxSummary} from '@/lib/flap';
+import {useQuery} from '@tanstack/react-query';
+import {erc20Abi} from 'viem';
 import {graduation, LAUNCH} from '@/lib/launch';
 import {GraduationBar} from './graduation';
 import {Rebalancing} from './rebalancing';
@@ -16,7 +19,7 @@ import {useCmcState} from '@/lib/cmc';
 import {cmcPct, cmcUsd, pctTone, relationLabel} from '@/lib/cmc-format';
 import {createHref} from '@/lib/routes';
 import {formatPrice, usd} from '@/domain/model';
-import {useDeployment, useVault, useVaultTransaction, type VaultAction} from '@/lib/use-vaults';
+import {useVault, useVaultDeployment, useVaultTransaction, type VaultAction} from '@/lib/use-vaults';
 
 type Mode='deposit'|'redeem'|'redeemInKind'|'buy'|'sell'|'addLiquidity'|'removeLiquidity';
 type Quote={action:VaultAction; lines:readonly [string,string][]; key:string};
@@ -24,7 +27,8 @@ const labels:Record<Mode,string>={deposit:'Deposit',redeem:'Redeem',redeemInKind
 const display=(v:bigint|null|undefined,decimals=18,digits=4)=>v==null?'Unavailable':Number(formatUnits(v,decimals)).toLocaleString('en-US',{maximumFractionDigits:digits});
 
 export function OnchainVault({address}:{address:Address}) {
-  const deployment=useDeployment();
+  // The vault's own deployment: OpenFour, or Flap when the Flap factory registers it.
+  const deployment=useVaultDeployment(address);
   const account=useAccount();
   const vault=useVault(deployment.data,address);
   const transaction=useVaultTransaction(deployment.data);
@@ -100,6 +104,13 @@ export function OnchainVault({address}:{address:Address}) {
   const grad=graduation(val?.aum??null);
   const primaryOnly=!grad.graduated;
   useEffect(()=>{if(primaryOnly&&!(['deposit','redeem','redeemInKind'] as Mode[]).includes(mode)){setMode('deposit');setQuote(null);}},[primaryOnly,mode]);
+  // Flap: initial LP is burned and liquidity actions are not offered; tax revenue can be forwarded to the creator.
+  const isFlap=deployment.data?.provider==='flap';
+  useEffect(()=>{if(isFlap&&(mode==='addLiquidity'||mode==='removeLiquidity')){setMode('deposit');setQuote(null);}},[isFlap,mode]);
+  const taxSurplus=useQuery({queryKey:['flap-tax',address],enabled:isFlap&&!!deployment.client&&!!deployment.data,refetchInterval:30_000,queryFn:async()=>{
+    const d=deployment.data!,c=deployment.client!;
+    const [bal,acc]=await Promise.all([c.readContract({address:d.settlementToken,abi:erc20Abi,functionName:'balanceOf',args:[address]}),c.readContract({address,abi:vaultAbi,functionName:'collateralBalance',args:[d.settlementToken]})]);
+    return bal>acc?bal-acc:0n;}});
 
   async function submit(){
     if(!current||!validSlip)return;
@@ -121,9 +132,9 @@ export function OnchainVault({address}:{address:Address}) {
       <Card><div className="card-heading"><h2>Portfolio valuation</h2><Badge>Block {v.blockNumber.toString()}</Badge></div><div className="price-metrics"><Metric label="NAV / token" value={usd(val?.nav??null,4)} detail="On-chain holdings × Atlas prices"/>{grad.graduated?<><Metric label="Market price" value={display(market)} detail={d.fixture?'Fixture AMM':'PancakeSwap V2'}/><Metric label="Premium / discount" value={val?.premiumPct==null?'—':`${val.premiumPct.toFixed(2)}%`}/></>:<Metric label="Primary price" value={usd(val?.nav??null,4)} detail="Deposit / redeem at NAV"/>}<Metric label="Collateral AUM (USD)" value={usd(val?.aum??null,2)}/><Metric label="Backed supply" value={display(v.supply)} /><Metric label="Unissued inventory" value={display(v.inventory)}/>{grad.graduated&&<Metric label="AMM liquidity (USDT at spot)" value={display(liquidity,d.settlementDecimals,2)} />}</div></Card>
       <Rebalancing d={d} v={v} val={val}/>
       <Card><div className="card-heading"><h2>Actual collateral</h2><Badge>Accounted holdings · CMC reference stats</Badge></div><div className="table-scroll"><table><thead><tr><th>Asset</th><th>Weight</th><th>Balance</th><th>Atlas price</th><th>CMC mkt cap</th><th>CMC 24h · 7d</th></tr></thead><tbody>{v.holdings.map(h=><tr key={h.address}><td>{referenceAssetById(h.referenceAssetId)?.name??h.symbol}</td><td>{Number(h.weightBps)/100}%</td><td title={`${units(h.balance,h.decimals)} ${h.symbol} (exact)`}>{Number(units(h.balance,h.decimals)).toLocaleString('en-US',{maximumSignificantDigits:6})} {h.symbol}</td><td title={prices.byAsset.get(h.referenceAssetId)?.price?`${prices.byAsset.get(h.referenceAssetId)!.price} USD (exact)`:undefined}>{prices.byAsset.get(h.referenceAssetId)?formatPrice(prices.byAsset.get(h.referenceAssetId)!.price):'Unavailable'}</td>{(()=>{const r=cmc.rows.get(h.referenceAssetId),q=r?.quote;return <><td title={relationLabel(r?.mapping).long}>{cmcUsd(q?.marketCap)}{r?.mapping?.relation==='underlying_reference'&&<small className="muted"> ref.</small>}</td><td className="price-cell"><span className={pctTone(q?.change24h)}>{cmcPct(q?.change24h)}</span><small className={pctTone(q?.change7d)}>7d {cmcPct(q?.change7d)}</small></td></>;})()}</tr>)}</tbody></table></div></Card>
-      <Card><h2>Transparency</h2><dl className="key-values"><div><dt>Creator</dt><dd className="address">{v.creator}</dd></div><div><dt>Portfolio ERC-20</dt><dd className="address">{v.token}</dd></div><div><dt>AMM pair</dt><dd className="address">{v.pair}</dd></div><div><dt>Your tokens</dt><dd data-testid="wallet-shares">{units(v.shares,18)}</dd></div><div><dt>Your LP tokens</dt><dd>{v.pool?units(v.pool.lpBalance,18):'Unavailable'}</dd></div><div><dt>Primary creator fees</dt><dd>0.1% per deposit and redemption</dd></div><div><dt>Liquidity ownership</dt><dd>LP token holders; unlocked</dd></div><div><dt>Composition</dt><dd><Link className="text-link" href={createHref({from:address})}>Copy basket composition</Link></dd></div></dl></Card>
+      <Card><h2>Transparency</h2><dl className="key-values"><div><dt>Creator</dt><dd className="address">{v.creator}</dd></div><div><dt>Portfolio ERC-20</dt><dd className="address">{v.token}</dd></div><div><dt>AMM pair</dt><dd className="address">{v.pair}</dd></div><div><dt>Your tokens</dt><dd data-testid="wallet-shares">{units(v.shares,18)}</dd></div><div><dt>Your LP tokens</dt><dd>{v.pool?units(v.pool.lpBalance,18):'Unavailable'}</dd></div><div><dt>Primary creator fees</dt><dd>0.1% per deposit and redemption</dd></div>{isFlap&&d.flap?<><div><dt>Launch venue</dt><dd>Flap direct launch (tax token, Flap USD)</dd></div><div><dt>Trading tax</dt><dd>{taxSummary({buyTaxBps:d.flap.buyTaxBps,sellTaxBps:d.flap.sellTaxBps,taxDurationSeconds:d.flap.taxDuration})}</dd></div><div><dt>Initial LP</dt><dd>Burned; vault logic immutable</dd></div><div><dt>Tax revenue</dt><dd data-testid="flap-tax">{taxSurplus.data===undefined?'—':`${units(taxSurplus.data,d.settlementDecimals)} Flap USD forwardable`} <button type="button" className="text-button" disabled={!transaction.ready||!!transaction.pending} onClick={async()=>{if(await transaction.submit({kind:'forwardTax',vault:address},0))await taxSurplus.refetch();}}>Forward to creator</button></dd></div></>:<div><dt>Liquidity ownership</dt><dd>LP token holders; unlocked</dd></div>}<div><dt>Composition</dt><dd><Link className="text-link" href={createHref({from:address})}>Copy basket composition</Link></dd></div></dl></Card>
     </div><aside className="stack trade-column"><Card className="trade-panel"><div className="card-heading"><h2>{labels[mode]}</h2><Badge tone={transaction.ready?'good':'warn'}>{transaction.ready?'Wallet ready':'Connect wallet'}</Badge></div>
-      {([['deposit','redeem','redeemInKind'],['buy','sell'],['addLiquidity','removeLiquidity']] as const).slice(0,primaryOnly?1:3).map((group,i)=><div key={i}><p className="fine-print">{['Primary market','Secondary market','Liquidity'][i]}</p><div className="segmented">{group.map(m=><button key={m} aria-pressed={mode===m} onClick={()=>{setMode(m);setQuote(null);}} disabled={!!transaction.pending}>{labels[m]}</button>)}</div></div>)}
+      {([['deposit','redeem','redeemInKind'],['buy','sell'],['addLiquidity','removeLiquidity']] as const).slice(0,primaryOnly?1:isFlap?2:3).map((group,i)=><div key={i}><p className="fine-print">{['Primary market','Secondary market','Liquidity'][i]}</p><div className="segmented">{group.map(m=><button key={m} aria-pressed={mode===m} onClick={()=>{setMode(m);setQuote(null);}} disabled={!!transaction.pending}>{labels[m]}</button>)}</div></div>)}
       {primaryOnly&&<p className="fine-print" data-testid="pre-graduation-note">PancakeSwap trading and liquidity open at {LAUNCH.graduationUSD.toLocaleString('en-US')} USDT AUM.</p>}
       <label className="field">{mode==='deposit'||mode==='buy'||mode==='addLiquidity'?'USDT amount':mode==='removeLiquidity'?'LP token amount':'Portfolio token amount'}<input data-testid="vault-amount" value={amount} onChange={e=>setAmount(e.target.value)} inputMode="decimal" disabled={!!transaction.pending}/></label>
       <label className="field">Slippage tolerance (bps; 100 = 1%)<input value={slip} onChange={e=>setSlip(e.target.value)} inputMode="numeric" disabled={!!transaction.pending}/></label>
