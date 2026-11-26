@@ -1,25 +1,19 @@
-# Ralph loop ledger
+# Ralph implementation ledger — V5
 
-All work is local on `feat/contract`; no commit was created.
+Baseline: supplied repo archive; old V1 reports archived under legacy-v1-fixtures/docs. All V5 tasks remain unaccepted until their checks pass. No public transaction, frontend/backend change or git commit.
 
-| Loop | Context | Result |
+| Iteration | Task | Outcome |
 |---|---|---|
-| 1 | Contract implementation | Factory, vault, share token, preset, validator, deterministic adapter, deployment manifest and lifecycle tests implemented. |
-| 2 | Frontend integration | Factory directory, vault reads, Atlas display-price join, create/deposit/redeem approvals, simulations, receipts and wallet positions implemented. |
-| 3 | Backend/system fixture | Production backend composition is exercised with deterministic Atlas websocket data; no transaction signer was added to the backend. |
-| 4 | Browser integration | Two wallets complete create → discover → deposit → redeem against the running chain, backend and frontend. |
-| 5 | Upstream compatibility | IndexFi preset registers and a funded vault launches through a real OpenFour Core on a developer-owned fork. |
-| 6 | Regression | Contracts 17 passing; backend 27 passing plus static checks; frontend 88 passing plus typecheck/build; browser E2E passing. |
+| 1 | CT00–06 | Reopened V5 spec and actual source, selected standard token inventory branch for experiment. npm/solc unavailable, real Core verification blocked; existing upstream source preserved byte-for-byte. |
+| 2 | CT07–10 | Revised interfaces, standard token reuse, immutable oracle/route adapters and backing/reserve accounting implemented. Source-level only. |
+| 3 | CT11–13 | Factory builds exact signed args; atomic seed/migration; upstream V2 library; creator LP; 10-bps fees; validator pins factory, new preset; no Core bonding trades. Source-level only. |
+| 4 | CT14 | Added lifecycle and nonlinear V2 fixture tests, both arbitrage directions, cap, donations, oracle absence, LP withdrawal, and price normalization. Independent integer checks and JS syntax checks passed; Hardhat execution blocked. |
+| 5 | CT15–16 | Local fixture deploy/ABI export, official local Core compatibility experiment and read-only chain-97 preflight scripts provided. No verified production addresses, deployment or FE handoff execution. |
 
-## Deliberate boundaries
+## Acceptance gates remaining
 
-- Graduation to PancakeSwap is optional and the migrate module currently fails
-  closed. Share transfers remain disabled until transferable-basis and LP
-  economics are designed.
-- The 10% creator fee uses independent average-cost profit per redemption. There
-  is no realized-loss carryforward in this version.
-- Local manifests and the mock adapter are test fixtures. A testnet release must
-  supply verified assets, routes and a production adapter.
-- OpenFour Core validates a per-launch signature from its configured signer.
-  Public testnet creation therefore needs an authorized signature service; the
-  frontend sends no secret and the backend intentionally owns no signing key.
+1. `npm ci`, `npm run compile`, `npm test` with all fixtures; fix compiler/runtime issues, inspect bytecode size, gas and advisories.
+2. Official Core registration, atomic create/migrate, post-migrate inventory operations, actual signer and creator binding; verify Core fee and lifecycle compatibility. If pre-mint model unacceptable, minimal OpenFourToken extension only, after evidence.
+3. Real chain-97 oracle feeds, authorized reads, actual USDT and tradable constituents/route liquidity. Single-feed adapter only; multi-feed or signed pull support requires further implementation if those are the available feeds.
+4. Confirm fee-free seed and deployment cap; evaluate stranded direct transfers and V2 locked minimum residual claims. Review security invariants and execution slippage before public deployment.
+5. Public deployment authorization, real-chain smoke and E2E, generated ABI/manifest and FE integration. No task is marked production-complete.

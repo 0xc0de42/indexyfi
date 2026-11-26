@@ -1,0 +1,29 @@
+{
+  "chainId": 31337,
+  "factory": "0x0B306BF915C4d645ff596e518fAf3F9669b97016",
+  "deploymentBlock": 16,
+  "settlementToken": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "settlementDecimals": 6,
+  "adapter": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+  "localCore": "0x9A676e781A523b5d0C0e43731313A708CB607508",
+  "fixtureAccounts": {
+    "creator": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "depositor": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+  },
+  "assets": [
+    {
+      "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+      "symbol": "ETH",
+      "decimals": 18,
+      "referenceAssetId": "56:0x2170ed0880ac9a755fd29b2688956bd959f933f8",
+      "feedId": 632
+    },
+    {
+      "address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+      "symbol": "BTCB",
+      "decimals": 8,
+      "referenceAssetId": "56:0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c",
+      "feedId": 751
+    }
+  ]
+}

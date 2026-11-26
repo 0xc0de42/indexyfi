@@ -1,3 +1,7 @@
+# IndexFi V5 integration candidate
+
+For IndexFi-specific setup, use [contracts README](../README.md), [validation](../VALIDATION.md) and [frontend handoff](../FRONTEND_HANDOFF.md). The following is the preserved upstream starter documentation, not a claim of V5 compatibility.
+
 # OpenFour Startup
 
 This directory is the FairLaunch example and the Hardhat starter for new presets. The compile environment matches official OpenFour: solc 0.8.24, optimizer 200, viaIR.
