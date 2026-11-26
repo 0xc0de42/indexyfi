@@ -1,4 +1,4 @@
-import {decodeEventLog, encodeFunctionData, encodePacked, erc20Abi, formatUnits, getAddress, isAddress, keccak256, parseAbi, parseUnits, type Address, type Hex, type PublicClient, type TransactionReceipt} from 'viem';
+import {decodeEventLog, encodeFunctionData, encodePacked, erc20Abi, formatUnits, getAddress, isAddress, keccak256, parseAbi, parseUnits, toHex, zeroHash, type Address, type Hex, type PublicClient, type TransactionReceipt} from 'viem';
 import {bscTestnet, hardhat} from 'viem/chains';
 import {NO_PRICES, pricesByFeed, type SignedPrices} from './atlas-signed';
 import {z} from 'zod';
@@ -81,15 +81,19 @@ export const factoryAbi = parseAbi([constituent, basket,
  * sets features.rebalancing (factory) or a vault answers rebalanceConfig(); older contracts keep the ABIs above.
  */
 const rebalanceConfigStruct = 'struct RebalanceConfig { uint32 interval; uint16 thresholdBps; }' as const;
+/** kind 0 manual, 1 top-N by market cap; weighting 0 market cap, 1 equal; universe keccak256(category) or 0x0 for all. */
+const indexRuleStruct = 'struct IndexRule { uint8 kind; uint8 size; uint8 weighting; uint16 maxWeightBps; bytes32 universe; }' as const;
 export const rebalanceAbi = parseAbi([
   'function rebalanceConfig() view returns (uint32 interval,uint16 thresholdBps,uint64 lastRebalanceAt)',
   'function quoteRebalanceWithPrices(bytes[] payloads,bytes[] signatures) returns (uint256 driftBps,bool due,uint256[] expectedOut)',
   'function rebalanceWithPrices(bytes[] payloads,bytes[] signatures,uint256[] minOut,uint256 deadline) returns (uint256 navBefore,uint256 navAfter)',
   'event Rebalanced(address indexed caller,uint256 driftBps,uint256 navBefore,uint256 navAfter,uint64 at)',
+  'function indexRule() view returns (uint8 kind,uint8 size,uint8 weighting,uint16 maxWeightBps,bytes32 universe)',
+  'event Reconstituted(address indexed operator,address[] removed,address[] added)',
 ]);
-export const factoryRebalanceAbi = parseAbi([constituent, basket, rebalanceConfigStruct,
-  'function createVaultWithPrices(bytes[] payloads,bytes[] signatures,uint256 requestId,Basket basket,uint256 seedUSDT,uint256 liquidityUSDT,uint256 minCreatorShares,uint256[] minTokenOut,uint256 deadline,bytes launchAuthorization,RebalanceConfig rebalance) payable returns (address vault,uint256 seedShares)',
-  'function buildCreateArgs(uint256 requestId,address creator,Basket basket,uint256 seedUSDT,uint256 liquidityUSDT,uint256 minCreatorShares,uint256[] minimums,uint256 deadline,uint256 createFee,RebalanceConfig rebalance) view returns (bytes)',
+export const factoryRebalanceAbi = parseAbi([constituent, basket, rebalanceConfigStruct, indexRuleStruct,
+  'function createVaultWithPrices(bytes[] payloads,bytes[] signatures,uint256 requestId,Basket basket,uint256 seedUSDT,uint256 liquidityUSDT,uint256 minCreatorShares,uint256[] minTokenOut,uint256 deadline,bytes launchAuthorization,RebalanceConfig rebalance,IndexRule rule) payable returns (address vault,uint256 seedShares)',
+  'function buildCreateArgs(uint256 requestId,address creator,Basket basket,uint256 seedUSDT,uint256 liquidityUSDT,uint256 minCreatorShares,uint256[] minimums,uint256 deadline,uint256 createFee,RebalanceConfig rebalance,IndexRule rule) view returns (bytes)',
 ]);
 export interface OnchainRebalance {
   readonly intervalSeconds: number;
@@ -102,6 +106,20 @@ export async function readRebalance(client:PublicClient,vault:Address):Promise<O
   try{
     const [interval,thresholdBps,last]=await client.readContract({address:vault,abi:rebalanceAbi,functionName:'rebalanceConfig'});
     return {intervalSeconds:Number(interval),thresholdBps:Number(thresholdBps),lastRebalanceAt:Number(last)};
+  }catch{return null;}
+}
+/** Encode a frontend index rule for the 5.2 factory. */
+export function indexRuleArg(rule:{kind:'manual'|'topCap';universe:string;size:number;weighting:'cap'|'equal';maxWeightBps:number}|undefined){
+  if(!rule||rule.kind==='manual') return {kind:0,size:0,weighting:0,maxWeightBps:0,universe:zeroHash};
+  return {kind:1,size:rule.size,weighting:rule.weighting==='equal'?1:0,maxWeightBps:rule.weighting==='equal'?0:rule.maxWeightBps,universe:rule.universe==='All'?zeroHash:keccak256(toHex(rule.universe))};
+}
+/** The vault's index rule (5.2+), with the universe decoded against known categories; null before 5.2 or for manual. */
+export async function readIndexRule(client:PublicClient,vault:Address,categories:readonly string[]){
+  try{
+    const [kind,size,weighting,maxWeightBps,universe]=await client.readContract({address:vault,abi:rebalanceAbi,functionName:'indexRule'});
+    if(kind!==1) return null;
+    const name=universe===zeroHash?'All':categories.find(c=>keccak256(toHex(c))===universe);
+    return name?{kind:'topCap' as const,universe:name,size:Number(size),weighting:weighting===1?'equal' as const:'cap' as const,maxWeightBps:Number(maxWeightBps)}:null;
   }catch{return null;}
 }
 export interface RebalanceEvent { readonly tx:`0x${string}`; readonly block:bigint; readonly at:number; readonly driftBps:number; readonly navBefore:bigint; readonly navAfter:bigint; readonly caller:Address }

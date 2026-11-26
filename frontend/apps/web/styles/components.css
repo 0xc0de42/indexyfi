@@ -200,3 +200,10 @@ tbody tr:last-child td{border-bottom:0}
 .drift-bar[data-due="true"]>span{background:var(--warn)}
 .rebalance-legs{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;font-size:12.5px;margin:10px 0 0;font-variant-numeric:tabular-nums}
 .rebalance-history{list-style:none;padding:0;margin:8px 0 0;font-size:12.5px;display:flex;flex-direction:column;gap:6px}
+
+/* Index rule (Create composition) */
+.index-rule{display:flex;flex-direction:column;gap:10px;margin:0 0 12px}
+.index-rule__grid{display:grid;gap:10px}
+.index-rule__grid .tabs{flex-wrap:wrap}
+.index-rule__apply{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.index-preview td,.index-preview th{padding-top:6px;padding-bottom:6px}

@@ -16,6 +16,9 @@ import {replaceQuery} from '@/lib/routes';
 import {categories, formatPrice, usd, FUNDING_TOKEN, type Asset, type Draft} from '@/domain/model';
 import {AssetIcon} from './asset-icon';
 import {AssetFilters, INITIAL_FILTERS, sortMetricLabel, type AssetFilterState} from './asset-filters';
+import {IndexRulePicker} from './index-rule-picker';
+import {ruleLabel, selectIndex} from '@/lib/index-rule';
+import {useCmcState} from '@/lib/cmc';
 import {queryAssets} from '@/lib/asset-query';
 import {useAssetData} from '@/lib/use-asset-data';
 import {cmcPct, cmcUsd, pctTone} from '@/lib/cmc-format';
@@ -172,6 +175,16 @@ export function Create({prefill}: {prefill: Prefill}) {
   // Only assets the active deployment can execute; filters and sorting (Atlas + CMC data) never grant eligibility.
   const supported = useMemo(() => referenceAssets.filter(a => supportedIds.has(a.id)), [supportedIds]);
   const dataOf = useAssetData(supported);
+  // Index rule (top N by CMC market cap): live preview; the composition changes only on Apply.
+  const cmc = useCmcState();
+  const cmcReady = supported.some(a => cmc.rows.get(a.id)?.quote?.marketCap);
+  const indexSelection = useMemo(() => selectIndex(supported, d.index, a => cmc.rows.get(a.id)?.quote?.marketCap), [supported, d.index, cmc.rows]);
+  const indexApplied = d.allocations.length === indexSelection.constituents.length
+    && indexSelection.constituents.every((c, i) => d.allocations[i]?.asset.id === c.asset.id && Math.round(d.allocations[i].weight * 100) === c.weightBps);
+  function applyIndex() {
+    update('allocations', indexSelection.constituents.map(c => ({asset: c.asset, weight: c.weightBps / 100})));
+    setLocked(new Set());
+  }
   const options = useMemo(
     () => queryAssets(supported, {term: filters.search, category: filters.category, sort: filters.sort, direction: filters.direction}, dataOf),
     [supported, filters, dataOf],
@@ -201,7 +214,7 @@ export function Create({prefill}: {prefill: Prefill}) {
 
   async function launch() {
     if(!quote || quote.draft!==d || !deployment.data || !deployment.client) return;
-    const result=await transaction.submit({kind:'create',basket:quote.basket,seed:quote.seed,liquidity:quote.liquidity,creatorShares:quote.creatorShares,outputs:quote.outputs,rebalance:d.rebalance},100);
+    const result=await transaction.submit({kind:'create',basket:quote.basket,seed:quote.seed,liquidity:quote.liquidity,creatorShares:quote.creatorShares,outputs:quote.outputs,rebalance:d.rebalance,index:d.index},100);
     if(!result) return;
     if(result.event?.eventName!=='VaultCreated') {setError('Launch confirmed but creation event not found. Check Explore.');return;}
     const vault=result.event.args.vault;
@@ -284,8 +297,9 @@ export function Create({prefill}: {prefill: Prefill}) {
                       ))}
                     </div>
                   )}
-                  <AssetFilters value={filters} onChange={setFilters} shown={options.length} total={supported.length} />
-                  {!options.length ? (
+                  <IndexRulePicker rule={d.index} onChange={rule => update('index', rule)} selection={indexSelection} applied={indexApplied} onApply={applyIndex} quotesReady={cmcReady} />
+                  {d.index.kind === 'manual' && <AssetFilters value={filters} onChange={setFilters} shown={options.length} total={supported.length} />}
+                  {d.index.kind !== 'manual' ? null : !options.length ? (
                     <Empty>No matching assets.</Empty>
                   ) : (
                     <div className="asset-picker">
@@ -309,7 +323,7 @@ export function Create({prefill}: {prefill: Prefill}) {
                       ))}
                     </div>
                   )}
-                  <p className="muted">{d.allocations.length} selected{d.allocations.length < 2 ? ' · select at least two' : ''} · weights are spread equally; adjust them next.</p>
+                  <p className="muted">{d.allocations.length} selected{d.allocations.length < 2 ? ' · select at least two' : ''} · {d.index.kind === 'topCap' ? 'weights come from the index rule; you can still adjust them next.' : 'weights are spread equally; adjust them next.'}</p>
                 </>
               )}
               {step === 2 && (
@@ -385,6 +399,13 @@ export function Create({prefill}: {prefill: Prefill}) {
                         </div>
                       </div>
                     </div>
+                    {d.index.kind === 'topCap' && (
+                      <p className="fine-print" data-testid="index-rebalance-note">
+                        {d.rebalance.intervalSeconds === 0
+                          ? 'Index rule with rebalancing Off: the top-cap selection applies once, at launch, and is not updated.'
+                          : `Index rule: at each rebalance the vault is re-selected to the current ${ruleLabel(d.index).replace(/^Top /, 'top ')} (assets entering or leaving the top ${d.index.size} are bought or sold), then re-weighted.`}
+                      </p>
+                    )}
                     {d.rebalance.intervalSeconds !== 0 && d.rebalance.thresholdBps <= 10 && (
                       <p className="fine-print">0.1% is reached almost every interval with many constituents, so expect a rebalance (and its swap fees) nearly every time.</p>
                     )}
@@ -394,6 +415,7 @@ export function Create({prefill}: {prefill: Prefill}) {
                   </div>
                   <dl className="key-values">
                     <div><dt>Constituents</dt><dd>{d.allocations.length}</dd></div>
+                    <div><dt>Composition rule</dt><dd>{ruleLabel(d.index)}</dd></div>
                     <div><dt>Rebalancing</dt><dd>{settingsLabel(d.rebalance)}</dd></div>
                     <div><dt>Initial investment (collateral)</dt><dd>{LAUNCH.collateralUSDT.toLocaleString('en-US')} {FUNDING_TOKEN}</dd></div>
                     <div><dt>Starting NAV</dt><dd>{usd(LAUNCH.startNav, 2)}</dd></div>

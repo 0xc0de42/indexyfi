@@ -1,9 +1,9 @@
 import {describe, it, expect} from 'vitest';
 import {draftErrors, equalWeights} from './policy';
 import {referenceAssets} from '../lib/catalog';
-import {formatPrice, ageLabel} from './model';
+import {formatPrice, ageLabel, type Draft} from './model';
 
-const draft = {name: 'Test', symbol: 'TEST', description: '', category: 'Crypto', allocations: [{asset: referenceAssets[0], weight: 50}, {asset: referenceAssets[1], weight: 50}], rebalance: {intervalSeconds: 86_400, thresholdBps: 100}};
+const draft: Draft = {name: 'Test', symbol: 'TEST', description: '', category: 'Crypto', allocations: [{asset: referenceAssets[0], weight: 50}, {asset: referenceAssets[1], weight: 50}], rebalance: {intervalSeconds: 86_400, thresholdBps: 100}, index: {kind: 'manual', universe: 'All', size: 10, weighting: 'cap', maxWeightBps: 0}};
 
 describe('draft rules', () => {
   it('checks weights', () => {
