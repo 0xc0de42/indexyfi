@@ -1,0 +1,308 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "hub",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "guard",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "quote",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "impl",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "launcher",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "paramsHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "arm",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "factorySpecVersion",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "guardian",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "implementation",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "q",
+        "type": "address"
+      }
+    ],
+    "name": "isQuoteTokenSupported",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "lastVault",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "launcherFactory",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "internalType": "uint8",
+        "name": "kind",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bytes",
+        "name": "launchParams",
+        "type": "bytes"
+      }
+    ],
+    "name": "newVault",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "portal",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "prepare",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "quoteToken",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "tokenCreationPolicies",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "target",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "operator",
+            "type": "string"
+          },
+          {
+            "internalType": "bytes",
+            "name": "value",
+            "type": "bytes"
+          },
+          {
+            "internalType": "string",
+            "name": "description",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct FactoryPolicy[]",
+        "name": "p",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "upgradeVaultImplementation",
+    "outputs": [],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "vaultDataSchema",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "components": [
+              {
+                "internalType": "string",
+                "name": "name",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "fieldType",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "description",
+                "type": "string"
+              },
+              {
+                "internalType": "uint8",
+                "name": "decimals",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct FieldDescriptor[]",
+            "name": "fields",
+            "type": "tuple[]"
+          },
+          {
+            "internalType": "bool",
+            "name": "isArray",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct VaultDataSchema",
+        "name": "s",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  }
+]
