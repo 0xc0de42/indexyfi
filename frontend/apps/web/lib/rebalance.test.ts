@@ -62,3 +62,36 @@ describe('keeper status client (optional backend)', () => {
     expect(await keeperStatus(vault, {fetcher: json(200, {vaults: 'x'})})).toEqual({kind: 'unavailable', reason: 'decode'});
   });
 });
+
+describe('rebalance preview (demo)', async () => {
+  const {rebalancePlan} = await import('./rebalance');
+  const h = (id: string, targetPct: number, value: number | null, valuePct: number | null) => ({referenceAssetId: id, symbol: id.toUpperCase(), targetPct, value, valuePct});
+  it('sells the overweight and buys the underweight back to target, sells first', () => {
+    const plan = rebalancePlan({holdings: [h('a', 50, 600, 60), h('b', 30, 250, 25), h('c', 20, 150, 15)]})!;
+    expect(plan.trades.map(t => `${t.side}:${t.symbol}:${t.usd}`)).toEqual(['sell:A:100', 'buy:B:50', 'buy:C:50']);
+    expect(plan.turnoverUsd).toBe(100);
+    expect(plan.feeUsd).toBeCloseTo(0.5);
+  });
+  it('needs a price for every holding', () => {
+    expect(rebalancePlan({holdings: [h('a', 50, null, null), h('b', 50, 10, 100)]})).toBeNull();
+  });
+});
+
+describe('demo schedule and simulated history', async () => {
+  const {nextScheduled, simulateRebalances} = await import('./rebalance');
+  it('finds the next boundary counted from launch', () => {
+    expect(nextScheduled(1_000, 3_600, 1_000 + 3_600 * 2 + 10)).toBe(1_000 + 3_600 * 3);
+    expect(nextScheduled(1_000, 3_600, 500)).toBe(4_600);
+    expect(nextScheduled(1_000, 0, 5_000)).toBeNull();
+  });
+  it('rebalances when drift reaches the threshold, then measures drift from the reset holdings', () => {
+    // A doubles in price at t=2h; B stays flat. 50/50 target.
+    const price = (id: string, t: number) => (id === 'a' ? (t >= 7_200 ? 2 : 1) : 1);
+    const events = simulateRebalances({holdings: [{id: 'a', units: 50, targetPct: 50}, {id: 'b', units: 50, targetPct: 50}], priceAt: price, start: 0, end: 4 * 3_600, intervalSeconds: 3_600, thresholdBps: 100});
+    expect(events).toHaveLength(1);
+    expect(events[0].at).toBe(7_200);
+    expect(events[0].driftBps).toBeCloseTo(1_666.67, 1); // 66.67% vs 50%
+    expect(events[0].turnoverUsd).toBeCloseTo(25);
+    expect(simulateRebalances({holdings: [{id: 'a', units: 1, targetPct: 100}], priceAt: () => null, start: 0, end: 7_200, intervalSeconds: 3_600, thresholdBps: 10})).toEqual([]);
+  });
+});

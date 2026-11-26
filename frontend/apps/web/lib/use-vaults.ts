@@ -2,10 +2,12 @@
 import {useRef,useState} from 'react';
 import {useQueries, useQuery, useQueryClient} from '@tanstack/react-query';
 import {useAccount, usePublicClient, useWalletClient} from 'wagmi';
-import {erc20Abi, getAddress, type Address, type Hash} from 'viem';
+import {decodeEventLog, erc20Abi, getAddress, parseAbi, type Address, type Hash} from 'viem';
 import {factoryRebalanceAbi, indexRuleArg, rebalanceAbi} from './vaults';
 import type {RebalanceSettings} from './rebalance';
+import {flapErrorMessage} from './flap';
 import type {Draft} from '@/domain/model';
+import {loadFlapDeployment, vaultLaunchTime} from './vaults';
 import {authorizeLaunch, launchDigest, launchSigner, newRequestId, factoryAbi, feedIdsFor, floorOutput, gasLimit, legMinimums, listVaults, loadDeployment, signedPrices, vaultAbi, vaultChain, vaultEvent, vaultSnapshot, routerAbi, type Deployment, type GasKind} from './vaults';
 
 export function useDeployment() {
@@ -13,6 +15,35 @@ export function useDeployment() {
   const query=useQuery({queryKey:['deployment',vaultChain.id],enabled:!!client,
     queryFn:({signal})=>loadDeployment(client!,signal),staleTime:60000});
   return {client,...query};
+}
+/** The Flap deployment of the active chain (null data when none is published). */
+export function useFlapDeployment() {
+  const client=usePublicClient({chainId:vaultChain.id});
+  const query=useQuery({queryKey:['deployment-flap',vaultChain.id],enabled:!!client,
+    queryFn:({signal})=>loadFlapDeployment(client!,signal),staleTime:60000,retry:false});
+  return {client,...query};
+}
+/** Every published deployment (OpenFour first), for directories that list vaults from all providers. */
+export function useDeployments():Deployment[] {
+  const openfour=useDeployment(), flap=useFlapDeployment();
+  return [openfour.data,flap.data].filter((d):d is Deployment=>!!d);
+}
+/**
+ * The deployment that owns a vault: OpenFour unless the Flap factory registers it. Loading until both are known, so a
+ * Flap vault is never read with the OpenFour manifest.
+ */
+export function useVaultDeployment(address?:Address) {
+  const openfour=useDeployment(), flap=useFlapDeployment();
+  const client=openfour.client;
+  const owner=useQuery({queryKey:['vault-provider',address??'none',flap.data?.factory??'none'],enabled:!!address&&!!client&&flap.isFetched,
+    queryFn:async()=>flap.data&&address&&await client!.readContract({address:flap.data.factory,abi:factoryAbi,functionName:'isVault',args:[address]})?'flap' as const:'openfour' as const,staleTime:Infinity});
+  const data=owner.data==='flap'?flap.data??undefined:owner.data==='openfour'?openfour.data:undefined;
+  return {client,data,isLoading:openfour.isLoading||!flap.isFetched||owner.isLoading,isError:openfour.isError&&!data,error:openfour.error};
+}
+/** A vault's launch time (Unix seconds), cached for the session; null if the RPC cannot find it. */
+export function useVaultLaunchTime(d:Deployment|undefined,vault:Address|undefined){
+  const client=usePublicClient({chainId:d?.chainId??vaultChain.id});
+  return useQuery({queryKey:['vault-launch-time',d?.factory??'none',vault??'none'],enabled:!!d&&!!vault&&!!client,queryFn:()=>vaultLaunchTime(client!,d!,vault!),staleTime:Infinity,retry:1});
 }
 export function useDirectory(d?:Deployment) {
   const client=usePublicClient({chainId:d?.chainId??vaultChain.id});
@@ -30,6 +61,8 @@ export function useCanLaunch(d?:Deployment){
   const signer=useQuery({queryKey:['launch-signer',d?.openfour?.core??'none'],enabled:!!d&&!d.fixture&&!!client,queryFn:()=>launchSigner(client!,d!),staleTime:60_000});
   if(!d) return {canLaunch:false,signer:undefined};
   if(d.fixture) return {canLaunch:true,signer:undefined};
+  // Flap launches need no operator signature: any connected wallet can create.
+  if(d.provider==='flap') return {canLaunch:!!address,signer:undefined};
   return {canLaunch:!!address&&!!signer.data&&signer.data.toLowerCase()===address.toLowerCase(),signer:signer.data??undefined};
 }
 /** Every vault of the deployment with its on-chain snapshot, newest first. */
@@ -53,12 +86,25 @@ export type Basket = {name:string;symbol:string;metadataURI:string;constituents:
 export type VaultAction =
   | {kind:'create';basket:Basket;seed:bigint;liquidity:bigint;creatorShares:bigint;outputs:readonly bigint[];rebalance?:RebalanceSettings;index?:Draft['index']}
   | {kind:'rebalance';vault:Address;expectedOut:readonly bigint[]}
+  | {kind:'forwardTax';vault:Address}
+  /** Public test settlement (Flap USD on chain 97 has an open mint). */
+  | {kind:'mintTestSettlement';amount:bigint}
   | {kind:'deposit';vault:Address;amount:bigint;shares:bigint;outputs:readonly bigint[]}
   | {kind:'redeem';vault:Address;token:Address;amount:bigint;net:bigint;legs:readonly bigint[]}
   | {kind:'redeemInKind';vault:Address;token:Address;amount:bigint;net:readonly bigint[]}
   | {kind:'swap';token:Address;buy:boolean;amount:bigint;out:bigint}
   | {kind:'addLiquidity';token:Address;cash:bigint;shares:bigint}
   | {kind:'removeLiquidity';token:Address;pair:Address;amount:bigint;cash:bigint;shares:bigint};
+const testMintAbi=parseAbi(['function mint(address to,uint256 amount)']);
+/** POST /api/flap/launch/prepare: request id, mined …7777 salt, predicted token and launchAuthorization (unsigned data). */
+async function prepareFlap(d:Deployment,creator:Address,action:{basket:Basket;seed:bigint;liquidity:bigint}){
+  const response=await fetch('/api/flap/launch/prepare',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({
+    chainId:d.chainId,creator,name:action.basket.name,symbol:action.basket.symbol,metadataURI:action.basket.metadataURI,
+    constituents:action.basket.constituents.map(c=>({token:c.token,weightBps:c.weightBps})),seed:action.seed.toString(),liquidity:action.liquidity.toString()})});
+  const body=await response.json().catch(()=>null) as {requestId?:string;launchAuthorization?:`0x${string}`;predictedToken?:Address;error?:string;message?:string}|null;
+  if(!response.ok||!body?.requestId||!body.launchAuthorization||!body.predictedToken) throw Error(`Flap launch preparation failed: ${body?.message??body?.error??response.status}`);
+  return {requestId:body.requestId,launchAuthorization:body.launchAuthorization,predictedToken:body.predictedToken};
+}
 export function useVaultTransaction(d?:Deployment) {
   const account=useAccount(), client=usePublicClient({chainId:d?.chainId??vaultChain.id}), wallet=useWalletClient();
   const cache=useQueryClient();
@@ -113,7 +159,7 @@ export function useVaultTransaction(d?:Deployment) {
       }
       const cash=deployment.settlementToken, router=deployment.router;
       if(action.kind==='create'){
-        if(!deployment.fixture){
+        if(!deployment.fixture&&deployment.provider!=='flap'){
           const launcher=await launchSigner(publicClient,deployment);
           if(!launcher||launcher.toLowerCase()!==holder.toLowerCase()) throw Error('Only the OpenFour launch signer (the IndexFi operator wallet) can launch on this network.');
         }
@@ -123,13 +169,14 @@ export function useVaultTransaction(d?:Deployment) {
       else if(action.kind==='swap')await approve(action.buy?cash:action.token,router,action.amount,action.buy?'USDT':'portfolio token');
       else if(action.kind==='addLiquidity'){
         await approve(cash,router,action.cash,'USDT');await approve(action.token,router,action.shares,'portfolio token');
-      }else if(action.kind==='rebalance'){/* no token approvals: the vault trades its own holdings */}
+      }else if(action.kind==='rebalance'||action.kind==='forwardTax'||action.kind==='mintTestSettlement'){/* no token approvals: the vault moves its own balances */}
       else await approve(action.pair,router,action.amount,'LP token');
       setPending('Confirm transaction');
       const deadline=(await publicClient.getBlock()).timestamp+600n;
       await checkWallet();
       let hash:Hash;
       let eventSource:Address|undefined;
+      let flapPredicted:Address|undefined;
       if(action.kind==='create') {
         eventSource=deployment.factory;
         const factory=eventSource;
@@ -145,6 +192,14 @@ export function useVaultTransaction(d?:Deployment) {
         for(let attempt=0;;attempt++){
           let auth;
           if(deployment.fixture) auth=await authorizeLaunch(deployment);
+          else if(deployment.provider==='flap') {
+            // Flap: any wallet launches; the server mines a …7777 salt and returns launchAuthorization = abi.encode(salt).
+            setPending('Preparing the Flap token address');
+            const prep=await prepareFlap(deployment,holder,action);
+            flapPredicted=prep.predictedToken;
+            auth={requestId:BigInt(prep.requestId),authorization:prep.launchAuthorization};
+            setPending('Confirm transaction');
+          }
           else {
             // Public chain: the connected wallet is Core.signer (checked above) and signs the OpenFour launch digest.
             const requestId=newRequestId();
@@ -164,7 +219,7 @@ export function useVaultTransaction(d?:Deployment) {
             break;
           }catch(err){if(attempt<2&&err instanceof Error&&/request id/i.test(err.message))continue;throw err;}
         }
-        const sized=await withGas(request,'create',action.basket.constituents.length);
+        const sized=await withGas(request,deployment.provider==='flap'?'createFlap':'create',action.basket.constituents.length);
         // Either launch ABI (5.1 or 5.2 with rebalancing): a fully simulated request; viem cannot type the union.
         await checkWallet();hash=await signer.writeContract(sized as Parameters<typeof signer.writeContract>[0]);
       } else if(action.kind==='rebalance') {
@@ -194,8 +249,20 @@ export function useVaultTransaction(d?:Deployment) {
         await checkWallet();hash=await signer.writeContract(sized);
       } else if(action.kind==='swap') {
         const path=action.buy?[cash,action.token]:[action.token,cash];
-        const simulation=await publicClient.simulateContract({address:router,abi:routerAbi,account:holder,functionName:'swapExactTokensForTokens',args:[action.amount,minimum(action.out),path,holder,deadline]});
+        // Flap tokens are tax tokens: use the fee-on-transfer variant (same arguments, no return value).
+        const simulation=deployment.provider==='flap'
+          ? await publicClient.simulateContract({address:router,abi:routerAbi,account:holder,functionName:'swapExactTokensForTokensSupportingFeeOnTransferTokens',args:[action.amount,minimum(action.out),path,holder,deadline]})
+          : await publicClient.simulateContract({address:router,abi:routerAbi,account:holder,functionName:'swapExactTokensForTokens',args:[action.amount,minimum(action.out),path,holder,deadline]});
         const sized=await withGas(simulation.request,'swap',0);
+        await checkWallet();hash=await signer.writeContract(sized as Parameters<typeof signer.writeContract>[0]);
+      } else if(action.kind==='mintTestSettlement') {
+        if(deployment.provider!=='flap') throw Error('Test settlement mint is only available on the Flap deployment');
+        const simulation=await publicClient.simulateContract({address:cash,abi:testMintAbi,account:holder,functionName:'mint',args:[holder,action.amount]});
+        await checkWallet();hash=await signer.writeContract({...simulation.request,gas:150_000n});
+      } else if(action.kind==='forwardTax') {
+        // Flap vault: permissionless; moves any unaccounted settlement surplus (tax revenue) to the creator.
+        const simulation=await publicClient.simulateContract({address:action.vault,abi:vaultAbi,account:holder,functionName:'forwardTaxRevenue'});
+        const sized=await withGas(simulation.request,'forwardTax',0);
         await checkWallet();hash=await signer.writeContract(sized);
       } else if(action.kind==='addLiquidity') {
         const simulation=await publicClient.simulateContract({address:router,abi:routerAbi,account:holder,functionName:'addLiquidity',args:[cash,action.token,action.cash,action.shares,minimum(action.cash),minimum(action.shares),holder,deadline]});
@@ -207,11 +274,17 @@ export function useVaultTransaction(d?:Deployment) {
         await checkWallet();hash=await signer.writeContract(sized);
       }
       const receipt=await confirm(hash);
-      const event=eventSource?vaultEvent(receipt,getAddress(eventSource)):undefined;
+      if(flapPredicted){
+        // The Portal must have deployed the token at the address the prepared salt predicts.
+        const launched=receipt.logs.map(l=>{try{return getAddress(l.address)===getAddress(deployment.factory)?decodeEventLog({abi:factoryAbi,data:l.data,topics:l.topics}):null;}catch{return null;}}).find(e=>e?.eventName==='PortfolioLaunched');
+        if(!launched||launched.eventName!=='PortfolioLaunched'||getAddress(launched.args.token)!==getAddress(flapPredicted)) throw Error(`Launched token does not match the predicted Flap address ${flapPredicted}`);
+      }
+      const event=eventSource&&action.kind!=='forwardTax'&&action.kind!=='mintTestSettlement'?vaultEvent(receipt,getAddress(eventSource)):undefined;
       await cache.invalidateQueries({queryKey:['vaults',deployment.factory]});
       return {event,receipt};
     } catch(err) {
-      setError(err instanceof Error ? err.message.split('\n')[0] : 'Wallet transaction failed');
+      const message=err instanceof Error ? err.message : 'Wallet transaction failed';
+      setError(deployment.provider==='flap' ? flapErrorMessage(message.split('\n').find(l=>/0x[0-9a-f]{8}|Flap:|Invalid|Slippage|Inactive/i.test(l))??message.split('\n')[0]) : message.split('\n')[0]);
       return undefined;
     } finally { inFlight.current=false;setPending(''); }
   }

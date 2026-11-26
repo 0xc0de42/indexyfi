@@ -5,7 +5,12 @@ import type {Address} from 'viem';
 import {Badge, Button, Card, Metric} from '@indexfi/ui';
 import {usePublicClient} from 'wagmi';
 import {KEEPER_STATE_LABEL, keeperStatus} from '@/lib/keeper-api';
-import {bpsLabel, driftOf, rebalanceStatus, relativeTime, settingsLabel, type RebalanceState} from '@/lib/rebalance';
+import {bpsLabel, driftOf, nextScheduled, rebalancePlan, rebalanceStatus, relativeTime, settingsLabel, simulateRebalances, type RebalanceState} from '@/lib/rebalance';
+import {useVaultLaunchTime} from '@/lib/use-vaults';
+import {useHistoryStore} from '@/lib/prices';
+import {formatUnits} from 'viem';
+import {portfolioSettings, type PortfolioSettings} from '@/lib/portfolio-settings';
+import {usd} from '@/domain/model';
 import {useVaultTransaction} from '@/lib/use-vaults';
 import {feedIdsFor, readIndexRule, readRebalance, rebalanceAbi, rebalanceHistory, signedPrices, units, type Deployment, type VaultSnapshot} from '@/lib/vaults';
 import {referenceAssets, referenceCategories} from '@/lib/catalog';
@@ -21,8 +26,11 @@ const when = (s: number) => new Date(s * 1000).toLocaleString([], {dateStyle: 'm
 
 /**
  * Rebalancing on the portfolio page. Drift is computed here from on-chain holdings × Atlas prices (works for every
- * vault); settings, schedule, history and "Rebalance now" come from vault 5.2+, keeper status from the backend. Each part
- * degrades on its own when its source is not deployed yet.
+ * vault); settings, schedule, history and "Rebalance now" come from vault 5.2+, keeper status from the backend.
+ *
+ * Demo mode (vaults without on-chain settings: OpenFour 5.1 and Flap): the settings chosen at launch in this browser, or
+ * the preset of a demo basket, drive the same view plus a preview of the trades a rebalance would make. Nothing is
+ * executed on chain; the card says so.
  */
 export function Rebalancing({d, v, val}: {d: Deployment; v: VaultSnapshot; val: Valuation | null}) {
   const client = usePublicClient({chainId: d.chainId});
@@ -46,10 +54,45 @@ export function Rebalancing({d, v, val}: {d: Deployment; v: VaultSnapshot; val: 
     return sel.constituents.length ? reconstitutionPreview(v.holdings.map(h => h.referenceAssetId), sel) : null;
   }, [rule.data, d.assets, cmc.rows, v.holdings]);
   const symbolOf = (id: string) => v.holdings.find(h => h.referenceAssetId === id)?.symbol ?? id;
+  // Demo settings are read after mount (browser storage), so server and client renders match.
+  const [demo, setDemo] = useState<PortfolioSettings | null>(null);
+  useEffect(() => { if (config.isFetched && !config.data) setDemo(portfolioSettings(v.address, v.symbol)); }, [config.isFetched, config.data, v.address, v.symbol]);
+  const demoRule = demo?.index.kind === 'topCap' ? demo.index : null;
+  const demoPreview = useMemo(() => {
+    if (!demoRule) return null;
+    const executable = new Set(d.assets.map(a => a.referenceAssetId));
+    const sel = selectIndex(referenceAssets.filter(a => executable.has(a.id)), demoRule, a => cmc.rows.get(a.id)?.quote?.marketCap);
+    return sel.constituents.length ? reconstitutionPreview(v.holdings.map(h => h.referenceAssetId), sel) : null;
+  }, [demoRule, d.assets, cmc.rows, v.holdings]);
 
   const drift = val ? driftOf(val) : {driftBps: null, legs: []};
-  const settings = config.data ? {intervalSeconds: config.data.intervalSeconds, thresholdBps: config.data.thresholdBps} : null;
-  const status = settings && config.data ? rebalanceStatus(settings, config.data.lastRebalanceAt, drift.driftBps, now) : null;
+  const settings = config.data ? {intervalSeconds: config.data.intervalSeconds, thresholdBps: config.data.thresholdBps} : demo?.rebalance ?? null;
+  // On chain the interval counts from the last rebalance; the demo has no schedule, so only the threshold decides.
+  const status = settings ? rebalanceStatus(settings, config.data?.lastRebalanceAt ?? 0, drift.driftBps, now) : null;
+  const plan = val && settings && settings.intervalSeconds > 0 ? rebalancePlan(val) : null;
+  const isDemo = !config.data && !!demo;
+  // Demo schedule: counted from the vault's real launch time; history replayed from the app's stored Atlas prices (24 h).
+  const launch = useVaultLaunchTime(isDemo ? d : undefined, v.address as Address);
+  const history24 = useHistoryStore();
+  const minute = Math.floor(now / 60);
+  const scheduled = isDemo && settings && launch.data ? nextScheduled(launch.data, settings.intervalSeconds, now) : null;
+  const simulated = useMemo(() => {
+    if (!isDemo || !settings || settings.intervalSeconds <= 0 || !launch.data) return null;
+    const end = minute * 60, windowStart = Math.max(launch.data, end - 86_400);
+    const first = launch.data + Math.ceil((windowStart - launch.data) / settings.intervalSeconds) * settings.intervalSeconds;
+    const series = new Map(v.holdings.map(h => [h.referenceAssetId, history24.series(h.referenceAssetId, end * 1000, 86_400_000)]));
+    const priceAt = (id: string, at: number) => {
+      const pts = series.get(id) ?? [];
+      let best: number | null = null;
+      for (const pt of pts) { if (pt.t <= at * 1000) best = Number(pt.price); else break; }
+      return best;
+    };
+    const checks = first <= end ? Math.floor((end - first) / settings.intervalSeconds) + 1 : 0;
+    return {from: first, checks, events: simulateRebalances({
+      holdings: v.holdings.map(h => ({id: h.referenceAssetId, units: Number(formatUnits(h.balance, h.decimals)), targetPct: Number(h.weightBps) / 100})),
+      priceAt, start: first - settings.intervalSeconds, end, intervalSeconds: settings.intervalSeconds, thresholdBps: settings.thresholdBps,
+    })};
+  }, [isDemo, settings, launch.data, minute, v.holdings, history24]);
   const scale = Math.max(settings?.thresholdBps ?? 100, drift.driftBps ?? 0) * 1.25;
 
   async function rebalanceNow() {
@@ -71,13 +114,16 @@ export function Rebalancing({d, v, val}: {d: Deployment; v: VaultSnapshot; val: 
       <div className="card-heading">
         <h2>Rebalancing</h2>
         {config.isLoading ? <Badge>Checking vault</Badge>
-          : !settings ? <Badge>Not enabled · vault 5.1</Badge>
-          : <Badge tone={status?.state === 'due' ? 'warn' : status?.state === 'off' ? 'neutral' : 'good'}>{STATE_TEXT[status!.state]}</Badge>}
+          : !settings ? <Badge>{d.provider === 'flap' ? 'Not configured · Flap' : 'Not configured'}</Badge>
+          : <Badge tone={status?.state === 'due' ? 'warn' : status?.state === 'off' ? 'neutral' : 'good'}>{isDemo ? 'Demo · ' : ''}{STATE_TEXT[status!.state]}</Badge>}
       </div>
 
       <div className="price-metrics">
         <Metric label="Current drift" value={<span className="rebalance-drift">{drift.driftBps === null ? '—' : bpsLabel(Math.round(drift.driftBps))}</span>} detail="largest weight gap, Atlas prices" />
-        <Metric label="Settings" value={settings ? (settings.intervalSeconds === 0 ? 'Off' : `${bpsLabel(settings.thresholdBps)} · ${settingsLabel(settings).split(',')[0].replace('At most every ', 'every ')}`) : '—'} detail={settings ? 'threshold · minimum interval' : 'set at launch on vault 5.2'} />
+        <Metric label="Settings" value={settings ? (settings.intervalSeconds === 0 ? 'Off' : `${bpsLabel(settings.thresholdBps)} · ${settingsLabel(settings).split(',')[0].replace('At most every ', 'every ')}`) : '—'} detail={settings ? `threshold · minimum interval${isDemo ? (demo?.source === 'launch' ? ' · chosen at launch' : ' · demo preset') : ''}` : 'chosen at launch'} />
+        {isDemo && settings && settings.intervalSeconds > 0 && (
+          <Metric label="Next scheduled check" value={scheduled ? relativeTime(scheduled, now) : launch.isLoading ? '…' : '—'} detail={scheduled ? `${when(scheduled)} · every ${settingsLabel(settings).split(',')[0].replace('At most every ', '')} since launch` : 'from the launch time'} />
+        )}
         {settings && config.data && settings.intervalSeconds > 0 && (
           <Metric label="Next eligible" value={status?.eligibleAt == null ? '—' : status.eligibleAt <= now ? 'Now' : relativeTime(status.eligibleAt, now)} detail={status?.eligibleAt ? when(status.eligibleAt) : undefined} />
         )}
@@ -101,7 +147,51 @@ export function Rebalancing({d, v, val}: {d: Deployment; v: VaultSnapshot; val: 
       )}
 
       {!config.isLoading && !settings && (
-        <p className="fine-print">This vault was launched before rebalancing (vault 5.1), so its weights drift with prices and are not rebalanced. Portfolios launched on vault 5.2 store an interval and a drift threshold and are rebalanced automatically.</p>
+        <p className="fine-print">No rebalancing settings for this portfolio. Portfolios created in this app choose an interval and a drift threshold at launch.</p>
+      )}
+
+      {isDemo && settings && settings.intervalSeconds > 0 && (
+        <div className="rebalance-demo" data-testid="rebalance-preview">
+          <div className="card-heading"><strong>{status?.state === 'due' ? 'Next rebalance (preview)' : 'If rebalanced now (preview)'}</strong>
+            {plan && <span className="muted">turnover {usd(plan.turnoverUsd)} · est. swap fees {usd(plan.feeUsd)}</span>}</div>
+          {!plan ? <p className="muted">Waiting for prices of every holding…</p> : !plan.trades.length ? <p className="muted">Holdings are at their target weights.</p> : (
+            <div className="table-scroll">
+              <table className="index-preview">
+                <thead><tr><th>Trade</th><th>Asset</th><th>USD</th><th>Weight</th></tr></thead>
+                <tbody>
+                  {plan.trades.slice(0, 8).map(t => (
+                    <tr key={t.referenceAssetId}>
+                      <td className={t.side === 'sell' ? 'negative' : 'positive'}>{t.side === 'sell' ? 'Sell' : 'Buy'}</td>
+                      <td>{t.symbol}</td>
+                      <td>{usd(t.usd)}</td>
+                      <td className="muted">{t.fromPct.toFixed(2)}% → {t.toPct.toFixed(2)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {demoRule && (
+            <p className="fine-print" data-testid="index-rule-status">
+              Index rule: {ruleLabel(demoRule)}, re-selected at each rebalance.
+              {demoPreview && (demoPreview.add.length || demoPreview.remove.length
+                ? <> Re-selection now would add {demoPreview.add.map(a => a.symbol).join(', ') || 'none'} and remove {demoPreview.remove.map(symbolOf).join(', ') || 'none'}.</>
+                : <> The current holdings match today&apos;s top {demoRule.size}.</>)}
+            </p>
+          )}
+          {simulated && (
+            <div data-testid="rebalance-simulated">
+              <strong className="fine-print">Simulated over the last 24 h (stored Atlas prices)</strong>
+              {!simulated.checks
+                ? <p className="muted">No scheduled check has passed since launch yet; the first is {relativeTime(simulated.from, now)}.</p>
+                : !simulated.events.length
+                ? <p className="muted">No rebalance would have triggered: drift stayed below {bpsLabel(settings.thresholdBps)} at all {simulated.checks} scheduled check{simulated.checks === 1 ? '' : 's'}.</p>
+                : <ul className="rebalance-history">{simulated.events.slice(-6).reverse().map(e => (
+                    <li key={e.at}>{when(e.at)} · drift {bpsLabel(Math.round(e.driftBps))} · turnover {usd(e.turnoverUsd)}</li>))}</ul>}
+            </div>
+          )}
+          <p className="fine-print">Demo: this shows what the rebalancer would do with the settings above, at signed Atlas prices through USDT. It is not executed on chain yet; on-chain rebalancing is the next contract release.</p>
+        </div>
       )}
 
       {settings && config.data && (

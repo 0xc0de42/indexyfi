@@ -6,3 +6,9 @@ out/
 .env
 deployments/31337.json
 deployments/*.abi.json
+
+# Flap V3 build output (scripts/compile-flap-selected.cjs)
+flap-artifacts/
+flap-cache/
+# Local fork rehearsal records (addresses exist only on the fork)
+deployments/*.fork.json

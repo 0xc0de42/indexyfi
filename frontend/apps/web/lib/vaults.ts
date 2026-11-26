@@ -4,6 +4,7 @@ import {NO_PRICES, pricesByFeed, type SignedPrices} from './atlas-signed';
 import {z} from 'zod';
 import {referenceAssetById} from './catalog';
 import {marketPrice18} from './pool-math';
+import {parseFlapManifest, type FlapManifest} from './flap-manifest';
 export {marketPrice18,lpAmounts} from './pool-math';
 
 const selectedChain = process.env.NEXT_PUBLIC_VAULT_CHAIN_ID || '97';
@@ -34,7 +35,12 @@ const address = z.string().refine(x => isAddress(x)).transform(x => getAddress(x
 const decimals = z.number().int().min(0).max(18);
 const token = z.object({address, symbol:z.string().min(1), decimals, referenceAssetId:z.string(), feedId:z.number().int().positive(), isMock:z.boolean().default(false)});
 const deployment = z.object({
-  schemaVersion:z.literal(5), fixture:z.boolean(), supplyModel:z.literal("standard-openfour-inventory"),
+  schemaVersion:z.literal(5), fixture:z.boolean(), supplyModel:z.enum(["standard-openfour-inventory","flap-dock-inventory"]),
+  /** Launch provider. Flap deployments come from a schema-6 manifest converted by flapToDeployment. */
+  provider:z.enum(["openfour","flap"]).default("openfour"),
+  /** Flap-only launch parameters (docs/flap/FORK_ACCEPTANCE.md). */
+  flap:z.object({portal:address, dockRouter:address, guardian:address, vaultFactory:address, vaultImplementation:address, tokenImplementation:address,
+    saltSuffix:z.string(), buyTaxBps:z.number().int(), sellTaxBps:z.number().int(), taxDuration:z.number().int(), cap:z.string()}).optional(),
   /** Public test deployment whose assets are labelled test tokens standing in for mainnet assets (chain 97). */
   testAssets:z.boolean().default(false),
   /** Superseded vaults the app does not list (they stay on chain and reachable by address). */
@@ -153,6 +159,8 @@ export const vaultAbi = parseAbi([constituent,
   'event Deposited(address indexed holder,uint256 usdtIn,uint256 shares,uint256 creatorFeeUSDT)',
   'event Redeemed(address indexed holder,uint256 shares,uint256 grossUSDT,uint256 creatorFeeUSDT,uint256 netUSDT)',
   'event RedeemedInKind(address indexed holder,uint256 shares)',
+  // Flap vault only: forwards unaccounted settlement surplus (tax revenue) to the creator; permissionless.
+  'function forwardTaxRevenue() returns (uint256 amount)',
   'event RedeemedAsset(address indexed holder,address indexed asset,uint256 grossAmount,uint256 creatorFeeAmount,uint256 netAmount)',
 ]);
 
@@ -171,7 +179,7 @@ export const legMinimums=(quotes:readonly bigint[],slipBps:number)=>quotes.map(q
 
 /** Ceiling for any one transaction: below the 16,777,216 per-transaction cap (EIP-7825) that Hardhat's Osaka rules enforce. */
 export const GAS_CAP=16_000_000n;
-export type GasKind='create'|'deposit'|'redeem'|'redeemInKind'|'swap'|'addLiquidity'|'removeLiquidity'|'rebalance';
+export type GasKind='create'|'createFlap'|'deposit'|'redeem'|'redeemInKind'|'swap'|'addLiquidity'|'removeLiquidity'|'rebalance'|'forwardTax';
 /**
  * Size-based limits (~25% over gas measured on the fixture, 2–32 assets): launch 4.03M→11.88M,
  * deposit 0.43M→4.66M, redeem 0.39M→4.56M, in-kind 0.23M→2.61M, plus ~0.15M + ~30k per feed for the signed
@@ -182,6 +190,8 @@ const FALLBACK:{[K in GasKind]:{base:bigint;perLeg:bigint}}={
   redeemInKind:{base:350_000n,perLeg:140_000n}, swap:{base:600_000n,perLeg:0n}, addLiquidity:{base:600_000n,perLeg:0n}, removeLiquidity:{base:600_000n,perLeg:0n},
   // Planned (vault 5.2): one sell or buy per leg plus the signed price update.
   rebalance:{base:600_000n,perLeg:260_000n},
+  // Flap launch through the real Portal: 7.67M for 2 legs on the chain-97 fork (docs/flap/FORK_ACCEPTANCE.md).
+  createFlap:{base:7_800_000n,perLeg:400_000n}, forwardTax:{base:200_000n,perLeg:0n},
 };
 /**
  * Explicit gas limit for a write. Every write sends one, so wallets never re-estimate: Hardhat's estimator overshoots
@@ -243,10 +253,34 @@ export async function fundFixtureWallet(client:PublicClient,d:Deployment,holder:
   const receipt=await client.waitForTransactionReceipt({hash});
   if(receipt.status!=='success')throw Error('Test USDT mint failed.');
 }
+export const flapManifestUrl = process.env.NEXT_PUBLIC_FLAP_MANIFEST_URL || `/deployments/${vaultChain.id}/flap.json`;
+/** A Flap schema-6 manifest in the app's deployment shape: reads, deposits and redemptions share the OpenFour ABI. */
+export function flapToDeployment(m:FlapManifest):Deployment {
+  return deployment.parse({
+    schemaVersion:5, fixture:m.fixture, supplyModel:'flap-dock-inventory', provider:'flap', testAssets:m.testAssets, hiddenVaults:[],
+    features:{rebalancing:false}, chainId:m.chainId, factory:m.factory, deploymentBlock:m.deploymentBlock, settlementToken:m.settlementToken,
+    settlementDecimals:m.settlementDecimals, adapter:m.adapter, oracle:m.oracle, router:m.router,
+    assets:m.assets.map(a=>({address:a.address,symbol:a.symbol,decimals:a.decimals,referenceAssetId:a.referenceAssetId,feedId:a.feedId,isMock:a.isMock})),
+    flap:{portal:m.portal,dockRouter:m.dockRouter,guardian:m.guardian,vaultFactory:m.vaultFactory,vaultImplementation:m.vaultImplementation,
+      tokenImplementation:m.tokenImplementation,saltSuffix:m.salt.suffix,buyTaxBps:m.buyTaxBps,sellTaxBps:m.sellTaxBps,taxDuration:m.taxDuration,cap:m.cap},
+  });
+}
+/** The Flap deployment for the active chain, or null when none is published (404). Verified against chain like OpenFour. */
+export async function loadFlapDeployment(client:PublicClient, signal?:AbortSignal):Promise<Deployment|null> {
+  const response=await fetch(flapManifestUrl,{signal,cache:'no-store'});
+  if(response.status===404) return null;
+  if(!response.ok) throw Error(`Flap manifest unavailable for chain ${vaultChain.id}`);
+  const d=flapToDeployment(parseFlapManifest(await response.json()));
+  if(d.chainId!==vaultChain.id) throw Error('Flap deployment chain mismatch');
+  return verifyDeployment(client,d);
+}
 export async function loadDeployment(client:PublicClient, signal?:AbortSignal) {
   const response=await fetch(manifestUrl,{signal,cache:'no-store'});
   if(!response.ok) throw Error(`Deployment manifest unavailable for chain ${vaultChain.id}`);
-  const d=parseDeployment(await response.json(),vaultChain.id);
+  return verifyDeployment(client,parseDeployment(await response.json(),vaultChain.id));
+}
+/** The manifest's bindings must match what the factory reports on chain, and every asset's decimals. */
+async function verifyDeployment(client:PublicClient,d:Deployment):Promise<Deployment> {
   const [rpcChain,usdt,precision,router,oracle,adapter]=await Promise.all([client.getChainId(),
     client.readContract({address:d.factory,abi:factoryAbi,functionName:'settlementToken'}),
     client.readContract({address:d.settlementToken,abi:erc20Abi,functionName:'decimals'}),
@@ -257,6 +291,19 @@ export async function loadDeployment(client:PublicClient, signal?:AbortSignal) {
   const assetDecimals=await Promise.all(d.assets.map(a=>client.readContract({address:a.address,abi:erc20Abi,functionName:'decimals'})));
   if(assetDecimals.some((n,i)=>n!==d.assets[i].decimals))throw Error('Execution asset decimals mismatch');
   return d;
+}
+/** Unix seconds of the block that created `vault` (its factory's VaultCreated), searching back in RPC-sized chunks. */
+export async function vaultLaunchTime(client:PublicClient,d:Deployment,vault:Address,chunk=40_000n):Promise<number|null>{
+  const latest=await client.getBlockNumber();
+  const floor=BigInt(d.deploymentBlock);
+  for(let to=latest;to>=floor;to-=chunk){
+    const from=to-chunk+1n>floor?to-chunk+1n:floor;
+    const logs=await client.getContractEvents({address:d.factory,abi:factoryAbi,eventName:'VaultCreated',args:{vault},fromBlock:from,toBlock:to}).catch(()=>null);
+    if(logs===null) return null;
+    if(logs.length) return Number((await client.getBlock({blockNumber:logs[0].blockNumber})).timestamp);
+    if(from===floor) break;
+  }
+  return null;
 }
 export async function listVaults(client:PublicClient,d:Deployment,at?:bigint) {
   const blockNumber=at??await client.getBlockNumber({cacheTime:0});
@@ -314,6 +361,8 @@ export const routerAbi=parseAbi([
   'function factory() view returns (address)',
   'function getAmountsOut(uint256 amountIn,address[] path) view returns (uint256[] amounts)',
   'function swapExactTokensForTokens(uint256 amountIn,uint256 amountOutMin,address[] path,address to,uint256 deadline) returns (uint256[] amounts)',
+  // Flap portfolio tokens are tax tokens: swaps must tolerate a transfer fee.
+  'function swapExactTokensForTokensSupportingFeeOnTransferTokens(uint256 amountIn,uint256 amountOutMin,address[] path,address to,uint256 deadline)',
   'function addLiquidity(address tokenA,address tokenB,uint256 amountADesired,uint256 amountBDesired,uint256 amountAMin,uint256 amountBMin,address to,uint256 deadline) returns (uint256 amountA,uint256 amountB,uint256 liquidity)',
   'function removeLiquidity(address tokenA,address tokenB,uint256 liquidity,uint256 amountAMin,uint256 amountBMin,address to,uint256 deadline) returns (uint256 amountA,uint256 amountB)',
 ]);

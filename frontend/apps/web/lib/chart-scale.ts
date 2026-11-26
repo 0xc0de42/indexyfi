@@ -93,3 +93,18 @@ export function nearestIndex(times: readonly number[], t: number): number {
   }
   return lo > 0 && t - times[lo - 1] < times[lo] - t ? lo - 1 : lo;
 }
+
+/** The browser's UTC offset at a given time, e.g. "UTC+2" or "UTC−5:30", so local clock times are unambiguous. */
+export function utcOffsetLabel(ms = Date.now()): string {
+  const minutes = -new Date(ms).getTimezoneOffset();
+  if (minutes === 0) return 'UTC';
+  const sign = minutes > 0 ? '+' : '−', abs = Math.abs(minutes);
+  return `UTC${sign}${Math.floor(abs / 60)}${abs % 60 ? `:${String(abs % 60).padStart(2, '0')}` : ''}`;
+}
+/** Local clock time with its UTC offset, e.g. "20:17:03 (UTC+2)". */
+export const localTimeWithZone = (ms: number) => `${new Date(ms).toLocaleTimeString([], {hour12: false})} (${utcOffsetLabel(ms)})`;
+/** "8 min ago" style age of a past time. */
+export function ageText(ms: number, now = Date.now()): string {
+  const s = Math.max(0, Math.round((now - ms) / 1000));
+  return s < 90 ? `${s} s ago` : s < 5_400 ? `${Math.round(s / 60)} min ago` : `${(s / 3_600).toFixed(1)} h ago`;
+}

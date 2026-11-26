@@ -65,3 +65,12 @@ describe('nearestIndex', () => {
     expect(nearestIndex([], 1)).toBe(-1);
   });
 });
+
+describe('time zone labels', async () => {
+  const {utcOffsetLabel, ageText} = await import('./chart-scale');
+  it('labels the local UTC offset and ages', () => {
+    expect(utcOffsetLabel()).toMatch(/^UTC([+−]\d{1,2}(:\d{2})?)?$/);
+    expect(ageText(Date.now() - 480_000)).toBe('8 min ago');
+    expect(ageText(Date.now() - 30_000)).toBe('30 s ago');
+  });
+});

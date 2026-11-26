@@ -25,7 +25,9 @@ import {cmcPct, cmcUsd, pctTone} from '@/lib/cmc-format';
 import {AllocationEditor, segmentColor} from './allocation-editor';
 import {apiStatusText} from './api-status';
 import {quoteCreate, exactAmount, units, walletFunds, fundFixtureWallet, MIN_GAS, FAUCET_USDT, vaultChain} from '@/lib/vaults';
-import {useCanLaunch, useDeployment, useVault, useVaultTransaction, type Basket} from '@/lib/use-vaults';
+import {useCanLaunch, useDeployment, useFlapDeployment, useVault, useVaultTransaction, type Basket} from '@/lib/use-vaults';
+import {taxSummary} from '@/lib/flap';
+import {savePortfolioSettings} from '@/lib/portfolio-settings';
 import {LAUNCH, launchTotalUSDT} from '@/lib/launch';
 import {REBALANCE_INTERVALS, REBALANCE_THRESHOLDS_BPS, bpsLabel, settingsLabel} from '@/lib/rebalance';
 
@@ -46,7 +48,13 @@ function readStored(): string | null {
 
 export function Create({prefill}: {prefill: Prefill}) {
   const router = useRouter();
-  const deployment = useDeployment();
+  // Launch venue: OpenFour (operator-signed on chain 97) or Flap (any wallet; tax token, Flap USD settlement).
+  const [venue, setVenue] = useState<'openfour' | 'flap'>('openfour');
+  const openfourDeployment = useDeployment();
+  const flapDeployment = useFlapDeployment();
+  const flapAvailable = !!flapDeployment.data;
+  const settlementLabel = venue === 'flap' ? 'Flap USD' : FUNDING_TOKEN;
+  const deployment = venue === 'flap' && flapDeployment.data ? {...flapDeployment, data: flapDeployment.data} : openfourDeployment;
   const transaction = useVaultTransaction(deployment.data);
   const {canLaunch} = useCanLaunch(deployment.data);
   // "Copy basket" links pass ?from=<vault address>; its composition is read from chain.
@@ -86,12 +94,17 @@ export function Create({prefill}: {prefill: Prefill}) {
     : quoteError ? null
     : !quote ? {message: 'Waiting for the on-chain launch quote…'}
     : funds.data && needed !== null && (funds.data.usdt < needed || funds.data.gas < MIN_GAS)
-      ? {message: `This wallet has ${units(funds.data.usdt, deployment.data!.settlementDecimals)} USDT and ${Number(units(funds.data.gas, 18)).toFixed(4)} ${vaultChain.nativeCurrency.symbol} for gas; launch needs ${units(needed, deployment.data!.settlementDecimals)} USDT plus gas.`, action: deployment.data?.fixture ? 'fund' : undefined}
+      ? {message: `This wallet has ${units(funds.data.usdt, deployment.data!.settlementDecimals)} USDT and ${Number(units(funds.data.gas, 18)).toFixed(4)} ${vaultChain.nativeCurrency.symbol} for gas; launch needs ${units(needed, deployment.data!.settlementDecimals)} USDT plus gas.`, action: deployment.data?.fixture || deployment.data?.provider === 'flap' ? 'fund' : undefined}
     : null;
   async function getTestFunds() {
     if (!deployment.client || !deployment.data || !account.address) return;
     setFunding('Adding test funds…');
-    try { await fundFixtureWallet(deployment.client, deployment.data, account.address); await funds.refetch(); setFunding(''); }
+    try {
+      // Flap USD has a public mint; the local fixture funds through the node.
+      if (deployment.data.provider === 'flap') await transaction.submit({kind: 'mintTestSettlement', amount: BigInt(FAUCET_USDT) * 10n ** BigInt(deployment.data.settlementDecimals)}, 0);
+      else await fundFixtureWallet(deployment.client, deployment.data, account.address);
+      await funds.refetch(); setFunding('');
+    }
     catch (err) { setFunding(err instanceof Error ? err.message.split('\n')[0] : 'Test funds failed'); }
   }
 
@@ -218,6 +231,8 @@ export function Create({prefill}: {prefill: Prefill}) {
     if(!result) return;
     if(result.event?.eventName!=='VaultCreated') {setError('Launch confirmed but creation event not found. Check Explore.');return;}
     const vault=result.event.args.vault;
+    // Demo: keep the chosen rebalancing / index settings with the portfolio so its page can preview them.
+    savePortfolioSettings(vault, {rebalance: d.rebalance, index: d.index});
     sessionStorage.removeItem(DRAFT_KEY);
     router.push(`/portfolio/${vault}`);
   }
@@ -341,6 +356,18 @@ export function Create({prefill}: {prefill: Prefill}) {
               )}
               {step === REVIEW && (
                 <>
+                  <div className="review-section" data-testid="launch-venue">
+                    <div className="card-heading"><strong>Launch venue</strong><span className="muted">{venue === 'flap' ? 'Flap direct launch' : 'OpenFour'}</span></div>
+                    <div className="tabs" role="group" aria-label="Launch venue">
+                      <button type="button" aria-pressed={venue === 'openfour'} onClick={() => setVenue('openfour')}>OpenFour</button>
+                      <button type="button" aria-pressed={venue === 'flap'} disabled={!flapAvailable} title={flapAvailable ? undefined : 'No Flap deployment is published for this network yet'} onClick={() => setVenue('flap')}>Flap (tax token)</button>
+                    </div>
+                    <p className="fine-print">
+                      {venue === 'flap' && deployment.data?.flap
+                        ? `Any wallet can launch. The token is created by the Flap Portal at a vanity address ending in ${deployment.data.flap.saltSuffix}, settles in Flap USD, and the initial PancakeSwap LP is burned. ${taxSummary({buyTaxBps: deployment.data.flap.buyTaxBps, sellTaxBps: deployment.data.flap.sellTaxBps, taxDurationSeconds: deployment.data.flap.taxDuration})}. Vault logic is immutable.`
+                        : flapAvailable ? 'Launched through OpenFour; on BSC Testnet the IndexFi operator wallet signs launches.' : 'Launched through OpenFour; no Flap deployment is published for this network yet.'}
+                    </p>
+                  </div>
                   <div className="review-title">
                     <h3>{d.name} · {d.symbol}</h3>
                     <span>{d.category} / Buy and hold</span>
@@ -410,20 +437,26 @@ export function Create({prefill}: {prefill: Prefill}) {
                       <p className="fine-print">0.1% is reached almost every interval with many constituents, so expect a rebalance (and its swap fees) nearly every time.</p>
                     )}
                     {deployment.data && !deployment.data.features.rebalancing && (
-                      <div className="notice notice--neutral" role="status">This deployment runs vault 5.1, which has no rebalancing yet: a launch here stores no settings. Vault 5.2 stores and enforces them on chain.</div>
+                      <div className="notice notice--neutral" role="status" data-testid="rebalance-demo-note">Demo: these settings are recorded with the portfolio in this app and previewed on its page (drift, the trades a rebalance would make, index changes). The contracts do not enforce them yet; on-chain rebalancing is the next contract release.</div>
                     )}
                   </div>
                   <dl className="key-values">
                     <div><dt>Constituents</dt><dd>{d.allocations.length}</dd></div>
+                    <div><dt>Launch venue</dt><dd>{venue === 'flap' ? 'Flap direct launch (tax token)' : 'OpenFour'}</dd></div>
+                    {venue === 'flap' && deployment.data?.flap && <>
+                      <div><dt>Settlement</dt><dd>Flap USD</dd></div>
+                      <div><dt>Trading tax</dt><dd>{taxSummary({buyTaxBps: deployment.data.flap.buyTaxBps, sellTaxBps: deployment.data.flap.sellTaxBps, taxDurationSeconds: deployment.data.flap.taxDuration})}</dd></div>
+                      <div><dt>Initial LP</dt><dd>Burned (no creator LP)</dd></div>
+                    </>}
                     <div><dt>Composition rule</dt><dd>{ruleLabel(d.index)}</dd></div>
                     <div><dt>Rebalancing</dt><dd>{settingsLabel(d.rebalance)}</dd></div>
-                    <div><dt>Initial investment (collateral)</dt><dd>{LAUNCH.collateralUSDT.toLocaleString('en-US')} {FUNDING_TOKEN}</dd></div>
+                    <div><dt>Initial investment (collateral)</dt><dd>{LAUNCH.collateralUSDT.toLocaleString('en-US')} {settlementLabel}</dd></div>
                     <div><dt>Starting NAV</dt><dd>{usd(LAUNCH.startNav, 2)}</dd></div>
                     <div><dt>Graduation threshold</dt><dd>{LAUNCH.graduationUSD.toLocaleString('en-US')} {FUNDING_TOKEN} AUM</dd></div>
                     <div><dt>Before graduation</dt><dd>Deposit and redeem at NAV (IndexFi primary market)</dd></div>
                     <div><dt>After graduation</dt><dd>PancakeSwap trading opens</dd></div>
-                    <div><dt>Pool reserve (fixed)</dt><dd>{LAUNCH.poolReserveUSDT.toLocaleString('en-US')} {FUNDING_TOKEN}, paired with {LAUNCH.poolReserveUSDT.toLocaleString('en-US')} tokens for the PancakeSwap pool</dd></div>
-                    <div><dt>Total required funding</dt><dd>{launchTotalUSDT.toLocaleString('en-US')} {FUNDING_TOKEN}, excluding gas</dd></div>
+                    <div><dt>Pool reserve (fixed)</dt><dd>{LAUNCH.poolReserveUSDT.toLocaleString('en-US')} {settlementLabel}, paired with {LAUNCH.poolReserveUSDT.toLocaleString('en-US')} tokens for the PancakeSwap pool</dd></div>
+                    <div><dt>Total required funding</dt><dd>{launchTotalUSDT.toLocaleString('en-US')} {settlementLabel}, excluding gas</dd></div>
                     <div><dt>Estimated creator tokens</dt><dd>{quote?units(quote.creatorShares,18):'—'}</dd></div>
                     <div><dt>Tokens allocated to AMM</dt><dd>{quote?units(quote.lpShares,18):'—'}</dd></div>
                     <div><dt>Creator fee</dt><dd>0.1% on each primary deposit and redemption</dd></div>

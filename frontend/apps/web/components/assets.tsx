@@ -6,11 +6,12 @@ import {Card, Empty, Metric} from '@indexfi/ui';
 import {referenceAssetById, referenceAssets, referenceCategories} from '@/lib/catalog';
 import {useNow, usePriceState} from '@/lib/prices';
 import {createHref, portfolioHref, replaceQuery, type WindowLabel} from '@/lib/routes';
-import {useDeployment, useVaults} from '@/lib/use-vaults';
+import {useDeployment, useFlapDeployment, useVaults} from '@/lib/use-vaults';
 import {ageLabel, formatPrice, type Asset} from '@/domain/model';
 import type {AssetPrice} from '@/lib/api';
 import {AssetIcon} from './asset-icon';
 import {AssetChart, windowLabelOf, windowMsOf} from './asset-chart';
+import {utcOffsetLabel} from '@/lib/chart-scale';
 import {ApiStatusBadge, apiStatusText} from './api-status';
 import {CmcStats} from './cmc-stats';
 import {useCmcState} from '@/lib/cmc';
@@ -38,7 +39,9 @@ function SortHeader({label, value, sort, direction, onSort}: {label: string; val
 
 function ChartActions({asset}: {asset: Asset}) {
   const deployment = useDeployment();
-  const holders = useVaults(deployment.data).vaults
+  const flap = useFlapDeployment();
+  const flapVaults = useVaults(flap.data ?? undefined).vaults;
+  const holders = [...useVaults(deployment.data).vaults, ...flapVaults]
     .filter(v => v.holdings.some(h => h.referenceAssetId === asset.id))
     .map(v => ({id: v.address, name: v.name}));
   return (
@@ -114,7 +117,7 @@ export function Assets({initialAssetId, initialWindow}: {initialAssetId?: string
           <Metric
             label="Last server sample"
             value={state.snapshot ? new Date(state.snapshot.snapshotAtMs).toLocaleTimeString([], {hour12: false}) : '—'}
-            detail="server sample time, not oracle update time"
+            detail={`your local time (${utcOffsetLabel()}) · server sample time, not oracle update time`}
           />
         </Card>
         <Card><Metric label="Price API" value={<ApiStatusBadge state={state} />} detail={status.detail ?? undefined} /></Card>

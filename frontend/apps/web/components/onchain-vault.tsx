@@ -9,6 +9,9 @@ import {usePriceState} from '@/lib/prices';
 import {referenceAssetById} from '@/lib/catalog';
 import {exactAmount, units, vaultAbi, routerAbi, lpAmounts, floorOutput, quoteDeposit} from '@/lib/vaults';
 import {valuation} from '@/lib/valuation';
+import {flapErrorMessage, taxSummary} from '@/lib/flap';
+import {useQuery} from '@tanstack/react-query';
+import {erc20Abi} from 'viem';
 import {graduation, LAUNCH} from '@/lib/launch';
 import {GraduationBar} from './graduation';
 import {Rebalancing} from './rebalancing';
@@ -16,7 +19,7 @@ import {useCmcState} from '@/lib/cmc';
 import {cmcPct, cmcUsd, pctTone, relationLabel} from '@/lib/cmc-format';
 import {createHref} from '@/lib/routes';
 import {formatPrice, usd} from '@/domain/model';
-import {useDeployment, useVault, useVaultTransaction, type VaultAction} from '@/lib/use-vaults';
+import {useVault, useVaultDeployment, useVaultLaunchTime, useVaultTransaction, type VaultAction} from '@/lib/use-vaults';
 
 type Mode='deposit'|'redeem'|'redeemInKind'|'buy'|'sell'|'addLiquidity'|'removeLiquidity';
 type Quote={action:VaultAction; lines:readonly [string,string][]; key:string};
@@ -24,10 +27,13 @@ const labels:Record<Mode,string>={deposit:'Deposit',redeem:'Redeem',redeemInKind
 const display=(v:bigint|null|undefined,decimals=18,digits=4)=>v==null?'Unavailable':Number(formatUnits(v,decimals)).toLocaleString('en-US',{maximumFractionDigits:digits});
 
 export function OnchainVault({address}:{address:Address}) {
-  const deployment=useDeployment();
+  // The vault's own deployment: OpenFour, or Flap when the Flap factory registers it.
+  const deployment=useVaultDeployment(address);
   const account=useAccount();
   const vault=useVault(deployment.data,address);
   const transaction=useVaultTransaction(deployment.data);
+  // Flap tax tokens: the buy/sell tax applies only within taxDuration of the launch.
+  const launchTime=useVaultLaunchTime(deployment.data?.provider==='flap'?deployment.data:undefined,address);
   const prices=usePriceState();
   const cmc=useCmcState();
   const [mode,setMode]=useState<Mode>('deposit');
@@ -76,8 +82,15 @@ export function OnchainVault({address}:{address:Address}) {
           if(mode==='buy'||mode==='sell'){
             const buy=mode==='buy',path=buy?[d.settlementToken,v.token]:[v.token,d.settlementToken];
             const outputs=await client.readContract({address:d.router,abi:routerAbi,functionName:'getAmountsOut',args:[value,path]});
-            const out=outputs.at(-1)??0n;if(out===0n)throw Error('Swap output is zero.');
-            publish({kind:'swap',token:v.token,buy,amount:value,out},[['Expected output',buy?shares(out):cash(out)]]);
+            const raw=outputs.at(-1)??0n;if(raw===0n)throw Error('Swap output is zero.');
+            // Flap: getAmountsOut ignores the token tax, so apply it while the tax period is active.
+            const f=d.flap,taxBps=f?(buy?f.buyTaxBps:f.sellTaxBps):0;
+            const ends=f&&launchTime.data?launchTime.data+f.taxDuration:null;
+            const active=!!f&&taxBps>0&&(ends===null||Date.now()/1000<ends);
+            const out=active?raw*BigInt(10_000-taxBps)/10_000n:raw;
+            const rows:[string,string][]=[[f?'Expected output (after tax)':'Expected output',buy?shares(out):cash(out)]];
+            if(f) rows.push(['Trading tax',active?`${taxBps/100}% ${buy?'buy':'sell'} tax${ends?` until ${new Date(ends*1000).toLocaleTimeString([], {hour12:false})}`:' (launch time unknown, assumed active)'}`:`0% (${taxBps?'tax period ended':'no tax on this side'})`]);
+            publish({kind:'swap',token:v.token,buy,amount:value,out},rows);
           } else if(mode==='addLiquidity'){
             const tokenAmount=value*v.pool.shares/v.pool.cash;
             if(tokenAmount===0n)throw Error('Liquidity amount too small.');
@@ -89,10 +102,10 @@ export function OnchainVault({address}:{address:Address}) {
             publish({kind:'removeLiquidity',token:v.token,pair:v.pair,amount:value,...out},[['Expected USDT',cash(out.cash)],['Expected tokens',shares(out.shares)]]);
           }
         }
-      }catch(err){if(active)setQuoteError(err instanceof Error?err.message.split('\n')[0]:'Quote failed');}
+      }catch(err){if(active){const m=err instanceof Error?err.message:'Quote failed';setQuoteError(d.provider==='flap'?flapErrorMessage(m.split('\n').find(l=>/0x[0-9a-f]{8}|Flap:|Invalid|Slippage|Inactive|Insufficient/i.test(l))??m.split('\n')[0]):m.split('\n')[0]);}}
     }
     void preview();return()=>{active=false;};
-  },[amount,mode,address,deployment.client,deployment.data,vault.data,account.address,key]);
+  },[amount,mode,address,deployment.client,deployment.data,vault.data,account.address,key,launchTime.data]);
 
   // Display valuation: on-chain holdings x latest Atlas prices (no staleness check); execution re-prices on chain.
   const val=useMemo(()=>vault.data&&deployment.data?valuation(vault.data,prices.byAsset,deployment.data.settlementDecimals):null,[vault.data,prices.byAsset,deployment.data]);
@@ -100,6 +113,13 @@ export function OnchainVault({address}:{address:Address}) {
   const grad=graduation(val?.aum??null);
   const primaryOnly=!grad.graduated;
   useEffect(()=>{if(primaryOnly&&!(['deposit','redeem','redeemInKind'] as Mode[]).includes(mode)){setMode('deposit');setQuote(null);}},[primaryOnly,mode]);
+  // Flap: initial LP is burned and liquidity actions are not offered; tax revenue can be forwarded to the creator.
+  const isFlap=deployment.data?.provider==='flap';
+  useEffect(()=>{if(isFlap&&(mode==='addLiquidity'||mode==='removeLiquidity')){setMode('deposit');setQuote(null);}},[isFlap,mode]);
+  const taxSurplus=useQuery({queryKey:['flap-tax',address],enabled:isFlap&&!!deployment.client&&!!deployment.data,refetchInterval:30_000,queryFn:async()=>{
+    const d=deployment.data!,c=deployment.client!;
+    const [bal,acc]=await Promise.all([c.readContract({address:d.settlementToken,abi:erc20Abi,functionName:'balanceOf',args:[address]}),c.readContract({address,abi:vaultAbi,functionName:'collateralBalance',args:[d.settlementToken]})]);
+    return bal>acc?bal-acc:0n;}});
 
   async function submit(){
     if(!current||!validSlip)return;
@@ -115,17 +135,17 @@ export function OnchainVault({address}:{address:Address}) {
   const minOut=current&&validSlip?(()=>{const a=current.action;switch(a.kind){case 'deposit':return `${units(floorOutput(a.shares,slippage),18)} ${v.symbol}`;case 'redeem':return `${units(floorOutput(a.net,slippage),d.settlementDecimals)} USDT`;case 'swap':return `${units(floorOutput(a.out,slippage),a.buy?18:d.settlementDecimals)} ${a.buy?v.symbol:'USDT'}`;default:return null;}})():null;
   return <>
     <Link className="back-link" href="/"><ArrowLeft size={15}/> All vaults</Link>
-    <div className="detail-heading"><div className="detail-title"><span className="token-mark token-mark--large">{v.symbol.slice(0,2)}</span><div><div className="eyebrow">OpenFour portfolio · {d.fixture?'Local fixture':d.testAssets?'BSC Testnet · test assets':'On-chain'}</div><h1>{v.name}</h1><p>{v.symbol} · {address}</p></div></div><Badge tone={!active?'warn':grad.graduated?'good':'neutral'}>{v.closed?'Closed':!active?'Not active':grad.graduated?'Graduated · PancakeSwap':'Pre-graduation'}</Badge></div>
+    <div className="detail-heading"><div className="detail-title"><span className="token-mark token-mark--large">{v.symbol.slice(0,2)}</span><div><div className="eyebrow">{d.provider==='flap'?'Flap portfolio':'OpenFour portfolio'} · {d.fixture?'Local fixture':d.testAssets?'BSC Testnet · test assets':'On-chain'}</div><h1>{v.name}</h1><p>{v.symbol} · {address}</p></div></div><Badge tone={!active?'warn':grad.graduated?'good':'neutral'}>{v.closed?'Closed':!active?'Not active':grad.graduated?'Graduated · PancakeSwap':'Pre-graduation'}</Badge></div>
     <div className="detail-grid"><div className="stack">
       <Card><div className="card-heading"><h2>Graduation</h2><Badge tone={grad.graduated?'good':'neutral'}>{grad.graduated?'PancakeSwap':'IndexFi primary'}</Badge></div><GraduationBar g={grad} aum={val?.aum??null}/><p className="fine-print">{grad.graduated?'Trade on PancakeSwap or deposit and redeem at NAV.':`Deposit and redeem at NAV until AUM reaches ${LAUNCH.graduationUSD.toLocaleString('en-US')} USDT; PancakeSwap trading opens at graduation.`}</p></Card>
       <Card><div className="card-heading"><h2>Portfolio valuation</h2><Badge>Block {v.blockNumber.toString()}</Badge></div><div className="price-metrics"><Metric label="NAV / token" value={usd(val?.nav??null,4)} detail="On-chain holdings × Atlas prices"/>{grad.graduated?<><Metric label="Market price" value={display(market)} detail={d.fixture?'Fixture AMM':'PancakeSwap V2'}/><Metric label="Premium / discount" value={val?.premiumPct==null?'—':`${val.premiumPct.toFixed(2)}%`}/></>:<Metric label="Primary price" value={usd(val?.nav??null,4)} detail="Deposit / redeem at NAV"/>}<Metric label="Collateral AUM (USD)" value={usd(val?.aum??null,2)}/><Metric label="Backed supply" value={display(v.supply)} /><Metric label="Unissued inventory" value={display(v.inventory)}/>{grad.graduated&&<Metric label="AMM liquidity (USDT at spot)" value={display(liquidity,d.settlementDecimals,2)} />}</div></Card>
       <Rebalancing d={d} v={v} val={val}/>
       <Card><div className="card-heading"><h2>Actual collateral</h2><Badge>Accounted holdings · CMC reference stats</Badge></div><div className="table-scroll"><table><thead><tr><th>Asset</th><th>Weight</th><th>Balance</th><th>Atlas price</th><th>CMC mkt cap</th><th>CMC 24h · 7d</th></tr></thead><tbody>{v.holdings.map(h=><tr key={h.address}><td>{referenceAssetById(h.referenceAssetId)?.name??h.symbol}</td><td>{Number(h.weightBps)/100}%</td><td title={`${units(h.balance,h.decimals)} ${h.symbol} (exact)`}>{Number(units(h.balance,h.decimals)).toLocaleString('en-US',{maximumSignificantDigits:6})} {h.symbol}</td><td title={prices.byAsset.get(h.referenceAssetId)?.price?`${prices.byAsset.get(h.referenceAssetId)!.price} USD (exact)`:undefined}>{prices.byAsset.get(h.referenceAssetId)?formatPrice(prices.byAsset.get(h.referenceAssetId)!.price):'Unavailable'}</td>{(()=>{const r=cmc.rows.get(h.referenceAssetId),q=r?.quote;return <><td title={relationLabel(r?.mapping).long}>{cmcUsd(q?.marketCap)}{r?.mapping?.relation==='underlying_reference'&&<small className="muted"> ref.</small>}</td><td className="price-cell"><span className={pctTone(q?.change24h)}>{cmcPct(q?.change24h)}</span><small className={pctTone(q?.change7d)}>7d {cmcPct(q?.change7d)}</small></td></>;})()}</tr>)}</tbody></table></div></Card>
-      <Card><h2>Transparency</h2><dl className="key-values"><div><dt>Creator</dt><dd className="address">{v.creator}</dd></div><div><dt>Portfolio ERC-20</dt><dd className="address">{v.token}</dd></div><div><dt>AMM pair</dt><dd className="address">{v.pair}</dd></div><div><dt>Your tokens</dt><dd data-testid="wallet-shares">{units(v.shares,18)}</dd></div><div><dt>Your LP tokens</dt><dd>{v.pool?units(v.pool.lpBalance,18):'Unavailable'}</dd></div><div><dt>Primary creator fees</dt><dd>0.1% per deposit and redemption</dd></div><div><dt>Liquidity ownership</dt><dd>LP token holders; unlocked</dd></div><div><dt>Composition</dt><dd><Link className="text-link" href={createHref({from:address})}>Copy basket composition</Link></dd></div></dl></Card>
+      <Card><h2>Transparency</h2><dl className="key-values"><div><dt>Creator</dt><dd className="address">{v.creator}</dd></div><div><dt>Portfolio ERC-20</dt><dd className="address">{v.token}</dd></div><div><dt>AMM pair</dt><dd className="address">{v.pair}</dd></div><div><dt>Your tokens</dt><dd data-testid="wallet-shares">{units(v.shares,18)}</dd></div><div><dt>Your LP tokens</dt><dd>{v.pool?units(v.pool.lpBalance,18):'Unavailable'}</dd></div><div><dt>Primary creator fees</dt><dd>0.1% per deposit and redemption</dd></div>{isFlap&&d.flap?<><div><dt>Launch venue</dt><dd>Flap direct launch (tax token, Flap USD)</dd></div><div><dt>Trading tax</dt><dd>{taxSummary({buyTaxBps:d.flap.buyTaxBps,sellTaxBps:d.flap.sellTaxBps,taxDurationSeconds:d.flap.taxDuration})}</dd></div><div><dt>Initial LP</dt><dd>Burned; vault logic immutable</dd></div><div><dt>Tax revenue</dt><dd data-testid="flap-tax">{taxSurplus.data===undefined?'—':`${units(taxSurplus.data,d.settlementDecimals)} Flap USD forwardable`} <button type="button" className="text-button" disabled={!transaction.ready||!!transaction.pending} onClick={async()=>{if(await transaction.submit({kind:'forwardTax',vault:address},0))await taxSurplus.refetch();}}>Forward to creator</button></dd></div></>:<div><dt>Liquidity ownership</dt><dd>LP token holders; unlocked</dd></div>}<div><dt>Composition</dt><dd><Link className="text-link" href={createHref({from:address})}>Copy basket composition</Link></dd></div></dl></Card>
     </div><aside className="stack trade-column"><Card className="trade-panel"><div className="card-heading"><h2>{labels[mode]}</h2><Badge tone={transaction.ready?'good':'warn'}>{transaction.ready?'Wallet ready':'Connect wallet'}</Badge></div>
-      {([['deposit','redeem','redeemInKind'],['buy','sell'],['addLiquidity','removeLiquidity']] as const).slice(0,primaryOnly?1:3).map((group,i)=><div key={i}><p className="fine-print">{['Primary market','Secondary market','Liquidity'][i]}</p><div className="segmented">{group.map(m=><button key={m} aria-pressed={mode===m} onClick={()=>{setMode(m);setQuote(null);}} disabled={!!transaction.pending}>{labels[m]}</button>)}</div></div>)}
+      {([['deposit','redeem','redeemInKind'],['buy','sell'],['addLiquidity','removeLiquidity']] as const).slice(0,primaryOnly?1:isFlap?2:3).map((group,i)=><div key={i}><p className="fine-print">{['Primary market','Secondary market','Liquidity'][i]}</p><div className="segmented">{group.map(m=><button key={m} aria-pressed={mode===m} onClick={()=>{setMode(m);setQuote(null);}} disabled={!!transaction.pending}>{labels[m]}</button>)}</div></div>)}
       {primaryOnly&&<p className="fine-print" data-testid="pre-graduation-note">PancakeSwap trading and liquidity open at {LAUNCH.graduationUSD.toLocaleString('en-US')} USDT AUM.</p>}
-      <label className="field">{mode==='deposit'||mode==='buy'||mode==='addLiquidity'?'USDT amount':mode==='removeLiquidity'?'LP token amount':'Portfolio token amount'}<input data-testid="vault-amount" value={amount} onChange={e=>setAmount(e.target.value)} inputMode="decimal" disabled={!!transaction.pending}/></label>
+      <label className="field">{mode==='deposit'||mode==='buy'||mode==='addLiquidity'?`${d.provider==='flap'?'Flap USD':'USDT'} amount`:mode==='removeLiquidity'?'LP token amount':'Portfolio token amount'}<input data-testid="vault-amount" value={amount} onChange={e=>setAmount(e.target.value)} inputMode="decimal" disabled={!!transaction.pending}/></label>
       <label className="field">Slippage tolerance (bps; 100 = 1%)<input value={slip} onChange={e=>setSlip(e.target.value)} inputMode="numeric" disabled={!!transaction.pending}/></label>
       {current&&<dl className="key-values">{current.lines.map(([label,value])=><div key={label}><dt>{label}</dt><dd data-testid={label==='Net proceeds'?'net-quote':undefined}>{value}</dd></div>)}{minOut&&<div><dt>Minimum received</dt><dd>{minOut}</dd></div>}</dl>}
       {mode==='addLiquidity'&&<p className="fine-print">The second token amount follows the current reserve ratio. Both amounts have slippage protection.</p>}

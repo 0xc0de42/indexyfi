@@ -4,6 +4,7 @@ import type {Asset} from '@/domain/model';
 import {describeCmcError} from '@/lib/cmc-api';
 import {useCmcRow, useCmcState} from '@/lib/cmc';
 import {cmcPct, cmcUsd, pctTone, relationLabel} from '@/lib/cmc-format';
+import {ageText, localTimeWithZone} from '@/lib/chart-scale';
 
 /** Read-only CMC market statistics for one reference asset. */
 export function CmcStats({asset}: {asset: Asset}) {
@@ -40,7 +41,7 @@ export function CmcStats({asset}: {asset: Asset}) {
       )}
       <p className="fine-print">
         {mapping ? <>CMC #{mapping.cmcId} · {relation.long} </> : null}
-        {q ? <>Quote time {new Date(q.timestampMs).toISOString().replace('.000', '')} (provider). </> : null}
+        {q ? <span title={`${new Date(q.timestampMs).toISOString()} (UTC)`}>Quote time {localTimeWithZone(q.timestampMs)}, {ageText(q.timestampMs)} (provider). </span> : null}
         Source: CoinMarketCap via the IndexFi API, refreshed every minute.
       </p>
     </Card>
