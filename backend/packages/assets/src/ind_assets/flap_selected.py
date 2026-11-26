@@ -1,4 +1,8 @@
-"""Generated Flap chain-97 execution mapping (contracts/openfour/scripts/flap-export-manifest.cjs). Do not edit by hand."""
+"""Generated Flap chain-97 execution mapping.
+
+Source: contracts/openfour/scripts/flap-export-manifest.cjs.
+Do not edit by hand.
+"""
 
 from dataclasses import dataclass
 
@@ -26,8 +30,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(734),
         token="0xdbc3657F4A58f81139B01Da5a99FDc7025D9C39B",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xdbc3657F4A58f81139B01Da5a99FDc7025D9C39B"),
-        sell_path=("0xdbc3657F4A58f81139B01Da5a99FDc7025D9C39B", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xdbc3657F4A58f81139B01Da5a99FDc7025D9C39B",
+        ),
+        sell_path=(
+            "0xdbc3657F4A58f81139B01Da5a99FDc7025D9C39B",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x95034f653d5d161890836ad2b6b8cc49d14e029a"),
@@ -35,8 +45,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(724),
         token="0xD378aaf3011df1159b7e76EABa7B018731B3fed7",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xD378aaf3011df1159b7e76EABa7B018731B3fed7"),
-        sell_path=("0xD378aaf3011df1159b7e76EABa7B018731B3fed7", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xD378aaf3011df1159b7e76EABa7B018731B3fed7",
+        ),
+        sell_path=(
+            "0xD378aaf3011df1159b7e76EABa7B018731B3fed7",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x3ee2200efb3400fabb9aacf31297cbdd1d435d47"),
@@ -44,8 +60,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(630),
         token="0xb1581B7c082996dC48265Ca9D0ce979B6d629B6d",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xb1581B7c082996dC48265Ca9D0ce979B6d629B6d"),
-        sell_path=("0xb1581B7c082996dC48265Ca9D0ce979B6d629B6d", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xb1581B7c082996dC48265Ca9D0ce979B6d629B6d",
+        ),
+        sell_path=(
+            "0xb1581B7c082996dC48265Ca9D0ce979B6d629B6d",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x75fd4cf6f8392e41e70391d60c90c0d5211603a1"),
@@ -53,8 +75,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(942),
         token="0x5B885E2F29F11785c732C244f8010d035ED91aE7",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x5B885E2F29F11785c732C244f8010d035ED91aE7"),
-        sell_path=("0x5B885E2F29F11785c732C244f8010d035ED91aE7", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x5B885E2F29F11785c732C244f8010d035ED91aE7",
+        ),
+        sell_path=(
+            "0x5B885E2F29F11785c732C244f8010d035ED91aE7",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xf307910a4c7bbc79691fd374889b36d8531b08e3"),
@@ -62,8 +90,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(731),
         token="0x70261cAAC191BcD87Db1A083F9DDC2f01Bebfcd1",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x70261cAAC191BcD87Db1A083F9DDC2f01Bebfcd1"),
-        sell_path=("0x70261cAAC191BcD87Db1A083F9DDC2f01Bebfcd1", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x70261cAAC191BcD87Db1A083F9DDC2f01Bebfcd1",
+        ),
+        sell_path=(
+            "0x70261cAAC191BcD87Db1A083F9DDC2f01Bebfcd1",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x38dd26788cf2d901e3abf04efe3007d459d0fc53"),
@@ -71,8 +105,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(1169),
         token="0x95bba56169092585Ab39eEB6d99CA65d861fF68F",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x95bba56169092585Ab39eEB6d99CA65d861fF68F"),
-        sell_path=("0x95bba56169092585Ab39eEB6d99CA65d861fF68F", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x95bba56169092585Ab39eEB6d99CA65d861fF68F",
+        ),
+        sell_path=(
+            "0x95bba56169092585Ab39eEB6d99CA65d861fF68F",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x000ae314e2a2172a039b26378814c252734f556a"),
@@ -80,8 +120,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(723),
         token="0xe448d27273ED0AAa73447D0a5f5A797126EABbd7",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xe448d27273ED0AAa73447D0a5f5A797126EABbd7"),
-        sell_path=("0xe448d27273ED0AAa73447D0a5f5A797126EABbd7", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xe448d27273ED0AAa73447D0a5f5A797126EABbd7",
+        ),
+        sell_path=(
+            "0xe448d27273ED0AAa73447D0a5f5A797126EABbd7",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x9be61a38725b265bc3eb7bfdf17afdfc9d26c130"),
@@ -89,8 +135,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(729),
         token="0xbb8bf2B9Bd82eB1e1a05eAaF3dd0ff6A1F8200DF",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xbb8bf2B9Bd82eB1e1a05eAaF3dd0ff6A1F8200DF"),
-        sell_path=("0xbb8bf2B9Bd82eB1e1a05eAaF3dd0ff6A1F8200DF", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xbb8bf2B9Bd82eB1e1a05eAaF3dd0ff6A1F8200DF",
+        ),
+        sell_path=(
+            "0xbb8bf2B9Bd82eB1e1a05eAaF3dd0ff6A1F8200DF",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x1ce0c2827e2ef14d5c4f29a091d735a204794041"),
@@ -98,8 +150,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(1056),
         token="0x57789C3e30d827516bE43E8da565fDBE92dD8C66",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x57789C3e30d827516bE43E8da565fDBE92dD8C66"),
-        sell_path=("0x57789C3e30d827516bE43E8da565fDBE92dD8C66", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x57789C3e30d827516bE43E8da565fDBE92dD8C66",
+        ),
+        sell_path=(
+            "0x57789C3e30d827516bE43E8da565fDBE92dD8C66",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x6bdcce4a559076e37755a78ce0c06214e59e4444"),
@@ -107,8 +165,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(720),
         token="0xFb8533c12341a858603C4d728139AcB49BF5cbb5",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xFb8533c12341a858603C4d728139AcB49BF5cbb5"),
-        sell_path=("0xFb8533c12341a858603C4d728139AcB49BF5cbb5", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xFb8533c12341a858603C4d728139AcB49BF5cbb5",
+        ),
+        sell_path=(
+            "0xFb8533c12341a858603C4d728139AcB49BF5cbb5",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x783c3f003f172c6ac5ac700218a357d2d66ee2a2"),
@@ -116,8 +180,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(719),
         token="0xc1828fC525A7f9E9D61bfaa38137FcB7224c505E",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xc1828fC525A7f9E9D61bfaa38137FcB7224c505E"),
-        sell_path=("0xc1828fC525A7f9E9D61bfaa38137FcB7224c505E", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xc1828fC525A7f9E9D61bfaa38137FcB7224c505E",
+        ),
+        sell_path=(
+            "0xc1828fC525A7f9E9D61bfaa38137FcB7224c505E",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x8ff795a6f4d97e7887c79bea79aba5cc76444adf"),
@@ -125,8 +195,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(631),
         token="0x283392ECd2c49B120fFb2b047d66F14EbC04660D",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x283392ECd2c49B120fFb2b047d66F14EbC04660D"),
-        sell_path=("0x283392ECd2c49B120fFb2b047d66F14EbC04660D", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x283392ECd2c49B120fFb2b047d66F14EbC04660D",
+        ),
+        sell_path=(
+            "0x283392ECd2c49B120fFb2b047d66F14EbC04660D",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c"),
@@ -134,8 +210,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(751),
         token="0x658d0beE6976f93baA764eD479600b090775d963",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x658d0beE6976f93baA764eD479600b090775d963"),
-        sell_path=("0x658d0beE6976f93baA764eD479600b090775d963", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x658d0beE6976f93baA764eD479600b090775d963",
+        ),
+        sell_path=(
+            "0x658d0beE6976f93baA764eD479600b090775d963",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xe9e7cea3dedca5984780bafc599bd69add087d56"),
@@ -143,8 +225,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(760),
         token="0x5ab1A2eeD8E574B2F0F3baDa6d0747c2E713F4aE",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x5ab1A2eeD8E574B2F0F3baDa6d0747c2E713F4aE"),
-        sell_path=("0x5ab1A2eeD8E574B2F0F3baDa6d0747c2E713F4aE", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x5ab1A2eeD8E574B2F0F3baDa6d0747c2E713F4aE",
+        ),
+        sell_path=(
+            "0x5ab1A2eeD8E574B2F0F3baDa6d0747c2E713F4aE",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82"),
@@ -152,8 +240,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(733),
         token="0x2b5b2d0b0250dD0CDAF70121159a36C6DE309b9f",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x2b5b2d0b0250dD0CDAF70121159a36C6DE309b9f"),
-        sell_path=("0x2b5b2d0b0250dD0CDAF70121159a36C6DE309b9f", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x2b5b2d0b0250dD0CDAF70121159a36C6DE309b9f",
+        ),
+        sell_path=(
+            "0x2b5b2d0b0250dD0CDAF70121159a36C6DE309b9f",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xe81c6bb0266cd68b4f17278531dd03ea1f12da4e"),
@@ -161,8 +255,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(948),
         token="0x8d650e94Bc91B47eC381cB6E4f70a4eb2d77B633",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x8d650e94Bc91B47eC381cB6E4f70a4eb2d77B633"),
-        sell_path=("0x8d650e94Bc91B47eC381cB6E4f70a4eb2d77B633", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x8d650e94Bc91B47eC381cB6E4f70a4eb2d77B633",
+        ),
+        sell_path=(
+            "0x8d650e94Bc91B47eC381cB6E4f70a4eb2d77B633",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x7d73496d792fa2c8144788e88217fa4e9a7e18ea"),
@@ -170,8 +270,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(639),
         token="0xCC704c9143e8b64F8460eb2258621b237E0db270",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xCC704c9143e8b64F8460eb2258621b237E0db270"),
-        sell_path=("0xCC704c9143e8b64F8460eb2258621b237E0db270", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xCC704c9143e8b64F8460eb2258621b237E0db270",
+        ),
+        sell_path=(
+            "0xCC704c9143e8b64F8460eb2258621b237E0db270",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x84575b87395c970f1f48e87d87a8db36ed653716"),
@@ -179,8 +285,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(721),
         token="0x4025Eb4A0eD208970c9770662F9C3a10b40163e1",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x4025Eb4A0eD208970c9770662F9C3a10b40163e1"),
-        sell_path=("0x4025Eb4A0eD208970c9770662F9C3a10b40163e1", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x4025Eb4A0eD208970c9770662F9C3a10b40163e1",
+        ),
+        sell_path=(
+            "0x4025Eb4A0eD208970c9770662F9C3a10b40163e1",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x585bde7c54abb5ccd7791f923d6c2187635f3952"),
@@ -188,8 +300,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(949),
         token="0xa7042c4B0B8505EEAa229249b7a302e10be0A7Ff",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xa7042c4B0B8505EEAa229249b7a302e10be0A7Ff"),
-        sell_path=("0xa7042c4B0B8505EEAa229249b7a302e10be0A7Ff", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xa7042c4B0B8505EEAa229249b7a302e10be0A7Ff",
+        ),
+        sell_path=(
+            "0xa7042c4B0B8505EEAa229249b7a302e10be0A7Ff",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3"),
@@ -197,8 +315,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(640),
         token="0xCbc75223d76DAB1CbAa8EdaC4b21734d1099c6BD",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xCbc75223d76DAB1CbAa8EdaC4b21734d1099c6BD"),
-        sell_path=("0xCbc75223d76DAB1CbAa8EdaC4b21734d1099c6BD", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xCbc75223d76DAB1CbAa8EdaC4b21734d1099c6BD",
+        ),
+        sell_path=(
+            "0xCbc75223d76DAB1CbAa8EdaC4b21734d1099c6BD",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xba2ae424d960c26247dd6c32edc70b295c744c43"),
@@ -206,8 +330,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(628),
         token="0x0E2d88151305b73D367879C675A456A909517154",
         decimals=8,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x0E2d88151305b73D367879C675A456A909517154"),
-        sell_path=("0x0E2d88151305b73D367879C675A456A909517154", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x0E2d88151305b73D367879C675A456A909517154",
+        ),
+        sell_path=(
+            "0x0E2d88151305b73D367879C675A456A909517154",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x7083609fce4d1d8dc0c979aab8c869ea2c873402"),
@@ -215,8 +345,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(735),
         token="0x70d4f469D03Eb01FaAF525651c285804B113Aa6f",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x70d4f469D03Eb01FaAF525651c285804B113Aa6f"),
-        sell_path=("0x70d4f469D03Eb01FaAF525651c285804B113Aa6f", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x70d4f469D03Eb01FaAF525651c285804B113Aa6f",
+        ),
+        sell_path=(
+            "0x70d4f469D03Eb01FaAF525651c285804B113Aa6f",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x93862d63fd9fd488b1328e9b47717d75e994a84b"),
@@ -224,8 +360,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(950),
         token="0x38249d40aFB5cD5b5f5CBAE874988e4bCDDb49aC",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x38249d40aFB5cD5b5f5CBAE874988e4bCDDb49aC"),
-        sell_path=("0x38249d40aFB5cD5b5f5CBAE874988e4bCDDb49aC", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x38249d40aFB5cD5b5f5CBAE874988e4bCDDb49aC",
+        ),
+        sell_path=(
+            "0x38249d40aFB5cD5b5f5CBAE874988e4bCDDb49aC",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xf4b385849f2e817e92bffbfb9aeb48f950ff4444"),
@@ -233,8 +375,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(730),
         token="0x7DBfa76784d43eB4dF2D78AE509272b28Fc8F4FE",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x7DBfa76784d43eB4dF2D78AE509272b28Fc8F4FE"),
-        sell_path=("0x7DBfa76784d43eB4dF2D78AE509272b28Fc8F4FE", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x7DBfa76784d43eB4dF2D78AE509272b28Fc8F4FE",
+        ),
+        sell_path=(
+            "0x7DBfa76784d43eB4dF2D78AE509272b28Fc8F4FE",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x2170ed0880ac9a755fd29b2688956bd959f933f8"),
@@ -242,8 +390,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(632),
         token="0x71FAca52447053A9441908EF2f4f72A03cf90dEB",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x71FAca52447053A9441908EF2f4f72A03cf90dEB"),
-        sell_path=("0x71FAca52447053A9441908EF2f4f72A03cf90dEB", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x71FAca52447053A9441908EF2f4f72A03cf90dEB",
+        ),
+        sell_path=(
+            "0x71FAca52447053A9441908EF2f4f72A03cf90dEB",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xbe82f76637dba2c114c41df856c2c51e522e2cb8"),
@@ -251,8 +405,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(941),
         token="0xde59Bb0164BCcf2a79B62CDB51740680567bE778",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xde59Bb0164BCcf2a79B62CDB51740680567bE778"),
-        sell_path=("0xde59Bb0164BCcf2a79B62CDB51740680567bE778", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xde59Bb0164BCcf2a79B62CDB51740680567bE778",
+        ),
+        sell_path=(
+            "0xde59Bb0164BCcf2a79B62CDB51740680567bE778",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xc5f0f7b66764f6ec8c8dff7ba683102295e16409"),
@@ -260,8 +420,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(732),
         token="0x510B30b5c46e00403f75Eb935080aBcfe0953d06",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x510B30b5c46e00403f75Eb935080aBcfe0953d06"),
-        sell_path=("0x510B30b5c46e00403f75Eb935080aBcfe0953d06", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x510B30b5c46e00403f75Eb935080aBcfe0953d06",
+        ),
+        sell_path=(
+            "0x510B30b5c46e00403f75Eb935080aBcfe0953d06",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x0d8ce2a99bb6e3b7db580ed848240e4a0f9ae153"),
@@ -269,8 +435,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(736),
         token="0x0E78c4aBD951aC9b2260B1eED09DdD94E5355556",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x0E78c4aBD951aC9b2260B1eED09DdD94E5355556"),
-        sell_path=("0x0E78c4aBD951aC9b2260B1eED09DdD94E5355556", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x0E78c4aBD951aC9b2260B1eED09DdD94E5355556",
+        ),
+        sell_path=(
+            "0x0E78c4aBD951aC9b2260B1eED09DdD94E5355556",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x740e075cbbea22a082b9d6679e65e82767875b6a"),
@@ -278,8 +450,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(951),
         token="0x973A1017B1e00D1E30bF834f96DeD975A112Ff9C",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x973A1017B1e00D1E30bF834f96DeD975A112Ff9C"),
-        sell_path=("0x973A1017B1e00D1E30bF834f96DeD975A112Ff9C", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x973A1017B1e00D1E30bF834f96DeD975A112Ff9C",
+        ),
+        sell_path=(
+            "0x973A1017B1e00D1E30bF834f96DeD975A112Ff9C",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x3f53de71c126bdabae20f9cd64848d317f6c3238"),
@@ -287,8 +465,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(952),
         token="0x1D5C21F66bbcE6B0798764075500BFb3DBc5f1e2",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x1D5C21F66bbcE6B0798764075500BFb3DBc5f1e2"),
-        sell_path=("0x1D5C21F66bbcE6B0798764075500BFb3DBc5f1e2", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x1D5C21F66bbcE6B0798764075500BFb3DBc5f1e2",
+        ),
+        sell_path=(
+            "0x1D5C21F66bbcE6B0798764075500BFb3DBc5f1e2",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xe614e2fc6c787035ff51f452e8e826bfd32d5283"),
@@ -296,8 +480,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(940),
         token="0xecf27c019717AC98C38D3d769C69F798A99B33FC",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xecf27c019717AC98C38D3d769C69F798A99B33FC"),
-        sell_path=("0xecf27c019717AC98C38D3d769C69F798A99B33FC", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xecf27c019717AC98C38D3d769C69F798A99B33FC",
+        ),
+        sell_path=(
+            "0xecf27c019717AC98C38D3d769C69F798A99B33FC",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xf8a0bf9cf54bb92f17374d9e9a321e6a111a51bd"),
@@ -305,8 +495,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(636),
         token="0x4F9CE86525d07FD2CA4403F10774f77f26a5b120",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x4F9CE86525d07FD2CA4403F10774f77f26a5b120"),
-        sell_path=("0x4F9CE86525d07FD2CA4403F10774f77f26a5b120", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x4F9CE86525d07FD2CA4403F10774f77f26a5b120",
+        ),
+        sell_path=(
+            "0x4F9CE86525d07FD2CA4403F10774f77f26a5b120",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x64748bea17b6d19e242adf20425de2440c656142"),
@@ -314,8 +510,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(946),
         token="0x93a5aC6bb36d5bBd1149b4945e616113A0E40b25",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x93a5aC6bb36d5bBd1149b4945e616113A0E40b25"),
-        sell_path=("0x93a5aC6bb36d5bBd1149b4945e616113A0E40b25", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x93a5aC6bb36d5bBd1149b4945e616113A0E40b25",
+        ),
+        sell_path=(
+            "0x93a5aC6bb36d5bBd1149b4945e616113A0E40b25",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x4338665cbb7b2485a8855a139b75d5e34ab0db94"),
@@ -323,8 +525,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(644),
         token="0xbA7d084CA7aA548200C9A64132e5c5709a3993b3",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xbA7d084CA7aA548200C9A64132e5c5709a3993b3"),
-        sell_path=("0xbA7d084CA7aA548200C9A64132e5c5709a3993b3", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xbA7d084CA7aA548200C9A64132e5c5709a3993b3",
+        ),
+        sell_path=(
+            "0xbA7d084CA7aA548200C9A64132e5c5709a3993b3",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x22b1458e780f8fa71e2f84502cee8b5a3cc731fa"),
@@ -332,8 +540,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(1060),
         token="0x109faFFfD7976c0719eFD222c8693DC7921b0D30",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x109faFFfD7976c0719eFD222c8693DC7921b0D30"),
-        sell_path=("0x109faFFfD7976c0719eFD222c8693DC7921b0D30", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x109faFFfD7976c0719eFD222c8693DC7921b0D30",
+        ),
+        sell_path=(
+            "0x109faFFfD7976c0719eFD222c8693DC7921b0D30",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x7425889fe94f9d693e8daefe88bcced6acfef4c0"),
@@ -341,8 +555,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(944),
         token="0x9550d0A327410DcA4Cda4240B81ee19AE125C754",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x9550d0A327410DcA4Cda4240B81ee19AE125C754"),
-        sell_path=("0x9550d0A327410DcA4Cda4240B81ee19AE125C754", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x9550d0A327410DcA4Cda4240B81ee19AE125C754",
+        ),
+        sell_path=(
+            "0x9550d0A327410DcA4Cda4240B81ee19AE125C754",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x80106cb3ead06659a5ad19df39d9b4733863b9b0"),
@@ -350,8 +570,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(943),
         token="0x428e1CC700770dCd4A5eCF910326037F1e22E8e2",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x428e1CC700770dCd4A5eCF910326037F1e22E8e2"),
-        sell_path=("0x428e1CC700770dCd4A5eCF910326037F1e22E8e2", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x428e1CC700770dCd4A5eCF910326037F1e22E8e2",
+        ),
+        sell_path=(
+            "0x428e1CC700770dCd4A5eCF910326037F1e22E8e2",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xe87afb3076aeb0f9b14e368de8145ae6a2826a14"),
@@ -359,8 +585,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(939),
         token="0x6D3799812ED28a5c20CA76880182A4Dae9147bAE",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x6D3799812ED28a5c20CA76880182A4Dae9147bAE"),
-        sell_path=("0x6D3799812ED28a5c20CA76880182A4Dae9147bAE", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x6D3799812ED28a5c20CA76880182A4Dae9147bAE",
+        ),
+        sell_path=(
+            "0x6D3799812ED28a5c20CA76880182A4Dae9147bAE",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xe256bc2a4f5297f8ba6f043f180a46300ecbcbb1"),
@@ -368,8 +600,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(953),
         token="0x129CB96d195Bd473883315654b76EA2DEDE7249F",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x129CB96d195Bd473883315654b76EA2DEDE7249F"),
-        sell_path=("0x129CB96d195Bd473883315654b76EA2DEDE7249F", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x129CB96d195Bd473883315654b76EA2DEDE7249F",
+        ),
+        sell_path=(
+            "0x129CB96d195Bd473883315654b76EA2DEDE7249F",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x1fa4a73a3f0133f0025378af00236f3abdee5d63"),
@@ -377,8 +615,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(1055),
         token="0xf36469776131d5f3fe6C15Cb3EaDb35663E44470",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xf36469776131d5f3fe6C15Cb3EaDb35663E44470"),
-        sell_path=("0xf36469776131d5f3fe6C15Cb3EaDb35663E44470", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xf36469776131d5f3fe6C15Cb3EaDb35663E44470",
+        ),
+        sell_path=(
+            "0xf36469776131d5f3fe6C15Cb3EaDb35663E44470",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xb035723d62e0e2ea7499d76355c9d560f13ba404"),
@@ -386,8 +630,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(1051),
         token="0xd1eEEee7101947f2Afb3930237F571F54330cB92",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xd1eEEee7101947f2Afb3930237F571F54330cB92"),
-        sell_path=("0xd1eEEee7101947f2Afb3930237F571F54330cB92", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xd1eEEee7101947f2Afb3930237F571F54330cB92",
+        ),
+        sell_path=(
+            "0xd1eEEee7101947f2Afb3930237F571F54330cB92",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x0ca5d51d0277bd006fd9607d3e560785ebad8222"),
@@ -395,8 +645,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(945),
         token="0x7ad0581ffdAdafAed01e76647f796849b6913004",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x7ad0581ffdAdafAed01e76647f796849b6913004"),
-        sell_path=("0x7ad0581ffdAdafAed01e76647f796849b6913004", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x7ad0581ffdAdafAed01e76647f796849b6913004",
+        ),
+        sell_path=(
+            "0x7ad0581ffdAdafAed01e76647f796849b6913004",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x87d00066cf131ff54b72b134a217d5401e5392b6"),
@@ -404,8 +660,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(726),
         token="0xccB19Bf327C94A17eFE604d7BddA69fcC4Dd30f3",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xccB19Bf327C94A17eFE604d7BddA69fcC4Dd30f3"),
-        sell_path=("0xccB19Bf327C94A17eFE604d7BddA69fcC4Dd30f3", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xccB19Bf327C94A17eFE604d7BddA69fcC4Dd30f3",
+        ),
+        sell_path=(
+            "0xccB19Bf327C94A17eFE604d7BddA69fcC4Dd30f3",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x5f7a56e877b9130608bf8be962621011182fefe1"),
@@ -413,8 +675,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(954),
         token="0xd651645C4441F400267d4060d6c1Ec3B5fC393bb",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xd651645C4441F400267d4060d6c1Ec3B5fC393bb"),
-        sell_path=("0xd651645C4441F400267d4060d6c1Ec3B5fC393bb", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xd651645C4441F400267d4060d6c1Ec3B5fC393bb",
+        ),
+        sell_path=(
+            "0xd651645C4441F400267d4060d6c1Ec3B5fC393bb",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x205812cdbed920aff76c6580abd681a46d11efc7"),
@@ -422,8 +690,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(947),
         token="0x787b969281a4c1Ec67b137a6c503bac4dF375baD",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x787b969281a4c1Ec67b137a6c503bac4dF375baD"),
-        sell_path=("0x787b969281a4c1Ec67b137a6c503bac4dF375baD", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x787b969281a4c1Ec67b137a6c503bac4dF375baD",
+        ),
+        sell_path=(
+            "0x787b969281a4c1Ec67b137a6c503bac4dF375baD",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x2859e4544c4bb03966803b044a93563bd2d0dd4d"),
@@ -431,8 +705,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(1062),
         token="0xd8DBF8A7e9B35111fb29F074FdB96A2E7265AEB8",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xd8DBF8A7e9B35111fb29F074FdB96A2E7265AEB8"),
-        sell_path=("0xd8DBF8A7e9B35111fb29F074FdB96A2E7265AEB8", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xd8DBF8A7e9B35111fb29F074FdB96A2E7265AEB8",
+        ),
+        sell_path=(
+            "0xd8DBF8A7e9B35111fb29F074FdB96A2E7265AEB8",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b"),
@@ -440,8 +720,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(890),
         token="0x03f4F1Adb088848648fe3eABEc4c3846FFE8b2CC",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x03f4F1Adb088848648fe3eABEc4c3846FFE8b2CC"),
-        sell_path=("0x03f4F1Adb088848648fe3eABEc4c3846FFE8b2CC", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x03f4F1Adb088848648fe3eABEc4c3846FFE8b2CC",
+        ),
+        sell_path=(
+            "0x03f4F1Adb088848648fe3eABEc4c3846FFE8b2CC",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x570a5d26f7765ecb712c0924e4de545b89fd43df"),
@@ -449,8 +735,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(635),
         token="0x9f5e7bCbf9bEB13D9a470b20c689918678eED682",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x9f5e7bCbf9bEB13D9a470b20c689918678eED682"),
-        sell_path=("0x9f5e7bCbf9bEB13D9a470b20c689918678eED682", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x9f5e7bCbf9bEB13D9a470b20c689918678eED682",
+        ),
+        sell_path=(
+            "0x9f5e7bCbf9bEB13D9a470b20c689918678eED682",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xd97d097a89113fa59b76c572e5b2eb647e8eefaf"),
@@ -458,8 +750,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(955),
         token="0xa49d2E6B8E11d7f3f6051e060982fc382C30cDB0",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xa49d2E6B8E11d7f3f6051e060982fc382C30cDB0"),
-        sell_path=("0xa49d2E6B8E11d7f3f6051e060982fc382C30cDB0", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xa49d2E6B8E11d7f3f6051e060982fc382C30cDB0",
+        ),
+        sell_path=(
+            "0xa49d2E6B8E11d7f3f6051e060982fc382C30cDB0",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x1a9fd6ec3144da3dd6ea13ec1c25c58423a379b1"),
@@ -467,8 +765,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(722),
         token="0xbe1e73360084053671308C745B5Ab7945EC4bd1b",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xbe1e73360084053671308C745B5Ab7945EC4bd1b"),
-        sell_path=("0xbe1e73360084053671308C745B5Ab7945EC4bd1b", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xbe1e73360084053671308C745B5Ab7945EC4bd1b",
+        ),
+        sell_path=(
+            "0xbe1e73360084053671308C745B5Ab7945EC4bd1b",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x7138b48df7d98d7e3cc221bfe7192d0a178182d8"),
@@ -476,8 +780,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(956),
         token="0x27fDFd8BC9129eb76b2b2b046373E00361bAAe09",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x27fDFd8BC9129eb76b2b2b046373E00361bAAe09"),
-        sell_path=("0x27fDFd8BC9129eb76b2b2b046373E00361bAAe09", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x27fDFd8BC9129eb76b2b2b046373E00361bAAe09",
+        ),
+        sell_path=(
+            "0x27fDFd8BC9129eb76b2b2b046373E00361bAAe09",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x25e572b466d152604d9e6c3e53b432b978825342"),
@@ -485,8 +795,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(1041),
         token="0xdBA4dd3C5007f1118B1Fc65271a2F7e933C14b4F",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xdBA4dd3C5007f1118B1Fc65271a2F7e933C14b4F"),
-        sell_path=("0xdBA4dd3C5007f1118B1Fc65271a2F7e933C14b4F", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xdBA4dd3C5007f1118B1Fc65271a2F7e933C14b4F",
+        ),
+        sell_path=(
+            "0xdBA4dd3C5007f1118B1Fc65271a2F7e933C14b4F",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xe747e54783ba3f77a8e5251a3cba19ebe9c0e197"),
@@ -494,8 +810,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(725),
         token="0x3Bd8B33f4B4183bE66210740E2d6a4C1fA9dB802",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x3Bd8B33f4B4183bE66210740E2d6a4C1fA9dB802"),
-        sell_path=("0x3Bd8B33f4B4183bE66210740E2d6a4C1fA9dB802", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x3Bd8B33f4B4183bE66210740E2d6a4C1fA9dB802",
+        ),
+        sell_path=(
+            "0x3Bd8B33f4B4183bE66210740E2d6a4C1fA9dB802",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x40af3827f39d0eacbf4a168f8d4ee67c121d11c9"),
@@ -503,8 +825,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(740),
         token="0xf6c724c1B5A9e9d32717a6A558B53dCfA393b1Ab",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xf6c724c1B5A9e9d32717a6A558B53dCfA393b1Ab"),
-        sell_path=("0xf6c724c1B5A9e9d32717a6A558B53dCfA393b1Ab", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xf6c724c1B5A9e9d32717a6A558B53dCfA393b1Ab",
+        ),
+        sell_path=(
+            "0xf6c724c1B5A9e9d32717a6A558B53dCfA393b1Ab",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x4b0f1812e5df2a09796481ff14017e6005508003"),
@@ -512,8 +840,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(741),
         token="0x89ffE77af9C81c24C655335638F3ef61306704B8",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x89ffE77af9C81c24C655335638F3ef61306704B8"),
-        sell_path=("0x89ffE77af9C81c24C655335638F3ef61306704B8", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x89ffE77af9C81c24C655335638F3ef61306704B8",
+        ),
+        sell_path=(
+            "0x89ffE77af9C81c24C655335638F3ef61306704B8",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xbf5140a22578168fd562dccf235e5d43a02ce9b1"),
@@ -521,8 +855,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(742),
         token="0x9F35D15787e7edf562CFA7e7783dc9eC98E9386E",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x9F35D15787e7edf562CFA7e7783dc9eC98E9386E"),
-        sell_path=("0x9F35D15787e7edf562CFA7e7783dc9eC98E9386E", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x9F35D15787e7edf562CFA7e7783dc9eC98E9386E",
+        ),
+        sell_path=(
+            "0x9F35D15787e7edf562CFA7e7783dc9eC98E9386E",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d"),
@@ -530,8 +870,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(643),
         token="0x5A82630c0c485eCa159099bA34E98dC99C6964C8",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x5A82630c0c485eCa159099bA34E98dC99C6964C8"),
-        sell_path=("0x5A82630c0c485eCa159099bA34E98dC99C6964C8", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x5A82630c0c485eCa159099bA34E98dC99C6964C8",
+        ),
+        sell_path=(
+            "0x5A82630c0c485eCa159099bA34E98dC99C6964C8",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x5d3a1ff2b6bab83b63cd9ad0787074081a52ef34"),
@@ -539,8 +885,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(638),
         token="0xf1d6182CaE2DEDdB45d3AC5e5E89512d2c4d347e",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xf1d6182CaE2DEDdB45d3AC5e5E89512d2c4d347e"),
-        sell_path=("0xf1d6182CaE2DEDdB45d3AC5e5E89512d2c4d347e", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xf1d6182CaE2DEDdB45d3AC5e5E89512d2c4d347e",
+        ),
+        sell_path=(
+            "0xf1d6182CaE2DEDdB45d3AC5e5E89512d2c4d347e",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x55d398326f99059ff775485246999027b3197955"),
@@ -548,8 +900,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(647),
         token="0xf587997669189E6F20b78E1A557e3fAD8E8A61D3",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xf587997669189E6F20b78E1A557e3fAD8E8A61D3"),
-        sell_path=("0xf587997669189E6F20b78E1A557e3fAD8E8A61D3", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xf587997669189E6F20b78E1A557e3fAD8E8A61D3",
+        ),
+        sell_path=(
+            "0xf587997669189E6F20b78E1A557e3fAD8E8A61D3",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x4bd17003473389a42daf6a0a729f6fdb328bbbd7"),
@@ -557,8 +915,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(1049),
         token="0x4E9E7E716b9d7C099FA83691B295A3CF53ddd261",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x4E9E7E716b9d7C099FA83691B295A3CF53ddd261"),
-        sell_path=("0x4E9E7E716b9d7C099FA83691B295A3CF53ddd261", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x4E9E7E716b9d7C099FA83691B295A3CF53ddd261",
+        ),
+        sell_path=(
+            "0x4E9E7E716b9d7C099FA83691B295A3CF53ddd261",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xa2e3356610840701bdf5611a53974510ae27e2e1"),
@@ -566,8 +930,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(744),
         token="0xE886265B03FA271E6fF75a96D6885Cd8682e5241",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xE886265B03FA271E6fF75a96D6885Cd8682e5241"),
-        sell_path=("0xE886265B03FA271E6fF75a96D6885Cd8682e5241", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xE886265B03FA271E6fF75a96D6885Cd8682e5241",
+        ),
+        sell_path=(
+            "0xE886265B03FA271E6fF75a96D6885Cd8682e5241",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xebe29695f8047c13d36e7a790ca8c1b239ffad1c"),
@@ -575,8 +945,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(957),
         token="0x5413a16Fb103Df9390245A472Abd0DdcBBF684D7",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x5413a16Fb103Df9390245A472Abd0DdcBBF684D7"),
-        sell_path=("0x5413a16Fb103Df9390245A472Abd0DdcBBF684D7", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x5413a16Fb103Df9390245A472Abd0DdcBBF684D7",
+        ),
+        sell_path=(
+            "0x5413a16Fb103Df9390245A472Abd0DdcBBF684D7",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x1d2f0da169ceb9fc7b3144628db156f3f6c60dbe"),
@@ -584,8 +960,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(634),
         token="0x0C4b6Fb9f22fBDdcFf6d7Fa7C0006f5A36d0BD1d",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x0C4b6Fb9f22fBDdcFf6d7Fa7C0006f5A36d0BD1d"),
-        sell_path=("0x0C4b6Fb9f22fBDdcFf6d7Fa7C0006f5A36d0BD1d", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x0C4b6Fb9f22fBDdcFf6d7Fa7C0006f5A36d0BD1d",
+        ),
+        sell_path=(
+            "0x0C4b6Fb9f22fBDdcFf6d7Fa7C0006f5A36d0BD1d",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xf81ac2e1a0373dde1bce01e2fe694a9b7e3bfcb9"),
@@ -593,8 +975,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(648),
         token="0x0CE96B105C914Ea79C3DC31d1644046D1df460B6",
         decimals=6,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x0CE96B105C914Ea79C3DC31d1644046D1df460B6"),
-        sell_path=("0x0CE96B105C914Ea79C3DC31d1644046D1df460B6", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x0CE96B105C914Ea79C3DC31d1644046D1df460B6",
+        ),
+        sell_path=(
+            "0x0CE96B105C914Ea79C3DC31d1644046D1df460B6",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0xcf6bb5389c92bdda8a3747ddb454cb7a64626c63"),
@@ -602,8 +990,14 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(745),
         token="0xFe69b14A64eECB31Cc5b032a4BC599AC1d145F79",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0xFe69b14A64eECB31Cc5b032a4BC599AC1d145F79"),
-        sell_path=("0xFe69b14A64eECB31Cc5b032a4BC599AC1d145F79", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0xFe69b14A64eECB31Cc5b032a4BC599AC1d145F79",
+        ),
+        sell_path=(
+            "0xFe69b14A64eECB31Cc5b032a4BC599AC1d145F79",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
     FlapAsset(
         reference_asset_id=AssetId("56:0x1ba42e5193dfa8b03d15dd1b86a3113bbbef8eeb"),
@@ -611,7 +1005,13 @@ FLAP_SELECTED_ASSETS: tuple[FlapAsset, ...] = (
         feed_id=FeedId(642),
         token="0x95d40912787762629d8bA6aec041eF2FB354B4fb",
         decimals=18,
-        buy_path=("0x190C989D5665a0e404B444b53CAE9AbCfb600157", "0x95d40912787762629d8bA6aec041eF2FB354B4fb"),
-        sell_path=("0x95d40912787762629d8bA6aec041eF2FB354B4fb", "0x190C989D5665a0e404B444b53CAE9AbCfb600157"),
+        buy_path=(
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+            "0x95d40912787762629d8bA6aec041eF2FB354B4fb",
+        ),
+        sell_path=(
+            "0x95d40912787762629d8bA6aec041eF2FB354B4fb",
+            "0x190C989D5665a0e404B444b53CAE9AbCfb600157",
+        ),
     ),
 )
