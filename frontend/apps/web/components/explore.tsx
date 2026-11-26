@@ -4,17 +4,21 @@ import {useRouter} from 'next/navigation';
 import {useMemo, useState} from 'react';
 import {ArrowUpRight, Plus, Search, LayoutGrid, List} from 'lucide-react';
 import {Badge, Card, Metric, Empty} from '@indexfi/ui';
-import {compact, usd, percent, FUNDING_TOKEN} from '@/domain/model';
+import {compact, usd, percent} from '@/domain/model';
 import {referenceAssetById} from '@/lib/catalog';
 import {usePriceState} from '@/lib/prices';
 import {useDeployment, useFlapDeployment, useVaults} from '@/lib/use-vaults';
 import {total, valuation, type Valuation} from '@/lib/valuation';
-import {graduation, LAUNCH} from '@/lib/launch';
-import {GraduationBar} from './graduation';
+import {LAUNCH} from '@/lib/launch';
+import {TRADING_STATE_LABEL, tradingLifecycle, tradingState} from '@/lib/venue';
+import {TradingUnlockBar} from './trading-unlock';
 import type {Deployment, VaultSnapshot} from '@/lib/vaults';
 import {AssetIcon} from './asset-icon';
 
 type Row = {v: VaultSnapshot; val: Valuation; d: Deployment};
+/** Shared trading unlock: $10k AUM milestone and an operational market. */
+const lifecycleOf = (r: {v: VaultSnapshot; val: Valuation}) => tradingLifecycle(r.v, r.val.aum);
+const unlocked = (r: {v: VaultSnapshot; val: Valuation}) => tradingState(lifecycleOf(r)) === 'unlocked';
 
 function Tokens({v}: {v: VaultSnapshot}) {
   const assets = v.holdings.map(h => referenceAssetById(h.referenceAssetId)).filter(a => a !== undefined);
@@ -38,7 +42,7 @@ function Featured({row, d}: {row?: Row; d?: Deployment}) {
       <div className="hero__aside">
         <div className="eyebrow">The portfolio standard</div>
         <h2>Transparent composition.<br />Open markets.</h2>
-        <p>Collateral-backed · Primary deposits and redemptions · PancakeSwap after graduation</p>
+        <p>Collateral-backed · Primary deposits and redemptions · PancakeSwap after the trading unlock</p>
       </div>
     );
   const {v, val} = row;
@@ -55,10 +59,10 @@ function Featured({row, d}: {row?: Row; d?: Deployment}) {
       </div>
       <div className="hero-preview__metrics">
         <Metric label="NAV / share" value={usd(val.nav, 4)} />
-        <Metric label={graduation(val.aum).graduated ? 'Market price' : 'Primary price'} value={usd(graduation(val.aum).graduated ? val.market : val.nav, 4)} />
+        <Metric label={unlocked(row) ? 'Market price' : 'Primary price'} value={usd(unlocked(row) ? val.market : val.nav, 4)} />
         <Metric label="AUM" value={compact(val.aum)} />
       </div>
-      <GraduationBar g={graduation(val.aum)} aum={val.aum} />
+      <TradingUnlockBar s={lifecycleOf(row)} aum={val.aum} />
       <div>
         <div className="allocation-bar">
           {byValue.map(h => <span key={h.referenceAssetId} style={{width: `${h.valuePct ?? h.targetPct}%`, background: referenceAssetById(h.referenceAssetId)?.color}} />)}
@@ -116,7 +120,7 @@ export function Explore() {
         <div>
           <div className="eyebrow">01 / Portfolio markets</div>
           <h1>Invest in ideas.<br /><span>Own the basket.</span></h1>
-          <p>Collateral-backed portfolio tokens: deposit or redeem {FUNDING_TOKEN} at NAV from day one; trading opens on PancakeSwap once a portfolio graduates at {compact(LAUNCH.graduationUSD)} AUM.</p>
+          <p>Collateral-backed portfolio tokens: deposit or redeem at NAV in USDT (OpenFour) or Flap USD (Flap) from day one; trading through IndexFi unlocks on PancakeSwap at {compact(LAUNCH.tradingUnlockUSD)} AUM.</p>
           <div className="hero__actions">
             <Link className="button button--primary" href="/create"><Plus size={16} /> Create portfolio</Link>
             <a className="button button--secondary" href="#discover">Explore markets</a>
@@ -127,7 +131,7 @@ export function Explore() {
       <section className="summary-grid">
         <Card><Metric label="Listed portfolios" value={d ? rows.length : '—'} detail={d ? venue(d) : 'no deployment'} /></Card>
         <Card><Metric label="Assets under management" value={compact(total(rows.map(r => r.val.aum)))} detail="on-chain holdings × Atlas prices" /></Card>
-        <Card><Metric label="Graduated" value={`${rows.filter(r => graduation(r.val.aum).graduated).length} / ${rows.length}`} detail={`PancakeSwap opens at ${compact(LAUNCH.graduationUSD)} AUM`} /></Card>
+        <Card><Metric label="Trading unlocked" value={`${rows.filter(unlocked).length} / ${rows.length}`} detail={`at ${compact(LAUNCH.tradingUnlockUSD)} AUM, market operational`} /></Card>
         <Card><Metric label="Assets held" value={assetsHeld} detail="distinct constituents" /></Card>
       </section>
       <section className="section-heading" id="discover">
@@ -180,7 +184,7 @@ export function Explore() {
           <div className="table-scroll">
             <table>
               <thead>
-                <tr><th>Portfolio</th><th>Assets</th><th>NAV / share</th><th>Market price</th><th>Premium</th><th>AUM</th><th>Graduation</th><th>Venue</th><th /></tr>
+                <tr><th>Portfolio</th><th>Assets</th><th>NAV / share</th><th>Market price</th><th>Premium</th><th>AUM</th><th>Trading unlock</th><th>Venue</th><th /></tr>
               </thead>
               <tbody>
                 {visible.map(({v, val, d}) => (
@@ -193,11 +197,11 @@ export function Explore() {
                     </td>
                     <td><Tokens v={v} /></td>
                     <td>{usd(val.nav, 4)}</td>
-                    <td>{graduation(val.aum).graduated ? usd(val.market, 4) : '—'}</td>
-                    <td className={(val.premiumPct ?? 0) < 0 ? 'negative' : 'positive'}>{graduation(val.aum).graduated ? percent(val.premiumPct) : '—'}</td>
+                    <td>{unlocked({v, val}) ? usd(val.market, 4) : '—'}</td>
+                    <td className={(val.premiumPct ?? 0) < 0 ? 'negative' : 'positive'}>{unlocked({v, val}) ? percent(val.premiumPct) : '—'}</td>
                     <td>{compact(val.aum)}</td>
-                    <td><GraduationBar g={graduation(val.aum)} aum={val.aum} detail={false} /><small className="muted">{graduation(val.aum).progressPct.toFixed(0)}%</small></td>
-                    <td><Badge tone={graduation(val.aum).graduated ? 'good' : 'neutral'}>{v.closed ? 'Closed' : graduation(val.aum).graduated ? 'PancakeSwap' : 'IndexFi primary'}</Badge> <small className="muted">{providerLabel(d)}</small></td>
+                    <td><TradingUnlockBar s={lifecycleOf({v, val})} aum={val.aum} detail={false} /><small className="muted">{lifecycleOf({v, val}).progressPct.toFixed(0)}%</small></td>
+                    <td><Badge tone={unlocked({v, val}) ? 'good' : 'neutral'}>{v.closed ? 'Closed' : TRADING_STATE_LABEL[tradingState(lifecycleOf({v, val}))]}</Badge> <small className="muted">{providerLabel(d)}</small></td>
                     <td><Link aria-label={`View ${v.name}`} href={`/portfolio/${v.address}`}><ArrowUpRight size={18} /></Link></td>
                   </tr>
                 ))}

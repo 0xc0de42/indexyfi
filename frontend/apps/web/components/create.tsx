@@ -13,7 +13,7 @@ import {addItem, isEqualSplit, normalize, removeItem, totalOf} from '@/domain/al
 import {suggestTicker} from '@/domain/ticker';
 import {applyPrefill, DRAFT_KEY, EMPTY_DRAFT, parseDraft, serializeDraft, type Prefill, type Template} from '@/lib/draft';
 import {replaceQuery} from '@/lib/routes';
-import {categories, formatPrice, usd, FUNDING_TOKEN, type Asset, type Draft} from '@/domain/model';
+import {categories, formatPrice, usd, type Asset, type Draft} from '@/domain/model';
 import {AssetIcon} from './asset-icon';
 import {AssetFilters, INITIAL_FILTERS, sortMetricLabel, type AssetFilterState} from './asset-filters';
 import {IndexRulePicker} from './index-rule-picker';
@@ -29,6 +29,7 @@ import {useCanLaunch, useDeployment, useFlapDeployment, useVault, useVaultTransa
 import {taxSummary} from '@/lib/flap';
 import {savePortfolioSettings} from '@/lib/portfolio-settings';
 import {LAUNCH, launchTotalUSDT} from '@/lib/launch';
+import {venuePresentation} from '@/lib/venue';
 import {REBALANCE_INTERVALS, REBALANCE_THRESHOLDS_BPS, bpsLabel, settingsLabel} from '@/lib/rebalance';
 
 const steps = ['Identity', 'Composition', 'Allocation', 'Review & launch'];
@@ -53,7 +54,7 @@ export function Create({prefill}: {prefill: Prefill}) {
   const openfourDeployment = useDeployment();
   const flapDeployment = useFlapDeployment();
   const flapAvailable = !!flapDeployment.data;
-  const settlementLabel = venue === 'flap' ? 'Flap USD' : FUNDING_TOKEN;
+  const settlementLabel = venuePresentation({provider: venue, fixture: false}).settlementLabel;
   const deployment = venue === 'flap' && flapDeployment.data ? {...flapDeployment, data: flapDeployment.data} : openfourDeployment;
   const transaction = useVaultTransaction(deployment.data);
   const {canLaunch} = useCanLaunch(deployment.data);
@@ -94,7 +95,7 @@ export function Create({prefill}: {prefill: Prefill}) {
     : quoteError ? null
     : !quote ? {message: 'Waiting for the on-chain launch quote…'}
     : funds.data && needed !== null && (funds.data.usdt < needed || funds.data.gas < MIN_GAS)
-      ? {message: `This wallet has ${units(funds.data.usdt, deployment.data!.settlementDecimals)} USDT and ${Number(units(funds.data.gas, 18)).toFixed(4)} ${vaultChain.nativeCurrency.symbol} for gas; launch needs ${units(needed, deployment.data!.settlementDecimals)} USDT plus gas.`, action: deployment.data?.fixture || deployment.data?.provider === 'flap' ? 'fund' : undefined}
+      ? {message: `This wallet has ${units(funds.data.usdt, deployment.data!.settlementDecimals)} ${settlementLabel} and ${Number(units(funds.data.gas, 18)).toFixed(4)} ${vaultChain.nativeCurrency.symbol} for gas; launch needs ${units(needed, deployment.data!.settlementDecimals)} ${settlementLabel} plus gas.`, action: deployment.data?.fixture || deployment.data?.provider === 'flap' ? 'fund' : undefined}
     : null;
   async function getTestFunds() {
     if (!deployment.client || !deployment.data || !account.address) return;
@@ -242,7 +243,7 @@ export function Create({prefill}: {prefill: Prefill}) {
       <div className="page-heading">
         <div className="eyebrow">Creator / Launch</div>
         <h1>Create a portfolio.</h1>
-        <p>Choose supported assets and weights. Every portfolio launches with {LAUNCH.collateralUSDT.toLocaleString('en-US')} {FUNDING_TOKEN} of collateral at ${LAUNCH.startNav.toFixed(2)} NAV and graduates to PancakeSwap trading at {LAUNCH.graduationUSD.toLocaleString('en-US')} {FUNDING_TOKEN} AUM.</p>
+        <p>Choose supported assets and weights. Every portfolio launches with {LAUNCH.collateralUSDT.toLocaleString('en-US')} {settlementLabel} of collateral at ${LAUNCH.startNav.toFixed(2)} NAV; trading through IndexFi unlocks at ${LAUNCH.tradingUnlockUSD.toLocaleString('en-US')} AUM.</p>
         {deployment.isError && <div className="notice notice--bad">Contract deployment is unavailable on this network.</div>}
       </div>
       <div className="wizard-grid">
@@ -258,7 +259,7 @@ export function Create({prefill}: {prefill: Prefill}) {
           <Card>
             <div className="eyebrow">Launch rules</div>
             <h3>Public basket vault.</h3>
-            <p className="muted">Fixed {LAUNCH.collateralUSDT.toLocaleString('en-US')} {FUNDING_TOKEN} collateral at ${LAUNCH.startNav.toFixed(2)} NAV. Anyone can deposit or redeem at NAV; PancakeSwap trading opens at {LAUNCH.graduationUSD.toLocaleString('en-US')} {FUNDING_TOKEN} AUM. Deposits and redemptions charge a fixed 0.1% creator fee.</p>
+            <p className="muted">Fixed {LAUNCH.collateralUSDT.toLocaleString('en-US')} {settlementLabel} collateral at ${LAUNCH.startNav.toFixed(2)} NAV. Anyone can deposit or redeem at NAV; PancakeSwap trading through IndexFi unlocks at ${LAUNCH.tradingUnlockUSD.toLocaleString('en-US')} AUM. Deposits and redemptions charge a fixed 0.1% creator fee.</p>
           </Card>
           <button type="button" className="text-button start-over" onClick={startOver}><RotateCcw size={13} /> Start over</button>
         </aside>
@@ -384,7 +385,7 @@ export function Create({prefill}: {prefill: Prefill}) {
                     <div className="allocation-bar">{d.allocations.map((a, i) => <span key={a.asset.id} style={{width: `${a.weight}%`, background: segmentColor(i)}} />)}</div>
                     <div className="table-scroll">
                       <table>
-                        <thead><tr><th>Asset</th><th>Weight</th><th>{FUNDING_TOKEN}</th><th>Reference price</th></tr></thead>
+                        <thead><tr><th>Asset</th><th>Weight</th><th>{settlementLabel}</th><th>Reference price</th></tr></thead>
                         <tbody>
                           {d.allocations.map((a, i) => (
                             <tr key={a.asset.id}>
@@ -452,9 +453,9 @@ export function Create({prefill}: {prefill: Prefill}) {
                     <div><dt>Rebalancing</dt><dd>{settingsLabel(d.rebalance)}</dd></div>
                     <div><dt>Initial investment (collateral)</dt><dd>{LAUNCH.collateralUSDT.toLocaleString('en-US')} {settlementLabel}</dd></div>
                     <div><dt>Starting NAV</dt><dd>{usd(LAUNCH.startNav, 2)}</dd></div>
-                    <div><dt>Graduation threshold</dt><dd>{LAUNCH.graduationUSD.toLocaleString('en-US')} {FUNDING_TOKEN} AUM</dd></div>
-                    <div><dt>Before graduation</dt><dd>Deposit and redeem at NAV (IndexFi primary market)</dd></div>
-                    <div><dt>After graduation</dt><dd>PancakeSwap trading opens</dd></div>
+                    <div><dt>Trading unlock</dt><dd>${LAUNCH.tradingUnlockUSD.toLocaleString('en-US')} AUM, once the PancakeSwap market is operational</dd></div>
+                    <div><dt>Before the unlock</dt><dd>Deposit and redeem at NAV (IndexFi primary market)</dd></div>
+                    <div><dt>After the unlock</dt><dd>Buy and sell on PancakeSwap through IndexFi</dd></div>{venuePresentation({provider: venue, fixture: false}).externalTradingNotice && <div><dt>External trading</dt><dd>{venuePresentation({provider: venue, fixture: false}).externalTradingNotice}</dd></div>}
                     <div><dt>Pool reserve (fixed)</dt><dd>{LAUNCH.poolReserveUSDT.toLocaleString('en-US')} {settlementLabel}, paired with {LAUNCH.poolReserveUSDT.toLocaleString('en-US')} tokens for the PancakeSwap pool</dd></div>
                     <div><dt>Total required funding</dt><dd>{launchTotalUSDT.toLocaleString('en-US')} {settlementLabel}, excluding gas</dd></div>
                     <div><dt>Estimated creator tokens</dt><dd>{quote?units(quote.creatorShares,18):'—'}</dd></div>
@@ -463,10 +464,10 @@ export function Create({prefill}: {prefill: Prefill}) {
                     <div><dt>Execution quote</dt><dd>{quote ? `${quote.outputs.length} legs ready` : 'Loading contract quote'}</dd></div>
                     <div><dt>Public access</dt><dd>Immediate after confirmed launch</dd></div>
                   </dl>
-                  {deployment.data&&!deployment.data.fixture&&canLaunch&&<div className="notice notice--neutral">Your wallet will ask for two approvals: a signature authorizing the OpenFour launch, then the launch transaction.</div>}
+                  {deployment.data&&canLaunch&&venuePresentation(deployment.data).launchAuthorizationNotice&&<div className="notice notice--neutral" data-testid="launch-authorization-notice">{venuePresentation(deployment.data).launchAuthorizationNotice}</div>}
                   {blocker && <div role="status" data-testid="launch-blocker" className="notice notice--neutral">{blocker.message}{' '}
                     {blocker.action === 'switch' && <button type="button" className="text-button" disabled={switchChain.isPending} onClick={() => switchChain.switchChain({chainId: vaultChain.id})}>Switch network</button>}
-                    {blocker.action === 'fund' && <button type="button" className="text-button" data-testid="get-test-funds" disabled={!!funding && funding.endsWith('…')} onClick={() => void getTestFunds()}>Get test funds ({FAUCET_USDT.toLocaleString('en-US')} USDT + gas)</button>}
+                    {blocker.action === 'fund' && <button type="button" className="text-button" data-testid="get-test-funds" disabled={!!funding && funding.endsWith('…')} onClick={() => void getTestFunds()}>Get test funds ({FAUCET_USDT.toLocaleString('en-US')} {settlementLabel} + gas)</button>}
                   </div>}
                   {switchChain.error && <div role="alert" className="notice notice--bad">Network switch failed: {switchChain.error.message.split('\n')[0]}. Add or select {vaultChain.name} (chain {vaultChain.id}) in your wallet.</div>}
                   {funding && <div role="status" className="notice notice--neutral">{funding}</div>}
