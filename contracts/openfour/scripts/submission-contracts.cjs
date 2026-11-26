@@ -98,19 +98,29 @@ async function main() {
       ]), '');
       L.push('Lifecycle transactions: ' + ['deposit', 'buy', 'sell', 'redeemCash', 'redeemInKind', 'forwardTaxRevenue'].filter(k => s[k]?.tx).map(k => `${k} ${tx(s[k].tx)}`).join(' · '), '');
     }
+    const t3mc = flap.demoT3MC?.steps;
+    if (t3mc?.launch?.ok) {
+      L.push('### 2.4 Prepared Top 3 Market Cap backup', '');
+      L.push(...table([
+        await row('Top 3 Market Cap (T3MC) — vault', t3mc.launch.vault, 'ETH 35% · XRP 35% · SOL 30%', t3mc.launch.tx),
+        await row('T3MC — portfolio token (…7777)', t3mc.launch.token, 'address predicted from the mined salt'),
+        await row('T3MC — PancakeSwap pool', t3mc.launch.pair, 'initial LP burned'),
+      ]), '');
+      if (t3mc.deposit?.tx) L.push(`Prepared investor deposit: ${tx(t3mc.deposit.tx)}.`, '');
+    }
     // Flap portfolios launched from the IndexFi UI: the rest of the Flap factory directory.
     const ff = new ethers.Contract(C.IndexFiFlapFactory.address, ['function vaultCount() view returns (uint256)', 'function vaultAt(uint256) view returns (address)'], provider);
-    const demoVault = fc?.steps?.launch?.vault?.toLowerCase();
+    const demoVaults = new Set([fc?.steps?.launch?.vault, t3mc?.launch?.vault].filter(Boolean).map(v => v.toLowerCase()));
     const extra = [];
     for (let i = 0, n = Number(await ff.vaultCount()); i < n; i++) {
       const v = await ff.vaultAt(i);
-      if (v.toLowerCase() === demoVault) continue;
+      if (demoVaults.has(v.toLowerCase())) continue;
       const vc = new ethers.Contract(v, ['function name() view returns (string)', 'function symbol() view returns (string)', 'function token() view returns (address)'], provider);
       extra.push(await row(`${await vc.name().catch(() => 'Portfolio')} (${await vc.symbol().catch(() => '?')}) — vault`, v, 'launched from the IndexFi UI'));
       const t = await vc.token().catch(() => null);
       if (t) extra.push(await row(`${await vc.symbol().catch(() => '?')} — portfolio token (…7777)`, t));
     }
-    if (extra.length) L.push('### 2.4 Flap portfolios launched from the UI', '', ...table(extra), '');
+    if (extra.length) L.push('### 2.5 Flap portfolios launched from the UI', '', ...table(extra), '');
   }
 
   // ---- Shared assets ----

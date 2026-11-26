@@ -1,6 +1,6 @@
 # IndexFi — deployed contracts (BSC Testnet, chain 97)
 
-Generated 2026-11-26T18:51:02.912Z by `contracts/openfour/scripts/submission-contracts.cjs` from the deployment records; every address below was checked on chain to have code. Explorer: https://testnet.bscscan.com.
+Generated 2026-11-26T19:40:09.735Z by `contracts/openfour/scripts/submission-contracts.cjs` from the deployment records; every address below was checked on chain to have code. Explorer: https://testnet.bscscan.com.
 
 IndexFi turns a basket of tokens into one collateral-backed portfolio token: deposit or redeem at NAV (signed Atlas prices), trade on PancakeSwap. Two launch venues share one vault design: an OpenFour preset and a Flap direct launch.
 
@@ -54,6 +54,9 @@ IndexFi turns a basket of tokens into one collateral-backed portfolio token: dep
 | Markets & Emerging (MKT13) — vault | [`0x9AB512933bAa47e1c5b26A6Db0dddA4436E910cc`](https://testnet.bscscan.com/address/0x9AB512933bAa47e1c5b26A6Db0dddA4436E910cc) | launch · [tx](https://testnet.bscscan.com/tx/0x6ea70fa34bcfa96f572c3e9f21dd00e03a1184e2d1fc24e2bb6205c996534c79) |
 | MKT13 — portfolio token | [`0x7699dC891Dd6eB8dc183b68a222CA1C84Dd9a2F5`](https://testnet.bscscan.com/address/0x7699dC891Dd6eB8dc183b68a222CA1C84Dd9a2F5) |  |
 | MKT13 — PancakeSwap pool | [`0x6dCEcCcf460Ed017a4a3e8A0CA92C95BF11E426A`](https://testnet.bscscan.com/address/0x6dCEcCcf460Ed017a4a3e8A0CA92C95BF11E426A) |  |
+| Crypto Blue Chip (CBI) — vault | [`0x01d7B3F83E04e0668d979d119C049F7B5E72CEbb`](https://testnet.bscscan.com/address/0x01d7B3F83E04e0668d979d119C049F7B5E72CEbb) | launch · [tx](https://testnet.bscscan.com/tx/0xe31eda353e95cbbd0a0843836f83314e78f50ac5a15c65045a32694d1cf1369b) |
+| CBI — portfolio token | [`0xD1BA3869DDb156B8A6CAC4910De3103f0203b17C`](https://testnet.bscscan.com/address/0xD1BA3869DDb156B8A6CAC4910De3103f0203b17C) |  |
+| CBI — PancakeSwap pool | [`0xF78CF72680fdEc0b2414f070e06CfC5Dd6e69A44`](https://testnet.bscscan.com/address/0xF78CF72680fdEc0b2414f070e06CfC5Dd6e69A44) |  |
 | TEST (TEST) — vault | [`0xA67cd4f50EFE61215B1FF078F59471e21b1C242e`](https://testnet.bscscan.com/address/0xA67cd4f50EFE61215B1FF078F59471e21b1C242e) | launched from the IndexFi UI |
 
 ## 2. Flap launch venue (direct launch, Flap Portal)
@@ -90,7 +93,17 @@ Factory enabled through the Flap whitelist helper: [tx](https://testnet.bscscan.
 
 Lifecycle transactions: deposit [tx](https://testnet.bscscan.com/tx/0x81b25974ab2a60522595d9bfe4351947c0db5d57fab741627a9484f10959f232) · buy [tx](https://testnet.bscscan.com/tx/0x8b47dc2ee9f606a23879774e586d5bf5df4e9c367d9b870bc70c8fb7aac28c39) · sell [tx](https://testnet.bscscan.com/tx/0x6175f91a9e920fec9b9032ddef4d39bbbe2b2addd31e1184ef8b21f99bd16278) · redeemCash [tx](https://testnet.bscscan.com/tx/0xe2e7eca28cc5d837c13322b1aa39f06cfc1a67ce87b7c7bfa0e5953280cd894e) · redeemInKind [tx](https://testnet.bscscan.com/tx/0x0b880cd3831fe983234c4c66176d89c8fc5634849eb067bfa50ebd94db082b9f) · forwardTaxRevenue [tx](https://testnet.bscscan.com/tx/0xf14570a2365e9676b6cb62466761aa86f204d703f941f14bbb3649432c1735ee)
 
-### 2.4 Flap portfolios launched from the UI
+### 2.4 Prepared Top 3 Market Cap backup
+
+| Contract | Address | Notes |
+|---|---|---|
+| Top 3 Market Cap (T3MC) — vault | [`0x6991D544d3Cb4AAa2aBBd211eD8fe2D174bB96FA`](https://testnet.bscscan.com/address/0x6991D544d3Cb4AAa2aBBd211eD8fe2D174bB96FA) | ETH 35% · XRP 35% · SOL 30% · [tx](https://testnet.bscscan.com/tx/0xe09a8cbc30f18d4725ac74837388f782db4fcf6e5fc26206837bf2d1bdd45e62) |
+| T3MC — portfolio token (…7777) | [`0x629De8b334E13dBC76ef14D3555e5dB96CB17777`](https://testnet.bscscan.com/address/0x629De8b334E13dBC76ef14D3555e5dB96CB17777) | address predicted from the mined salt |
+| T3MC — PancakeSwap pool | [`0x0B469BbB9c586900CF87aD8f1424bA501E0c1097`](https://testnet.bscscan.com/address/0x0B469BbB9c586900CF87aD8f1424bA501E0c1097) | initial LP burned |
+
+Prepared investor deposit: [tx](https://testnet.bscscan.com/tx/0xf325ec4a759143d29c231d218d91be0e964ed9da7842b835ce3be3a901e01c0c).
+
+### 2.5 Flap portfolios launched from the UI
 
 | Contract | Address | Notes |
 |---|---|---|
