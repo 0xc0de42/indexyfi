@@ -1,0 +1,15 @@
+{
+  "assets": [
+    {
+      "asset_id": "56:0xf81ac2e1a0373dde1bce01e2fe694a9b7e3bfcb9",
+      "symbol": "XUSD",
+      "mapping": {
+        "asset_id": "56:0xf81ac2e1a0373dde1bce01e2fe694a9b7e3bfcb9",
+        "cmc_id": 32372,
+        "kind": "crypto",
+        "relation": "underlying_reference",
+        "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+      }
+    }
+  ]
+}

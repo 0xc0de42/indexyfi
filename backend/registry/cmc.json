@@ -1,3 +1,466 @@
 {
-  "mappings": []
+  "mappings": [
+    {
+      "asset_id": "56:0x000ae314e2a2172a039b26378814c252734f556a",
+      "kind": "crypto",
+      "cmc_id": 36341,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x0ca5d51d0277bd006fd9607d3e560785ebad8222",
+      "kind": "crypto",
+      "cmc_id": 40590,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x0d8ce2a99bb6e3b7db580ed848240e4a0f9ae153",
+      "kind": "crypto",
+      "cmc_id": 2280,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82",
+      "kind": "crypto",
+      "cmc_id": 7186,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x1a9fd6ec3144da3dd6ea13ec1c25c58423a379b1",
+      "kind": "crypto",
+      "cmc_id": 6715,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3",
+      "kind": "crypto",
+      "cmc_id": 4943,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x1ba42e5193dfa8b03d15dd1b86a3113bbbef8eeb",
+      "kind": "crypto",
+      "cmc_id": 1437,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x1ce0c2827e2ef14d5c4f29a091d735a204794041",
+      "kind": "crypto",
+      "cmc_id": 5805,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x1d2f0da169ceb9fc7b3144628db156f3f6c60dbe",
+      "kind": "crypto",
+      "cmc_id": 52,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x1fa4a73a3f0133f0025378af00236f3abdee5d63",
+      "kind": "crypto",
+      "cmc_id": 6535,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x205812cdbed920aff76c6580abd681a46d11efc7",
+      "kind": "crypto",
+      "cmc_id": 40593,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x2170ed0880ac9a755fd29b2688956bd959f933f8",
+      "kind": "crypto",
+      "cmc_id": 1027,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x22b1458e780f8fa71e2f84502cee8b5a3cc731fa",
+      "kind": "crypto",
+      "cmc_id": 35491,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x25e572b466d152604d9e6c3e53b432b978825342",
+      "kind": "crypto",
+      "cmc_id": 41962,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x2859e4544c4bb03966803b044a93563bd2d0dd4d",
+      "kind": "crypto",
+      "cmc_id": 5994,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x38dd26788cf2d901e3abf04efe3007d459d0fc53",
+      "kind": "crypto",
+      "cmc_id": 42860,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x3ee2200efb3400fabb9aacf31297cbdd1d435d47",
+      "kind": "crypto",
+      "cmc_id": 2010,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x3f53de71c126bdabae20f9cd64848d317f6c3238",
+      "kind": "crypto",
+      "cmc_id": 40793,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x40af3827f39d0eacbf4a168f8d4ee67c121d11c9",
+      "kind": "crypto",
+      "cmc_id": 2563,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x4338665cbb7b2485a8855a139b75d5e34ab0db94",
+      "kind": "crypto",
+      "cmc_id": 2,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x4b0f1812e5df2a09796481ff14017e6005508003",
+      "kind": "crypto",
+      "cmc_id": 5964,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x4bd17003473389a42daf6a0a729f6fdb328bbbd7",
+      "kind": "crypto",
+      "cmc_id": 7824,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x55d398326f99059ff775485246999027b3197955",
+      "kind": "crypto",
+      "cmc_id": 825,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x570a5d26f7765ecb712c0924e4de545b89fd43df",
+      "kind": "crypto",
+      "cmc_id": 5426,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x585bde7c54abb5ccd7791f923d6c2187635f3952",
+      "kind": "crypto",
+      "cmc_id": 40789,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x5d3a1ff2b6bab83b63cd9ad0787074081a52ef34",
+      "kind": "crypto",
+      "cmc_id": 29470,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x5f7a56e877b9130608bf8be962621011182fefe1",
+      "kind": "crypto",
+      "cmc_id": 40792,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x64748bea17b6d19e242adf20425de2440c656142",
+      "kind": "crypto",
+      "cmc_id": 40591,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x6bdcce4a559076e37755a78ce0c06214e59e4444",
+      "kind": "crypto",
+      "cmc_id": 36532,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x7083609fce4d1d8dc0c979aab8c869ea2c873402",
+      "kind": "crypto",
+      "cmc_id": 6636,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c",
+      "kind": "crypto",
+      "cmc_id": 4023,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x7138b48df7d98d7e3cc221bfe7192d0a178182d8",
+      "kind": "crypto",
+      "cmc_id": 40790,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x740e075cbbea22a082b9d6679e65e82767875b6a",
+      "kind": "crypto",
+      "cmc_id": 40795,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x7425889fe94f9d693e8daefe88bcced6acfef4c0",
+      "kind": "crypto",
+      "cmc_id": 40592,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x75fd4cf6f8392e41e70391d60c90c0d5211603a1",
+      "kind": "crypto",
+      "cmc_id": 40538,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x783c3f003f172c6ac5ac700218a357d2d66ee2a2",
+      "kind": "crypto",
+      "cmc_id": 36352,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x7d73496d792fa2c8144788e88217fa4e9a7e18ea",
+      "kind": "crypto",
+      "cmc_id": 37263,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x80106cb3ead06659a5ad19df39d9b4733863b9b0",
+      "kind": "crypto",
+      "cmc_id": 40589,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x84575b87395c970f1f48e87d87a8db36ed653716",
+      "kind": "crypto",
+      "cmc_id": 38274,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x87d00066cf131ff54b72b134a217d5401e5392b6",
+      "kind": "crypto",
+      "cmc_id": 32325,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d",
+      "kind": "crypto",
+      "cmc_id": 36148,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x8ff795a6f4d97e7887c79bea79aba5cc76444adf",
+      "kind": "crypto",
+      "cmc_id": 1831,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x93862d63fd9fd488b1328e9b47717d75e994a84b",
+      "kind": "crypto",
+      "cmc_id": 40798,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0x95034f653d5d161890836ad2b6b8cc49d14e029a",
+      "kind": "crypto",
+      "cmc_id": 3871,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0x9be61a38725b265bc3eb7bfdf17afdfc9d26c130",
+      "kind": "crypto",
+      "cmc_id": 38757,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0xa2e3356610840701bdf5611a53974510ae27e2e1",
+      "kind": "crypto",
+      "cmc_id": 24760,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0xb035723d62e0e2ea7499d76355c9d560f13ba404",
+      "kind": "crypto",
+      "cmc_id": 36011,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b",
+      "kind": "crypto",
+      "cmc_id": 27568,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0xba2ae424d960c26247dd6c32edc70b295c744c43",
+      "kind": "crypto",
+      "cmc_id": 74,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0xbe82f76637dba2c114c41df856c2c51e522e2cb8",
+      "kind": "crypto",
+      "cmc_id": 40539,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0xbf5140a22578168fd562dccf235e5d43a02ce9b1",
+      "kind": "crypto",
+      "cmc_id": 7083,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0xc5f0f7b66764f6ec8c8dff7ba683102295e16409",
+      "kind": "crypto",
+      "cmc_id": 26081,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0xcf6bb5389c92bdda8a3747ddb454cb7a64626c63",
+      "kind": "crypto",
+      "cmc_id": 7288,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0xd97d097a89113fa59b76c572e5b2eb647e8eefaf",
+      "kind": "crypto",
+      "cmc_id": 40794,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0xe256bc2a4f5297f8ba6f043f180a46300ecbcbb1",
+      "kind": "crypto",
+      "cmc_id": 40797,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0xe614e2fc6c787035ff51f452e8e826bfd32d5283",
+      "kind": "crypto",
+      "cmc_id": 40540,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0xe747e54783ba3f77a8e5251a3cba19ebe9c0e197",
+      "kind": "crypto",
+      "cmc_id": 38175,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0xe81c6bb0266cd68b4f17278531dd03ea1f12da4e",
+      "kind": "crypto",
+      "cmc_id": 40791,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0xe87afb3076aeb0f9b14e368de8145ae6a2826a14",
+      "kind": "crypto",
+      "cmc_id": 40536,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0xe9e7cea3dedca5984780bafc599bd69add087d56",
+      "kind": "crypto",
+      "cmc_id": 4687,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0xebe29695f8047c13d36e7a790ca8c1b239ffad1c",
+      "kind": "crypto",
+      "cmc_id": 40796,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0xf307910a4c7bbc79691fd374889b36d8531b08e3",
+      "kind": "crypto",
+      "cmc_id": 3783,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0xf4b385849f2e817e92bffbfb9aeb48f950ff4444",
+      "kind": "crypto",
+      "cmc_id": 36761,
+      "relation": "exact_token",
+      "evidence": "Live CMC BNB Smart Chain contract address match verified 2026-11-26"
+    },
+    {
+      "asset_id": "56:0xf81ac2e1a0373dde1bce01e2fe694a9b7e3bfcb9",
+      "kind": "crypto",
+      "cmc_id": 32372,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0xf8a0bf9cf54bb92f17374d9e9a321e6a111a51bd",
+      "kind": "crypto",
+      "cmc_id": 1975,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    },
+    {
+      "asset_id": "56:0xfb6115445bff7b52feb98650c87f44907e58f802",
+      "kind": "crypto",
+      "cmc_id": 7278,
+      "relation": "underlying_reference",
+      "evidence": "Live CMC identity verified 2026-11-26; registered BNB token is a wrapper or reference asset"
+    }
+  ]
 }

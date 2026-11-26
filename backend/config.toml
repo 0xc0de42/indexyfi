@@ -25,7 +25,7 @@ directory = "data/history"
 persist_interval_seconds = 60
 
 [cmc]
-enabled = false
+enabled = true
 mapping = "registry/cmc.json"
 directory = "data/cmc"
 quote_seconds = 900

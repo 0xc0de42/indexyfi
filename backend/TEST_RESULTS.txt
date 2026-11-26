@@ -15,3 +15,12 @@ LIVE ATLAS (2026-11-25):
 - ind_server.verify --seconds 60: 70 feeds observed, 66/66 assets selected
 - server: cache initialized ~2s after connect; /snapshot 200 with 66 prices every second
 - Parquet: one file per UTC minute (66 rows); /history 200
+
+CMC BACKEND INTEGRATION (2026-11-26):
+- approved mapping: 66/66 assets (33 exact_token, 33 underlying_reference)
+- live latest batch: 66/66 quotes parsed, 1 measured credit
+- live historical batch: 1,956 observations persisted, 20 measured credits
+- history coverage: 2026-10-27 through 2026-11-25; ANTB available from 2026-11-20
+- local HTTP: /v1/cmc/assets, /v1/cmc/quotes and /v1/cmc/history validated
+- no-key read path: persisted history hydrates without provider access
+- bash check.sh: PASS (40 passed, 0 skipped; strict mypy includes ind_cmc)

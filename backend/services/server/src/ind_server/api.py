@@ -75,6 +75,7 @@ def make_app(
     origin: str,
     cmc: Maybe[CmcCache] = Nothing,
     cmc_history_days: int = 30,
+    cmc_history_max_query_days: int = 365,
 ) -> web.Application:
     @web.middleware
     async def cors(
@@ -129,7 +130,7 @@ def make_app(
     app.router.add_get("/history", historical)
     match cmc:
         case Some(cache):
-            add_cmc_routes(app, cache, cmc_history_days)
+            add_cmc_routes(app, cache, cmc_history_days, cmc_history_max_query_days)
     return app
 
 

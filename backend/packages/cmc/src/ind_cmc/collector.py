@@ -2,17 +2,24 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
+from typing import Protocol
 
 from returns.maybe import Some
-from returns.result import Failure, Success
+from returns.result import Failure, Result, Success
 
-from ind_cmc.client import Client, Endpoint
+from ind_cmc.client import Endpoint, Payload
 from ind_cmc.errors import CmcError, CmcErrorCode
 from ind_cmc.models import CmcAssetId, Kind, Mapping, MarketQuote
 from ind_cmc.parsers import historical, quotes
 from ind_cmc.storage import Series, Store
 
 log = logging.getLogger("cmc")
+
+
+class Provider(Protocol):
+    async def get(
+        self, endpoint: Endpoint, params: dict[str, str]
+    ) -> Result[Payload, CmcError]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,7 +48,18 @@ class Cache:
         )
 
 
-async def poll_quotes(client: Client, cache: Cache, kind: Kind) -> None:
+def hydrate(cache: Cache, store: Store) -> None:
+    """Load every approved persisted series without requiring provider access."""
+    for kind in Kind:
+        for cid in cache.ids(kind):
+            match store.read(cid):
+                case Failure(CmcError() as error):
+                    cache.history_errors[cid] = error
+                case Success(series):
+                    cache.history[cid] = series
+
+
+async def poll_quotes(client: Provider, cache: Cache, kind: Kind) -> None:
     ids = cache.ids(kind)
     for offset in range(0, len(ids), 250):
         batch = ids[offset : offset + 250]
@@ -87,7 +105,7 @@ def request_start(series: Series, end: date, initial_days: int, max_days: int) -
 
 
 async def refresh_history(
-    client: Client, cache: Cache, store: Store, kind: Kind, end: date, policy: Policy
+    client: Provider, cache: Cache, store: Store, kind: Kind, end: date, policy: Policy
 ) -> None:
     ids = cache.ids(kind)
     groups: dict[date, list[CmcAssetId]] = {}
@@ -111,7 +129,9 @@ async def refresh_history(
             key: ",".join(str(cid.value) for cid in group),
             "interval": "daily",
             "convert": "USD",
-            "time_start": start.isoformat(),
+            # CMC daily intervals begin after the supplied boundary. Request the
+            # preceding boundary, then let the parser enforce [start, end).
+            "time_start": (start - timedelta(days=1)).isoformat(),
             "time_end": (end - timedelta(days=1)).isoformat(),
             "skip_invalid": "true",
         }
@@ -141,7 +161,7 @@ async def refresh_history(
                                     cache.history_errors.pop(cid, None)
 
 
-async def collect(client: Client, cache: Cache, store: Store, policy: Policy) -> None:
+async def collect(client: Provider, cache: Cache, store: Store, policy: Policy) -> None:
     async def quote_loop() -> None:
         while True:
             await poll_quotes(client, cache, Kind.CRYPTO)
@@ -165,10 +185,12 @@ async def collect(client: Client, cache: Cache, store: Store, policy: Policy) ->
 
 __all__ = [
     "Policy",
+    "Provider",
     "Cache",
     "poll_quotes",
     "completed_end",
     "request_start",
+    "hydrate",
     "refresh_history",
     "collect",
 ]

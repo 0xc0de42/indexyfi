@@ -35,3 +35,19 @@ signature authenticity is not checked by this read-only collector.
   should bound requested time ranges before any non-local deployment.
 - Provider behavior should be reverified if the API key, feed catalog, channel
   contract, or selected registry changes.
+
+## CMC integration loop — 2026-11-26
+
+| Area | Result |
+|---|---|
+| Approved identities | 66 mappings: 33 exact tokens and 33 underlying references |
+| Persisted daily history | 66/66 series; 1,956 observations; 2026-10-27 through 2026-11-25 |
+| Local HTTP validation | Three `/v1/cmc/*` endpoints served all mappings and histories |
+| Live Basic-key validation | 66/66 latest quotes; one credit; historical batch 20 credits |
+| Static quality | Ruff lint/format and strict mypy passed, including `ind_cmc` |
+| Automated tests | 40 passed, 0 skipped |
+
+The bounded loop corrected the CMC daily boundary so a fresh initialization requests 30 completed
+UTC observations. Established assets now have all 30 days locally; newly listed ANTB has the six
+observations CMC returned. Provider failures preserve cached data and older valid quote arrivals
+replace newer ones as required. No historical gap scan or repair policy was introduced.
