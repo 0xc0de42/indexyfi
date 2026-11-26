@@ -98,13 +98,33 @@ async function main() {
     let pair = await pcs.getPair(a.address, OFFICIAL.usd);
     if (pair !== ethers.ZeroAddress) {
       const [r0, r1] = await new ethers.Contract(pair, PAIR, provider).getReserves();
-      if (r0 > 0n && r1 > 0n) { rec.pools[a.symbol] = rec.pools[a.symbol] ?? {pair}; continue; }
+      if (r0 > 0n && r1 > 0n) {
+        // Existing pool (e.g. seeded by another run): deepen it to the target at its current ratio, never re-price it.
+        const usdIs0 = (await new ethers.Contract(pair, PAIR, provider).token0()).toLowerCase() === OFFICIAL.usd.toLowerCase();
+        const [rUsd, rAsset] = usdIs0 ? [r0, r1] : [r1, r0], target = POOL_USD * 10n ** 18n;
+        if (rUsd < target) {
+          const addUsd = target - rUsd, addAsset = (addUsd * rAsset) / rUsd;
+          if (!APPLY) { console.log(`pool ${a.symbol}: DEEPEN ${ethers.formatUnits(rUsd, 18)} -> ${POOL_USD} USD at the current ratio`); }
+          else {
+            await (await new ethers.Contract(a.address, ERC20, signer).mint(pair, addAsset)).wait();
+            await (await usd.mint(pair, addUsd)).wait();
+            const r = await (await new ethers.Contract(pair, PAIR, signer).mint(from)).wait();
+            rec.pools[a.symbol] = {...(rec.pools[a.symbol] ?? {pair}), deepenedTo: POOL_USD, deepenTx: r.hash};
+            save();
+            console.log(`pool ${a.symbol}: deepened ${pair} to ${POOL_USD} USD`);
+          }
+        } else rec.pools[a.symbol] = rec.pools[a.symbol] ?? {pair};
+        continue;
+      }
     }
     const usdAmt = POOL_USD * 10n ** 18n, assetAmt = (POOL_USD * 10n ** BigInt(a.decimals) * 10n ** 18n) / price;
     if (!APPLY) { console.log(`pool ${a.symbol}: CREATE+SEED ${POOL_USD} USD + ${ethers.formatUnits(assetAmt, a.decimals)} ${a.symbol} @ ${ethers.formatUnits(price, 18)}`); continue; }
     if (pair === ethers.ZeroAddress) { await (await pcs.createPair(a.address, OFFICIAL.usd)).wait(); pair = await pcs.getPair(a.address, OFFICIAL.usd); }
-    await (await new ethers.Contract(a.address, ERC20, signer).mint(pair, assetAmt)).wait();
-    await (await usd.mint(pair, usdAmt)).wait();
+    // Re-runs after an interrupted seed top up to the target instead of minting twice (no mispriced pools).
+    const assetToken = new ethers.Contract(a.address, ERC20, signer);
+    const haveAsset = await assetToken.balanceOf(pair), haveUsd = await usd.balanceOf(pair);
+    if (haveAsset < assetAmt) await (await assetToken.mint(pair, assetAmt - haveAsset)).wait();
+    if (haveUsd < usdAmt) await (await usd.mint(pair, usdAmt - haveUsd)).wait();
     const r = await (await new ethers.Contract(pair, PAIR, signer).mint(from)).wait();
     rec.pools[a.symbol] = {pair, usd: usdAmt, asset: assetAmt, priceUsd: ethers.formatUnits(price, 18), tx: r.hash};
     save(); created++;

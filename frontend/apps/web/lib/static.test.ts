@@ -52,7 +52,10 @@ describe('transport boundaries', () => {
       expect(source, path).not.toMatch(/NEXT_PUBLIC_/);
     }
     const importers = files.filter(path => /from\s+['"][^'"]*lib\/server\//.test(readFileSync(path, 'utf8'))).map(path => relative(web, path));
-    expect(importers).toEqual([join('app', 'api', 'atlas', 'signed', 'route.ts')]);
+    expect(importers).toEqual([
+      join('app', 'api', 'atlas', 'signed', 'route.ts'),
+      join('app', 'api', 'flap', 'launch', 'prepare', 'route.ts'),
+    ]);
   });
 
   it('issues /snapshot requests only from the API client', () => {
