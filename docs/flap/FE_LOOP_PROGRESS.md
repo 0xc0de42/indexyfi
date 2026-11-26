@@ -13,4 +13,4 @@ update this file. Stop when every task is done.
 | O2 | Simulated rebalance history from stored Atlas prices | done | 24 h replay of stored Atlas prices at schedule boundaries |
 | 1 | Flap lifecycle through the UI with a wallet on chain 97 | done | Vault 0xe4f813a7D4d11710a02E7ED4dCEBe17Eabb724cc (token …7777): UI launch, deposit, graduation (Buy/Sell appeared), buy, sell, cash and in-kind redemption, Forward to creator, all confirmed. Found and fixed: quote errors now readable on Flap; Flap labels on the vault page; pools pushed >5% by a large deposit are realigned with scripts/flap-realign-pools.cjs |
 | 5 | Soft graduation for Flap | decided | Keep the OpenFour rule (Buy/Sell after 10k AUM) for consistency; no user answer, default taken |
-| 7 | Merge feat/flop into main and push | open | last |
+| 7 | Merge feat/flop into main and push | done | main 50b7371 (pushed), after typecheck, 156 frontend tests, production build, 39 + 18 contract tests |
