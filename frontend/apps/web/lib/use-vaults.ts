@@ -99,7 +99,7 @@ const testMintAbi=parseAbi(['function mint(address to,uint256 amount)']);
 /** POST /api/flap/launch/prepare: request id, mined …7777 salt, predicted token and launchAuthorization (unsigned data). */
 async function prepareFlap(d:Deployment,creator:Address,action:{basket:Basket;seed:bigint;liquidity:bigint}){
   const response=await fetch('/api/flap/launch/prepare',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({
-    chainId:d.chainId,creator,name:action.basket.name,symbol:action.basket.symbol,metadataURI:action.basket.metadataURI,
+    provider:'flap',chainId:d.chainId,creator,name:action.basket.name,symbol:action.basket.symbol,metadataURI:action.basket.metadataURI,
     constituents:action.basket.constituents.map(c=>({token:c.token,weightBps:c.weightBps})),seed:action.seed.toString(),liquidity:action.liquidity.toString()})});
   const body=await response.json().catch(()=>null) as {requestId?:string;launchAuthorization?:`0x${string}`;predictedToken?:Address;error?:string;message?:string}|null;
   if(!response.ok||!body?.requestId||!body.launchAuthorization||!body.predictedToken) throw Error(`Flap launch preparation failed: ${body?.message??body?.error??response.status}`);

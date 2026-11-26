@@ -17,7 +17,7 @@ export type IndexRule = {
   /** Per-constituent weight cap in bps (0 = none); applies to cap weighting. */
   readonly maxWeightBps: number;
 };
-export const INDEX_SIZES = [5, 10, 15, 20] as const;
+export const INDEX_SIZES = [3, 5, 10, 15, 20] as const;
 export const INDEX_CAPS_BPS = [0, 1_000, 2_500, 3_500] as const;
 export const DEFAULT_INDEX_RULE: IndexRule = {kind: 'manual', universe: 'Tokenized equity', size: 10, weighting: 'cap', maxWeightBps: 2_500};
 

@@ -12,6 +12,9 @@ const {decodeAtlasPayload} = require('../test/atlas-payload');
 const ROOT = path.resolve(__dirname, '..'), REPO = path.resolve(ROOT, '../..');
 const RPC = process.env.FLAP_RPC || 'https://bsc-testnet-rpc.publicnode.com';
 const APPLY = process.env.FLAP_APPLY === '1', MIN_BPS = BigInt(process.env.FLAP_REALIGN_MIN_BPS || '50');
+// Optional: deepen selected pools (FLAP_SYMBOLS=ETH,XRP) to at least FLAP_DEPTH_USD on the Flap-USD side.
+const ONLY = process.env.FLAP_SYMBOLS ? new Set(process.env.FLAP_SYMBOLS.split(',')) : null;
+const DEPTH = BigInt(process.env.FLAP_DEPTH_USD || '0') * 10n ** 18n;
 const env = (file, name) => { const l = fs.readFileSync(file, 'utf8').split('\n').find(x => x.startsWith(`${name}=`)); return l ? l.slice(name.length + 1).trim().replace(/^['"]|['"]$/g, '') : undefined; };
 const PAIR = ['function getReserves() view returns (uint112,uint112,uint32)', 'function token0() view returns (address)', 'function sync()'];
 const max = (...xs) => xs.reduce((a, b) => (b > a ? b : a));
@@ -33,6 +36,7 @@ async function main() {
   }
   let changed = 0;
   for (const a of rec.assets) {
+    if (ONLY && !ONLY.has(a.symbol)) continue;
     const p = prices.get(a.feedId); if (!p) continue;
     const pc = new ethers.Contract(a.pair, PAIR, signer ?? provider);
     const [r0, r1] = await pc.getReserves();
@@ -40,8 +44,8 @@ async function main() {
     const c0 = usdIs0 ? r0 : r1, t0 = usdIs0 ? r1 : r0, scale = 10n ** BigInt(a.decimals);
     const poolPrice = (c0 * scale) / t0; // 18-decimal USD per whole token (Flap USD has 18 decimals)
     const gapBps = ((poolPrice > p ? poolPrice - p : p - poolPrice) * 10_000n) / p;
-    if (gapBps < MIN_BPS) continue;
-    const C = max(c0, (t0 * p) / scale + 1n), T = max(t0, (C * scale) / p);
+    if (gapBps < MIN_BPS && c0 >= DEPTH) continue;
+    const C = max(DEPTH, c0, (t0 * p) / scale + 1n), T = max(t0, (C * scale) / p);
     console.log(`${a.symbol.padEnd(8)} pool ${ethers.formatUnits(poolPrice, 18)} vs Atlas ${ethers.formatUnits(p, 18)} (${Number(gapBps) / 100}% off)${APPLY ? '' : ' → would realign'}`);
     if (!APPLY) continue;
     if (C > c0) await (await usd.mint(a.pair, C - c0)).wait();

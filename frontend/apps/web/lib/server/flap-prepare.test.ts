@@ -17,7 +17,7 @@ const input: FlapPrepareInput = {chainId:97,creator:'0xB64c94312De7Ff21FBb7f323B
 
 describe('Flap launch preparation', () => {
   it('mines and returns a stateless unlocked authorization', async () => {
-    const out = await prepareFlapLaunch(input, manifest as FlapManifest);
+    const out = await prepareFlapLaunch(input, manifest as FlapManifest, {getCode: async () => '0x'});
     expect(out.predictedToken.toLowerCase().endsWith('7777')).toBe(true);
     expect(out.launchAuthorization).toBe(out.salt);
     expect(out.feedIds).toEqual([632]);
